@@ -25,7 +25,7 @@ export default function AppLayout() {
           className="text-xs font-medium text-center py-1.5 px-4 flex-shrink-0"
           style={{ background: 'linear-gradient(90deg,#7B68EE,#FF6BCA)', color: '#fff', letterSpacing: '0.02em' }}
         >
-          ✦ Modo demo activo — conecta Supabase para guardar datos reales
+          ✦ Modo demo activo
         </div>
       )}
       <div className="flex flex-1 overflow-hidden">

@@ -57,14 +57,15 @@ export default function Sidebar({ onStartTour }) {
     >
       {/* Workspace header */}
       <div className="flex items-center gap-2.5 px-3 py-4" style={{ borderBottom: '1px solid #2E2E4A' }}>
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: 'linear-gradient(180deg,#1A1A2E,#13131F)', border: '1.5px solid #2E2E4A' }}>
-          <Timer size={16} style={{ color: '#7B68EE' }} />
-        </div>
-        {!collapsed && (
+        {collapsed ? (
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'linear-gradient(180deg,#1A1A2E,#13131F)', border: '1.5px solid #2E2E4A' }}>
+            <Timer size={16} style={{ color: '#7B68EE' }} />
+          </div>
+        ) : (
           <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-semibold truncate leading-tight">{workspace?.name || 'MyTrack'}</p>
-            <p className="text-xs truncate" style={{ color: '#6B6B8A' }}>{user?.email}</p>
+            <img src="/logo-xul.png" alt="XUL" style={{ height: 28, objectFit: 'contain', objectPosition: 'left' }} />
+            <p className="text-xs truncate mt-1" style={{ color: '#6B6B8A' }}>{user?.email}</p>
           </div>
         )}
         {!collapsed && <ChevronDown size={14} style={{ color: '#6B6B8A', flexShrink: 0 }} />}

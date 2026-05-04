@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Timer, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function Login() {
@@ -43,14 +43,8 @@ export default function Login() {
         className="hidden lg:flex flex-col justify-between w-[480px] flex-shrink-0 p-12"
         style={{ background: 'linear-gradient(145deg, #13131F 0%, #1A1A2E 60%, #1E1235 100%)' }}
       >
-        <div className="flex items-center gap-3">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ background: 'linear-gradient(180deg,#1A1A2E,#13131F)', border: '1.5px solid #2E2E4A' }}
-          >
-            <Timer size={20} style={{ color: '#7B68EE' }} />
-          </div>
-          <span className="text-white font-bold text-lg">MyTrack</span>
+        <div>
+          <img src="/logo-xul.png" alt="XUL" style={{ height: 36, objectFit: 'contain' }} />
         </div>
 
         <div>
@@ -83,15 +77,9 @@ export default function Login() {
       {/* Right panel */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="flex lg:hidden items-center gap-2 mb-8 justify-center">
-            <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(180deg,#1A1A2E,#13131F)', border: '1.5px solid #2E2E4A' }}
-            >
-              <Timer size={18} style={{ color: '#7B68EE' }} />
-            </div>
-            <span className="text-white font-bold">MyTrack</span>
+          {/* Logo above form */}
+          <div className="flex justify-center mb-8">
+            <img src="/logo-xul.png" alt="XUL" style={{ height: 40, objectFit: 'contain' }} />
           </div>
 
           <h1 className="text-2xl font-bold text-white mb-1">

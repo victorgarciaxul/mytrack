@@ -1,74 +1,109 @@
 import { useState } from 'react'
-import { Plus, Briefcase, Trash2, ChevronRight } from 'lucide-react'
+import { Plus, Briefcase, Trash2, ChevronDown, ChevronRight, Tag, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useWorkspace } from '../context/WorkspaceContext'
+import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
 const COLORS = ['#7B68EE','#6B4EFF','#FF6BCA','#FF4757','#FF7F50','#FFC107','#4CAF50','#26C6DA','#42A5F5','#26A69A']
 
-function PageHeader({ title, subtitle, action }) {
-  return (
-    <div className="px-6 py-6 flex items-start justify-between">
-      <div>
-        <h1 className="text-lg font-bold" style={{ color: '#1A1A2E' }}>{title}</h1>
-        <p className="text-xs mt-0.5" style={{ color: '#9090B0' }}>{subtitle}</p>
-      </div>
-      {action}
-    </div>
-  )
-}
-
 export default function Projects() {
-  const { workspace, projects, clients, loadProjects } = useWorkspace()
+  const { workspace, projects, clients, tasks, loadProjects, loadTasks } = useWorkspace()
+  const { isDemo } = useAuth()
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [clientId, setClientId] = useState('')
+  const [budgetHours, setBudgetHours] = useState('')
   const [color, setColor] = useState(COLORS[0])
   const [saving, setSaving] = useState(false)
+  const [expandedProject, setExpandedProject] = useState(null)
+  const [newTaskName, setNewTaskName] = useState('')
+  const [newTaskHours, setNewTaskHours] = useState('')
+  const [addingTaskFor, setAddingTaskFor] = useState(null)
 
   async function handleCreate(e) {
     e.preventDefault()
     if (!name.trim()) return
     setSaving(true)
-    const { error } = await supabase.from('projects').insert({ workspace_id: workspace.id, name: name.trim(), client_id: clientId || null, color })
+    if (isDemo) {
+      toast.success('Proyecto creado (demo)')
+      setName(''); setClientId(''); setBudgetHours(''); setColor(COLORS[0]); setShowForm(false)
+      setSaving(false)
+      return
+    }
+    const { error } = await supabase.from('projects').insert({
+      workspace_id: workspace.id,
+      name: name.trim(),
+      client_id: clientId || null,
+      color,
+      budget_hours: budgetHours ? parseFloat(budgetHours) : null,
+    })
     setSaving(false)
     if (error) { toast.error('Error'); return }
     toast.success('Proyecto creado')
-    setName(''); setClientId(''); setColor(COLORS[0]); setShowForm(false)
+    setName(''); setClientId(''); setBudgetHours(''); setColor(COLORS[0]); setShowForm(false)
     loadProjects(workspace.id)
   }
 
   async function handleDelete(id) {
     if (!confirm('¿Eliminar este proyecto?')) return
+    if (isDemo) { toast.success('Eliminado (demo)'); return }
     await supabase.from('projects').delete().eq('id', id)
     toast.success('Eliminado')
     loadProjects(workspace.id)
   }
 
+  async function handleAddTask(projectId) {
+    if (!newTaskName.trim()) return
+    if (isDemo) {
+      toast.success('Tarea creada (demo)')
+      setNewTaskName(''); setNewTaskHours(''); setAddingTaskFor(null)
+      return
+    }
+    const { error } = await supabase.from('tasks').insert({
+      project_id: projectId,
+      name: newTaskName.trim(),
+      estimated_hours: newTaskHours ? parseFloat(newTaskHours) : null,
+    })
+    if (error) { toast.error('Error al crear tarea'); return }
+    toast.success('Tarea creada')
+    setNewTaskName(''); setNewTaskHours(''); setAddingTaskFor(null)
+    loadTasks(projects.map(p => p.id))
+  }
+
+  async function handleDeleteTask(taskId) {
+    if (isDemo) { toast.success('Tarea eliminada (demo)'); return }
+    await supabase.from('tasks').delete().eq('id', taskId)
+    toast.success('Tarea eliminada')
+    loadTasks(projects.map(p => p.id))
+  }
+
+  const inputStyle = { background: '#F4F4FA', border: '1.5px solid #E8E8F0', color: '#1A1A2E', borderRadius: 10 }
+
   return (
-    <div>
-      <PageHeader
-        title="Proyectos"
-        subtitle={`${projects.length} proyectos activos`}
-        action={
-          <button onClick={() => setShowForm(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all"
-            style={{ background: 'linear-gradient(135deg,#7B68EE,#6B4EFF)', boxShadow: '0 4px 14px rgba(107,78,255,0.3)' }}>
-            <Plus size={15} />Nuevo proyecto
-          </button>
-        }
-      />
+    <div className="flex flex-col h-full overflow-y-auto">
+      <div className="px-6 pt-6 pb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold" style={{ color: '#1A1A2E' }}>Proyectos</h1>
+          <p className="text-xs mt-0.5" style={{ color: '#9090B0' }}>{projects.length} proyectos activos</p>
+        </div>
+        <button onClick={() => setShowForm(true)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all"
+          style={{ background: 'linear-gradient(135deg,#7B68EE,#6B4EFF)', boxShadow: '0 4px 14px rgba(107,78,255,0.3)' }}>
+          <Plus size={15} />Nuevo proyecto
+        </button>
+      </div>
 
       {showForm && (
         <div className="mx-6 mb-5 rounded-2xl p-5" style={{ background: '#fff', border: '1.5px solid #E8E8F0', boxShadow: '0 4px 20px rgba(107,78,255,0.08)' }}>
           <h3 className="font-bold text-sm mb-4" style={{ color: '#1A1A2E' }}>Nuevo proyecto</h3>
           <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-1">
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9090B0' }}>Nombre *</label>
                 <input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nombre del proyecto"
-                  className="w-full px-3.5 py-2.5 text-sm rounded-xl outline-none transition-all"
-                  style={{ background: '#F4F4FA', border: '1.5px solid #E8E8F0', color: '#1A1A2E' }}
+                  className="w-full px-3.5 py-2.5 text-sm outline-none transition-all"
+                  style={inputStyle}
                   onFocus={e => Object.assign(e.target.style, { borderColor: '#7B68EE', background: '#fff' })}
                   onBlur={e => Object.assign(e.target.style, { borderColor: '#E8E8F0', background: '#F4F4FA' })}
                 />
@@ -76,11 +111,20 @@ export default function Projects() {
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9090B0' }}>Cliente</label>
                 <select value={clientId} onChange={e => setClientId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm rounded-xl outline-none"
-                  style={{ background: '#F4F4FA', border: '1.5px solid #E8E8F0', color: '#1A1A2E' }}>
+                  className="w-full px-3.5 py-2.5 text-sm outline-none"
+                  style={inputStyle}>
                   <option value="">Sin cliente</option>
                   {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9090B0' }}>Presupuesto (h)</label>
+                <input type="number" min="0" value={budgetHours} onChange={e => setBudgetHours(e.target.value)} placeholder="120"
+                  className="w-full px-3.5 py-2.5 text-sm outline-none transition-all"
+                  style={inputStyle}
+                  onFocus={e => Object.assign(e.target.style, { borderColor: '#7B68EE', background: '#fff' })}
+                  onBlur={e => Object.assign(e.target.style, { borderColor: '#E8E8F0', background: '#F4F4FA' })}
+                />
               </div>
             </div>
             <div>
@@ -88,9 +132,10 @@ export default function Projects() {
               <div className="flex gap-2">
                 {COLORS.map(c => (
                   <button key={c} type="button" onClick={() => setColor(c)}
-                    className="w-7 h-7 rounded-full transition-all"
-                    style={{ background: c, transform: color === c ? 'scale(1.3)' : 'scale(1)', outline: color === c ? `3px solid ${c}40` : 'none', outlineOffset: 2 }}
-                  />
+                    className="w-7 h-7 rounded-full transition-all flex items-center justify-center"
+                    style={{ background: c, transform: color === c ? 'scale(1.25)' : 'scale(1)', outline: color === c ? `3px solid ${c}50` : 'none', outlineOffset: 2 }}>
+                    {color === c && <Check size={12} color="white" />}
+                  </button>
                 ))}
               </div>
             </div>
@@ -108,7 +153,7 @@ export default function Projects() {
         </div>
       )}
 
-      <div className="px-6 pb-6">
+      <div className="px-6 pb-6 space-y-3">
         {projects.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
@@ -119,38 +164,139 @@ export default function Projects() {
             <p className="text-sm mt-1" style={{ color: '#9090B0' }}>Crea tu primer proyecto para empezar</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.map(project => (
-              <div key={project.id} className="group rounded-2xl p-5 transition-all"
-                style={{ background: '#fff', border: '1.5px solid #E8E8F0', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}
-                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 8px 24px rgba(107,78,255,0.1)'}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 8px rgba(0,0,0,0.04)'}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${project.color}18` }}>
-                      <Briefcase size={18} style={{ color: project.color }} />
-                    </div>
-                    <div>
+          projects.map(project => {
+            const projectTasks = tasks.filter(t => t.project_id === project.id)
+            const isExpanded = expandedProject === project.id
+            const isAddingTask = addingTaskFor === project.id
+
+            return (
+              <div key={project.id} className="rounded-2xl overflow-hidden"
+                style={{ background: '#fff', border: '1.5px solid #E8E8F0', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
+                {/* Project header */}
+                <div className="flex items-center gap-4 px-5 py-4"
+                  style={{ borderBottom: isExpanded ? '1px solid #F0F0F8' : 'none' }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${project.color}18` }}>
+                    <Briefcase size={16} style={{ color: project.color }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
                       <h3 className="font-bold text-sm" style={{ color: '#1A1A2E' }}>{project.name}</h3>
-                      {project.clients && <p className="text-xs mt-0.5" style={{ color: '#9090B0' }}>{project.clients.name}</p>}
+                      {project.clients && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#F4F4FA', color: '#9090B0' }}>{project.clients.name}</span>}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-xs" style={{ color: '#9090B0' }}>
+                        <span className="font-semibold" style={{ color: '#6B6B8A' }}>{projectTasks.length}</span> tareas
+                      </span>
+                      {project.budget_hours && (
+                        <span className="text-xs" style={{ color: '#9090B0' }}>
+                          Presupuesto: <span className="font-numeric font-semibold" style={{ color: '#4A4A6A' }}>{project.budget_hours}h</span>
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <button onClick={() => handleDelete(project.id)}
-                    className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                    style={{ color: '#C0C0D8' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; e.currentTarget.style.color = '#FF4757' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#C0C0D8' }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { setAddingTaskFor(isAddingTask ? null : project.id); setExpandedProject(project.id); setNewTaskName(''); setNewTaskHours('') }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                      style={{ background: 'rgba(123,104,238,0.08)', color: '#7B68EE' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(123,104,238,0.15)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(123,104,238,0.08)'}
+                    >
+                      <Plus size={12} />Tarea
+                    </button>
+                    <button
+                      onClick={() => setExpandedProject(isExpanded ? null : project.id)}
+                      className="p-1.5 rounded-lg transition-all"
+                      style={{ color: '#9090B0' }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#F4F4FA'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                    </button>
+                    <button onClick={() => handleDelete(project.id)}
+                      className="p-1.5 rounded-lg transition-all"
+                      style={{ color: '#C0C0D8' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; e.currentTarget.style.color = '#FF4757' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#C0C0D8' }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
-                <div className="w-full rounded-full h-1.5" style={{ background: '#F0F0F8' }}>
-                  <div className="h-1.5 rounded-full" style={{ width: '45%', background: project.color }} />
-                </div>
+
+                {/* Tasks list */}
+                {isExpanded && (
+                  <div>
+                    {projectTasks.length === 0 && !isAddingTask && (
+                      <p className="px-5 py-4 text-sm text-center" style={{ color: '#C0C0D8' }}>Sin tareas — añade la primera</p>
+                    )}
+                    {projectTasks.map((t, i) => (
+                      <div key={t.id} className="group flex items-center gap-3 px-5 py-3 transition-colors"
+                        style={{ borderBottom: i < projectTasks.length - 1 || isAddingTask ? '1px solid #F8F8FC' : 'none' }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: project.color }} />
+                        <Tag size={12} style={{ color: '#B0B0C8', flexShrink: 0 }} />
+                        <span className="flex-1 text-sm" style={{ color: '#4A4A6A' }}>{t.name}</span>
+                        {t.estimated_hours && (
+                          <span className="font-numeric text-xs px-2 py-0.5 rounded-full" style={{ background: '#F4F4FA', color: '#9090B0' }}>
+                            {t.estimated_hours}h est.
+                          </span>
+                        )}
+                        <button onClick={() => handleDeleteTask(t.id)}
+                          className="p-1 rounded opacity-0 group-hover:opacity-100 transition-all"
+                          style={{ color: '#C0C0D8' }}
+                          onMouseEnter={e => { e.currentTarget.style.color = '#FF4757'; e.currentTarget.style.background = 'rgba(255,71,87,0.08)' }}
+                          onMouseLeave={e => { e.currentTarget.style.color = '#C0C0D8'; e.currentTarget.style.background = 'transparent' }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+
+                    {isAddingTask && (
+                      <div className="flex items-center gap-3 px-5 py-3" style={{ background: 'rgba(123,104,238,0.03)' }}>
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: project.color }} />
+                        <input
+                          autoFocus
+                          type="text"
+                          value={newTaskName}
+                          onChange={e => setNewTaskName(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleAddTask(project.id); if (e.key === 'Escape') setAddingTaskFor(null) }}
+                          placeholder="Nombre de la tarea"
+                          className="flex-1 text-sm px-2.5 py-1.5 rounded-lg outline-none"
+                          style={{ background: '#F4F4FA', border: '1.5px solid #7B68EE', color: '#1A1A2E' }}
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          value={newTaskHours}
+                          onChange={e => setNewTaskHours(e.target.value)}
+                          placeholder="h est."
+                          className="w-20 text-sm px-2.5 py-1.5 rounded-lg outline-none"
+                          style={{ background: '#F4F4FA', border: '1.5px solid #E8E8F0', color: '#1A1A2E' }}
+                        />
+                        <button onClick={() => handleAddTask(project.id)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all"
+                          style={{ background: 'linear-gradient(135deg,#7B68EE,#6B4EFF)' }}>
+                          Añadir
+                        </button>
+                        <button onClick={() => setAddingTaskFor(null)}
+                          className="p-1.5 rounded-lg transition-all"
+                          style={{ color: '#9090B0' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#F4F4FA'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <Plus size={13} style={{ transform: 'rotate(45deg)' }} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
+            )
+          })
         )}
       </div>
     </div>

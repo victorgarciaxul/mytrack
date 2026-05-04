@@ -1,17 +1,27 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { useWorkspace } from '../../context/WorkspaceContext'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
 export default function ManualEntryModal({ onClose, onSave, projects, workspace, user, isDemo, onDemoSave }) {
+  const { getTasksForProject } = useWorkspace()
   const today = format(new Date(), 'yyyy-MM-dd')
   const [desc, setDesc] = useState('')
   const [date, setDate] = useState(today)
   const [startTime, setStartTime] = useState('09:00')
   const [endTime, setEndTime] = useState('10:00')
   const [projectId, setProjectId] = useState('')
+  const [taskId, setTaskId] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const projectTasks = projectId ? getTasksForProject(projectId) : []
+
+  function handleProjectChange(newProjectId) {
+    setProjectId(newProjectId)
+    setTaskId('')
+  }
 
   async function handleSave() {
     const start = new Date(`${date}T${startTime}`)
@@ -22,16 +32,19 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
 
     if (isDemo) {
       const project = projects.find(p => p.id === projectId)
+      const task = projectTasks.find(t => t.id === taskId)
       onDemoSave?.({
         id: `demo-${Date.now()}`,
         workspace_id: workspace.id,
         user_id: user.id,
         description: desc || '(sin descripción)',
         project_id: projectId || null,
+        task_id: taskId || null,
         start_time: start.toISOString(),
         end_time: end.toISOString(),
         duration,
         projects: project ? { name: project.name, color: project.color, clients: project.clients } : null,
+        tasks: task ? { name: task.name } : null,
       })
       toast.success('Entrada añadida')
       setSaving(false)
@@ -44,6 +57,7 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
       user_id: user.id,
       description: desc || '(sin descripción)',
       project_id: projectId || null,
+      task_id: taskId || null,
       start_time: start.toISOString(),
       end_time: end.toISOString(),
       duration,
@@ -90,13 +104,24 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9090B0' }}>Proyecto</label>
-            <select value={projectId} onChange={e => setProjectId(e.target.value)}
+            <select value={projectId} onChange={e => handleProjectChange(e.target.value)}
               className="w-full px-3.5 py-2.5 text-sm outline-none transition-all"
               style={inputStyle}>
               <option value="">Sin proyecto</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
+          {projectId && (
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9090B0' }}>Tarea</label>
+              <select value={taskId} onChange={e => setTaskId(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-sm outline-none transition-all"
+                style={inputStyle}>
+                <option value="">Sin tarea</option>
+                {projectTasks.map(t => <option key={t.id} value={t.id}>{t.name}{t.estimated_hours ? ` (${t.estimated_hours}h est.)` : ''}</option>)}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9090B0' }}>Fecha</label>
             <input type="date" value={date} onChange={e => setDate(e.target.value)}

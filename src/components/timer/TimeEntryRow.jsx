@@ -8,6 +8,7 @@ export default function TimeEntryRow({ entry, onDelete, onRefresh, projects, for
   const [desc, setDesc] = useState(entry.description)
   const [saving, setSaving] = useState(false)
   const project = entry.projects
+  const task = entry.tasks
   const startFmt = format(parseISO(entry.start_time), 'HH:mm')
   const endFmt = entry.end_time ? format(parseISO(entry.end_time), 'HH:mm') : '--:--'
 
@@ -48,12 +49,18 @@ export default function TimeEntryRow({ entry, onDelete, onRefresh, projects, for
             {entry.description || <span style={{ color: '#C0C0D8', fontStyle: 'italic' }}>Sin descripción</span>}
           </p>
         )}
-        {project && (
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: project.color }} />
-            <p className="text-xs" style={{ color: '#9090B0' }}>
-              {project.name}{project.clients ? ` · ${project.clients.name}` : ''}
-            </p>
+        {(project || task) && (
+          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+            {project && <>
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: project.color }} />
+              <p className="text-xs" style={{ color: '#9090B0' }}>
+                {project.name}{project.clients ? ` · ${project.clients.name}` : ''}
+              </p>
+            </>}
+            {task && <>
+              {project && <span className="text-xs" style={{ color: '#C0C0D8' }}>›</span>}
+              <p className="text-xs font-medium" style={{ color: '#7B68EE' }}>{task.name}</p>
+            </>}
           </div>
         )}
       </div>

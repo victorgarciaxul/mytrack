@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Play, Square, Plus, ChevronDown, Briefcase, Clock, X } from 'lucide-react'
+import { Play, Square, Plus, ChevronDown, Clock, Tag } from 'lucide-react'
 import { useTimer } from '../hooks/useTimer'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -13,15 +13,19 @@ import ManualEntryModal from '../components/timer/ManualEntryModal'
 
 export default function Tracker() {
   const { user, isDemo } = useAuth()
-  const { workspace, projects } = useWorkspace()
+  const { workspace, projects, getTasksForProject } = useWorkspace()
   const timer = useTimer()
 
   const [description, setDescription] = useState('')
   const [selectedProject, setSelectedProject] = useState(null)
-  const [entries, setEntries] = useState(isDemo ? demoEntries : [])
+  const [selectedTask, setSelectedTask] = useState(null)
+  const [entries, setEntries] = useState(isDemo ? demoEntries.filter(e => e.user_id === 'demo-user-1') : [])
   const [showProjectPicker, setShowProjectPicker] = useState(false)
+  const [showTaskPicker, setShowTaskPicker] = useState(false)
   const [showManual, setShowManual] = useState(false)
   const [mode, setMode] = useState('timer')
+
+  const projectTasks = selectedProject ? getTasksForProject(selectedProject.id) : []
 
   useEffect(() => {
     if (workspace && !isDemo) loadEntries()
@@ -31,7 +35,7 @@ export default function Tracker() {
     const since = subDays(new Date(), 7).toISOString()
     const { data, error } = await supabase
       .from('time_entries')
-      .select('*, projects(name, color, clients(name))')
+      .select('*, projects(name, color, clients(name)), tasks(name)')
       .eq('workspace_id', workspace.id)
       .eq('user_id', user.id)
       .gte('start_time', since)
@@ -52,14 +56,16 @@ export default function Tracker() {
         user_id: user.id,
         description: description || '(sin descripción)',
         project_id: selectedProject?.id || null,
+        task_id: selectedTask?.id || null,
         start_time: start.toISOString(),
         end_time: end.toISOString(),
         duration: secs,
         projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color, clients: selectedProject.clients } : null,
+        tasks: selectedTask ? { name: selectedTask.name } : null,
       }
       setEntries(prev => [newEntry, ...prev])
       toast.success('Tiempo registrado')
-      timer.reset(); setDescription(''); setSelectedProject(null)
+      timer.reset(); setDescription(''); setSelectedProject(null); setSelectedTask(null)
       return
     }
 
@@ -68,13 +74,14 @@ export default function Tracker() {
       user_id: user.id,
       description: description || '(sin descripción)',
       project_id: selectedProject?.id || null,
+      task_id: selectedTask?.id || null,
       start_time: start.toISOString(),
       end_time: end.toISOString(),
       duration: secs,
     })
     if (error) { toast.error('Error al guardar'); return }
     toast.success('Tiempo registrado')
-    timer.reset(); setDescription(''); setSelectedProject(null)
+    timer.reset(); setDescription(''); setSelectedProject(null); setSelectedTask(null)
     loadEntries()
   }
 
@@ -149,7 +156,7 @@ export default function Tracker() {
             {/* Project picker */}
             <div className="relative">
               <button
-                onClick={() => setShowProjectPicker(p => !p)}
+                onClick={() => { setShowProjectPicker(p => !p); setShowTaskPicker(false) }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                 style={{
                   background: selectedProject ? `${selectedProject.color}18` : '#F4F4FA',
@@ -164,7 +171,7 @@ export default function Tracker() {
               {showProjectPicker && (
                 <div className="absolute right-0 top-full mt-1 w-56 rounded-xl shadow-xl z-20 py-1.5 overflow-hidden"
                   style={{ background: '#fff', border: '1.5px solid #E8E8F0', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
-                  <button onClick={() => { setSelectedProject(null); setShowProjectPicker(false) }}
+                  <button onClick={() => { setSelectedProject(null); setSelectedTask(null); setShowProjectPicker(false) }}
                     className="w-full text-left px-4 py-2 text-xs transition-colors"
                     style={{ color: '#9090B0' }}
                     onMouseEnter={e => e.currentTarget.style.background = '#F4F4FA'}
@@ -174,7 +181,7 @@ export default function Tracker() {
                   </button>
                   {projects.map(p => (
                     <button key={p.id}
-                      onClick={() => { setSelectedProject(p); setShowProjectPicker(false) }}
+                      onClick={() => { setSelectedProject(p); setSelectedTask(null); setShowProjectPicker(false) }}
                       className="w-full text-left px-4 py-2.5 text-xs flex items-center gap-2.5 transition-colors"
                       style={{ color: '#1A1A2E' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#F4F4FA'}
@@ -188,6 +195,53 @@ export default function Tracker() {
                 </div>
               )}
             </div>
+
+            {/* Task picker — only shown when a project is selected */}
+            {selectedProject && (
+              <div className="relative">
+                <button
+                  onClick={() => { setShowTaskPicker(p => !p); setShowProjectPicker(false) }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                  style={{
+                    background: selectedTask ? 'rgba(123,104,238,0.1)' : '#F4F4FA',
+                    color: selectedTask ? '#7B68EE' : '#9090B0',
+                    border: `1.5px solid ${selectedTask ? 'rgba(123,104,238,0.3)' : '#E8E8F0'}`,
+                  }}
+                >
+                  <Tag size={11} />
+                  {selectedTask?.name || 'Tarea'}
+                  <ChevronDown size={12} />
+                </button>
+                {showTaskPicker && (
+                  <div className="absolute right-0 top-full mt-1 w-52 rounded-xl shadow-xl z-20 py-1.5 overflow-hidden"
+                    style={{ background: '#fff', border: '1.5px solid #E8E8F0', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
+                    <button onClick={() => { setSelectedTask(null); setShowTaskPicker(false) }}
+                      className="w-full text-left px-4 py-2 text-xs transition-colors"
+                      style={{ color: '#9090B0' }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#F4F4FA'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      Sin tarea
+                    </button>
+                    {projectTasks.length === 0 ? (
+                      <p className="px-4 py-2 text-xs" style={{ color: '#C0C0D8' }}>No hay tareas</p>
+                    ) : projectTasks.map(t => (
+                      <button key={t.id}
+                        onClick={() => { setSelectedTask(t); setShowTaskPicker(false) }}
+                        className="w-full text-left px-4 py-2.5 text-xs flex items-center gap-2 transition-colors"
+                        style={{ color: '#1A1A2E' }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#F4F4FA'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#7B68EE' }} />
+                        <span className="flex-1 truncate">{t.name}</span>
+                        {t.estimated_hours && <span style={{ color: '#B0B0C8' }}>{t.estimated_hours}h</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Timer display */}
             <div className="font-numeric text-2xl font-bold w-28 text-center"

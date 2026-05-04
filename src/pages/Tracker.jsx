@@ -108,6 +108,7 @@ export default function Tracker() {
             </p>
           </div>
           <button
+            data-tour="manual-btn"
             onClick={() => setShowManual(true)}
             className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all"
             style={{ background: 'rgba(123,104,238,0.1)', color: '#7B68EE', border: '1px solid rgba(123,104,238,0.2)' }}
@@ -119,7 +120,7 @@ export default function Tracker() {
       </div>
 
       {/* Timer bar */}
-      <div className="mx-6 mb-5 rounded-2xl overflow-hidden" style={{
+      <div data-tour="timer-bar" className="mx-6 mb-5 rounded-2xl overflow-hidden" style={{
         background: '#fff',
         border: '1.5px solid #E8E8F0',
         boxShadow: '0 2px 16px rgba(107,78,255,0.06)',
@@ -154,7 +155,7 @@ export default function Tracker() {
             />
 
             {/* Project picker */}
-            <div className="relative">
+            <div data-tour="project-picker" className="relative">
               <button
                 onClick={() => { setShowProjectPicker(p => !p); setShowTaskPicker(false) }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
@@ -283,7 +284,7 @@ export default function Tracker() {
       </div>
 
       {/* Entries */}
-      <div className="flex-1 px-6 pb-6 space-y-5 overflow-y-auto">
+      <div data-tour="entries-list" className="flex-1 px-6 pb-6 space-y-5 overflow-y-auto">
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"

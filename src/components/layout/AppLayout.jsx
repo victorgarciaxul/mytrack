@@ -1,10 +1,23 @@
 import { Outlet } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import { Toaster } from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
+import AppTour, { useTour } from '../tour/AppTour'
 
 export default function AppLayout() {
   const { isDemo } = useAuth()
+  const { isDone } = useTour()
+  const [tourRunning, setTourRunning] = useState(false)
+
+  // Auto-start tour on first visit
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!isDone()) setTourRunning(true)
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [])
+
   return (
     <div className="flex flex-col h-screen overflow-hidden" style={{ background: '#F4F4FA' }}>
       {isDemo && (
@@ -16,9 +29,9 @@ export default function AppLayout() {
         </div>
       )}
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
+        <Sidebar onStartTour={() => setTourRunning(true)} />
         <main className="flex-1 overflow-y-auto" style={{ background: '#F4F4FA' }}>
-          <Outlet />
+          <Outlet context={{ onStartTour: () => setTourRunning(true) }} />
         </main>
       </div>
       <Toaster
@@ -34,6 +47,7 @@ export default function AppLayout() {
           },
         }}
       />
+      <AppTour run={tourRunning} onFinish={() => setTourRunning(false)} />
     </div>
   )
 }

@@ -78,7 +78,7 @@ export default function ManagerDashboard() {
       </div>
 
       {/* KPI cards */}
-      <div className="px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div data-tour="kpi-cards" className="px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
           { icon: Clock,         label: 'Horas esta semana',  value: fmt(totalHours),              color: '#7B68EE', bg: 'rgba(123,104,238,0.08)' },
           { icon: TrendingUp,    label: 'Horas facturables',  value: fmt(billableHours),            color: '#22c55e', bg: 'rgba(34,197,94,0.08)' },

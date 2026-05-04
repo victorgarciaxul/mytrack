@@ -2,19 +2,21 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   Clock, BarChart2, Briefcase, Users, Settings,
   ChevronLeft, ChevronRight, Timer, Tag, ChevronDown,
-  LayoutDashboard, Bell, UserCog,
+  LayoutDashboard, Bell, UserCog, HelpCircle,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import { useRole } from '../../context/RoleContext'
+import { useTour } from '../tour/AppTour'
 
-export default function Sidebar() {
+export default function Sidebar({ onStartTour }) {
   const [collapsed, setCollapsed] = useState(false)
   const { user, signOut } = useAuth()
   const { workspace } = useWorkspace()
   const { isManager, isAdmin, unreadCount, role } = useRole()
   const location = useLocation()
+  const { resetTour } = useTour()
 
   const employeeNav = [
     { to: '/tracker',  icon: Clock,            label: 'Tracker',    color: '#7B68EE' },
@@ -38,6 +40,8 @@ export default function Sidebar() {
   const navItems = isManager
     ? [...managerNav, ...(isAdmin ? adminExtra : [])]
     : employeeNav
+
+  const tourAttr = (key) => ({ 'data-tour': key })
 
   const roleBadge = { admin: 'Admin', manager: 'Manager', employee: 'Empleado' }[role] || ''
   const roleColor = { admin: '#7B68EE', manager: '#4FC3F7', employee: '#81C784' }[role] || '#9090B0'
@@ -84,8 +88,10 @@ export default function Sidebar() {
         )}
         {navItems.map(({ to, icon: Icon, label, color, badge }) => {
           const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to))
+          const tourKey = `nav-${to.replace('/', '')}`
           return (
             <NavLink key={to} to={to}
+              data-tour={tourKey}
               className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm font-medium transition-all duration-150 relative"
               style={{ background: isActive ? 'rgba(107,78,255,0.18)' : 'transparent', color: isActive ? '#fff' : '#8888A8' }}
             >
@@ -107,6 +113,7 @@ export default function Sidebar() {
         {/* Settings separator */}
         {!collapsed && <div className="my-2" style={{ borderTop: '1px solid #2E2E4A' }} />}
         <NavLink to="/settings"
+          data-tour="nav-settings"
           className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm font-medium transition-all"
           style={({ isActive }) => ({ background: isActive ? 'rgba(107,78,255,0.18)' : 'transparent', color: isActive ? '#fff' : '#8888A8' })}
         >
@@ -117,6 +124,18 @@ export default function Sidebar() {
 
       {/* User + signout */}
       <div className="px-2 pb-3 pt-2" style={{ borderTop: '1px solid #2E2E4A' }}>
+        {/* Tutorial button */}
+        <button
+          onClick={() => { resetTour(); onStartTour?.() }}
+          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs transition-all mb-1"
+          style={{ color: '#5A5A7A' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(123,104,238,0.1)'; e.currentTarget.style.color = '#7B68EE' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#5A5A7A' }}
+          title="Ver tutorial"
+        >
+          <HelpCircle size={15} style={{ flexShrink: 0 }} />
+          {!collapsed && <span>Ver tutorial</span>}
+        </button>
         <button onClick={signOut}
           className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm transition-all"
           style={{ color: '#6B6B8A' }}

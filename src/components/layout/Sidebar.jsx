@@ -56,19 +56,18 @@ export default function Sidebar({ onStartTour }) {
       style={{ width: collapsed ? 64 : 220, background: 'linear-gradient(180deg,#13131F 0%,#1A1A2E 100%)', borderRight: '1px solid #2E2E4A' }}
     >
       {/* Workspace header */}
-      <div className="flex items-center gap-2.5 px-3 py-4" style={{ borderBottom: '1px solid #2E2E4A' }}>
+      <div className="flex flex-col items-center px-3 py-4" style={{ borderBottom: '1px solid #2E2E4A' }}>
         {collapsed ? (
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center"
             style={{ background: 'linear-gradient(180deg,#1A1A2E,#13131F)', border: '1.5px solid #2E2E4A' }}>
             <Timer size={16} style={{ color: '#7B68EE' }} />
           </div>
         ) : (
-          <div className="flex-1 min-w-0">
-            <img src="/logo-xul.png" alt="XUL" style={{ height: 28, objectFit: 'contain', objectPosition: 'left' }} />
-            <p className="text-xs truncate mt-1" style={{ color: '#6B6B8A' }}>{user?.email}</p>
-          </div>
+          <>
+            <img src="/logo-xul.png" alt="XUL" style={{ height: 44, objectFit: 'contain', maxWidth: '100%' }} />
+            <p className="text-xs mt-2 truncate w-full text-center" style={{ color: '#6B6B8A' }}>{user?.email}</p>
+          </>
         )}
-        {!collapsed && <ChevronDown size={14} style={{ color: '#6B6B8A', flexShrink: 0 }} />}
       </div>
 
       {/* Role badge */}

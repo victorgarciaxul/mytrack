@@ -87,7 +87,7 @@ export default function Login() {
             MyTrack
           </h1>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>
-            {isLogin ? 'Bienvenido de vuelta' : 'Crea tu cuenta'}
+            {isLogin ? 'Bienvenido/a' : 'Crea tu cuenta'}
           </p>
         </div>
 

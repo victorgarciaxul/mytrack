@@ -15,20 +15,20 @@ export default function Team() {
   return (
     <div>
       <div className="px-6 py-6">
-        <h1 className="text-lg font-bold" style={{ color: '#1C1C28' }}>Equipo</h1>
-        <p className="text-xs mt-0.5" style={{ color: '#7A7F9A' }}>{members.length} miembros en el workspace</p>
+        <h1 className="text-lg font-bold" style={{ color: 'var(--c-text-1)' }}>Equipo</h1>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--c-text-3)' }}>{members.length} miembros en el workspace</p>
       </div>
 
       <div className="px-6 pb-6 space-y-4">
         {/* Members */}
-        <div className="rounded-lg overflow-hidden" style={{ background: '#fff', border: '1px solid #E5E8EE' }}>
-          <div className="px-5 py-3.5" style={{ background: '#FAFAFA', borderBottom: '1px solid #F0F0F8' }}>
-            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#7A7F9A' }}>Miembros</p>
+        <div className="rounded-lg overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE' }}>
+          <div className="px-5 py-3.5" style={{ background: 'var(--c-bg-muted)', borderBottom: '1px solid #F0F0F8' }}>
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--c-text-3)' }}>Miembros</p>
           </div>
           {members.length === 0 ? (
             <div className="flex flex-col items-center py-12">
               <Users size={36} style={{ color: '#D0D0E8' }} className="mb-3" />
-              <p className="text-sm" style={{ color: '#7A7F9A' }}>Sin miembros</p>
+              <p className="text-sm" style={{ color: 'var(--c-text-3)' }}>Sin miembros</p>
             </div>
           ) : (
             <div>
@@ -43,7 +43,7 @@ export default function Team() {
                 return (
                   <div key={member.id} className="flex items-center gap-4 px-5 py-4 transition-colors"
                     style={{ borderBottom: '1px solid #F8F8FC' }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
                     {/* Avatar */}
@@ -54,7 +54,7 @@ export default function Team() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm" style={{ color: '#1C1C28' }}>
+                        <span className="font-semibold text-sm" style={{ color: 'var(--c-text-1)' }}>
                           {profile?.full_name || profile?.email || 'Usuario'}
                         </span>
                         {isMe && (
@@ -63,7 +63,7 @@ export default function Team() {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: '#9095B0' }}>
+                      <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--c-text-3)' }}>
                         <Mail size={10} />
                         {profile?.email}
                       </p>
@@ -90,7 +90,7 @@ export default function Team() {
             <Users size={16} style={{ color: '#7C4DFF' }} />
             <h3 className="font-bold text-sm text-white">Invitar al equipo</h3>
           </div>
-          <p className="text-xs mb-4" style={{ color: '#6B7090' }}>Comparte este enlace con tu equipo para que se unan al workspace</p>
+          <p className="text-xs mb-4" style={{ color: 'var(--c-text-2)' }}>Comparte este enlace con tu equipo para que se unan al workspace</p>
           <div className="flex gap-2">
             <div className="flex-1 px-3 py-2 rounded-xl text-xs truncate" style={{ background: '#0E0E1C', border: '1px solid #2A2D3A', color: '#8888A8' }}>
               {window.location.origin}/register

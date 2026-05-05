@@ -49,14 +49,14 @@ export default function Users() {
   }
 
   const inputCls = 'px-2.5 py-1.5 text-sm rounded-lg outline-none transition-all'
-  const inputStyle = { background: '#F7F8FA', border: '1px solid #E5E8EE', color: '#1C1C28' }
+  const inputStyle = { background: 'var(--c-input-bg)', border: '1px solid #E5E8EE', color: 'var(--c-text-1)' }
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       <div className="px-6 pb-6 pt-5">
-        <div className="rounded-lg overflow-hidden" style={{ background: '#fff', border: '1px solid #E5E8EE', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
+        <div className="rounded-lg overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
           {/* Table header */}
-          <div className="grid grid-cols-12 gap-4 px-4 py-3 text-xs font-bold uppercase tracking-wider" style={{ borderBottom: '1px solid #F0F0F8', color: '#7A7F9A' }}>
+          <div className="grid grid-cols-12 gap-4 px-4 py-3 text-xs font-bold uppercase tracking-wider" style={{ borderBottom: '1px solid #F0F0F8', color: 'var(--c-text-3)' }}>
             <div className="col-span-4">Usuario</div>
             <div className="col-span-3">Perfil / Cargo</div>
             <div className="col-span-2 text-right">€/hora</div>
@@ -73,7 +73,7 @@ export default function Users() {
               <div key={m.id}
                 className="grid grid-cols-12 gap-4 items-center px-4 py-3.5 transition-colors"
                 style={{ borderBottom: i === members.length - 1 ? 'none' : '1px solid #F0F0F8' }}
-                onMouseEnter={e => !isEditingThis && (e.currentTarget.style.background = '#FAFAFA')}
+                onMouseEnter={e => !isEditingThis && (e.currentTarget.style.background = 'var(--c-bg-muted)')}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
                 {/* User info */}
@@ -83,8 +83,8 @@ export default function Users() {
                     {initials}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate" style={{ color: '#1C1C28' }}>{m.profiles?.full_name || 'Sin nombre'}</p>
-                    <p className="text-xs truncate" style={{ color: '#7A7F9A' }}>{m.profiles?.email || ''}</p>
+                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--c-text-1)' }}>{m.profiles?.full_name || 'Sin nombre'}</p>
+                    <p className="text-xs truncate" style={{ color: 'var(--c-text-3)' }}>{m.profiles?.email || ''}</p>
                   </div>
                 </div>
 
@@ -96,7 +96,7 @@ export default function Users() {
                       placeholder="Cargo"
                     />
                   ) : (
-                    <p className="text-sm truncate" style={{ color: '#6B7090' }}>{m.profiles?.job_title || '—'}</p>
+                    <p className="text-sm truncate" style={{ color: 'var(--c-text-2)' }}>{m.profiles?.job_title || '—'}</p>
                   )}
                 </div>
 
@@ -108,7 +108,7 @@ export default function Users() {
                       placeholder="0"
                     />
                   ) : (
-                    <span className="font-numeric text-sm font-semibold" style={{ color: m.profiles?.hourly_rate ? '#1C1C28' : '#A0A5C0' }}>
+                    <span className="font-numeric text-sm font-semibold" style={{ color: m.profiles?.hourly_rate ? 'var(--c-text-1)' : 'var(--c-text-3)' }}>
                       {m.profiles?.hourly_rate ? `€${m.profiles.hourly_rate}` : '—'}
                     </span>
                   )}
@@ -154,9 +154,9 @@ export default function Users() {
                   ) : (
                     <button onClick={() => startEdit(m)}
                       className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                      style={{ color: '#9095B0' }}
+                      style={{ color: 'var(--c-text-3)' }}
                       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(123,104,238,0.1)'; e.currentTarget.style.color = '#7C4DFF'; e.currentTarget.style.opacity = '1' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9095B0' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--c-text-3)' }}
                     >
                       <Edit2 size={13} />
                     </button>

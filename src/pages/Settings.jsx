@@ -76,8 +76,8 @@ export default function Settings() {
             <HelpCircle size={18} color="white" />
           </div>
           <div className="flex-1">
-            <h2 className="font-bold text-sm" style={{ color: '#1C1C28' }}>Tutorial interactivo</h2>
-            <p className="text-xs mt-1 mb-3" style={{ color: '#6B7090' }}>
+            <h2 className="font-bold text-sm" style={{ color: 'var(--c-text-1)' }}>Tutorial interactivo</h2>
+            <p className="text-xs mt-1 mb-3" style={{ color: 'var(--c-text-2)' }}>
               Repasa todas las funcionalidades de MyTrack paso a paso. El tour se adapta a tu rol mostrando sólo las secciones relevantes.
             </p>
             <button

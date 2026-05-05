@@ -5,9 +5,11 @@ import TopBar from './TopBar'
 import { Toaster } from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
 import AppTour, { useTour } from '../tour/AppTour'
+import { useTheme } from '../../context/ThemeContext'
 
 export default function AppLayout() {
   const { isDemo } = useAuth()
+  const { isDark } = useTheme()
   const { isDone } = useTour()
   const [tourRunning, setTourRunning] = useState(false)
 
@@ -19,7 +21,7 @@ export default function AppLayout() {
   return (
     <div style={{
       display: 'flex', height: '100vh', overflow: 'hidden',
-      background: '#F0F0F7',
+      background: 'var(--c-bg-app)',
       fontFamily: 'Inter, system-ui, sans-serif',
     }}>
       <Sidebar onStartTour={() => setTourRunning(true)} />
@@ -37,14 +39,13 @@ export default function AppLayout() {
         )}
         <div style={{
           display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden',
-          background: '#FFFFFF',
+          background: 'var(--c-bg-surface)',
           borderRadius: isDemo ? '0 0 14px 14px' : 14,
-          border: '1px solid #EAEAF2',
-          boxShadow: '0 2px 16px rgba(0,0,0,0.05)',
-          overflow: 'hidden',
+          border: '1px solid var(--c-border)',
+          boxShadow: isDark ? '0 2px 16px rgba(0,0,0,0.3)' : '0 2px 16px rgba(0,0,0,0.05)',
         }}>
           <TopBar />
-          <main style={{ flex: 1, overflowY: 'auto', background: '#FAFAFE' }}>
+          <main style={{ flex: 1, overflowY: 'auto', background: 'var(--c-bg-subtle)' }}>
             <Outlet context={{ onStartTour: () => setTourRunning(true) }} />
           </main>
         </div>

@@ -19,9 +19,9 @@ const RANGES = [
 ]
 
 const statCard = (label, value, sub, color = '#7C4DFF') => (
-  <div key={label} className="p-4" style={{ background: '#fff', border: '1px solid #E5E8EE', borderRadius: 8 }}>
-    <p className="text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: '#9095B0' }}>{label}</p>
-    <p className="text-2xl font-bold font-numeric" style={{ color: '#1C1C28' }}>{value}</p>
+  <div key={label} className="p-4" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', borderRadius: 8 }}>
+    <p className="text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--c-text-3)' }}>{label}</p>
+    <p className="text-2xl font-bold font-numeric" style={{ color: 'var(--c-text-1)' }}>{value}</p>
     {sub && <p className="text-xs mt-1" style={{ color }}>{sub}</p>}
   </div>
 )
@@ -88,7 +88,7 @@ export default function Reports() {
   const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload?.length) return null
     return (
-      <div className="px-3 py-2 rounded-xl text-xs" style={{ background: '#1C1C28', color: '#fff', border: '1px solid #2A2D3A' }}>
+      <div className="px-3 py-2 rounded-xl text-xs" style={{ background: 'var(--c-text-1)', color: '#fff', border: '1px solid #2A2D3A' }}>
         <span className="font-bold">{payload[0].value}h</span>
       </div>
     )
@@ -103,7 +103,7 @@ export default function Reports() {
               className="px-3 py-1.5 rounded text-xs font-medium transition-all"
               style={{
                 background: range === r.value ? '#fff' : 'transparent',
-                color: range === r.value ? '#1C1C28' : '#7A7F9A',
+                color: range === r.value ? 'var(--c-text-1)' : 'var(--c-text-3)',
                 boxShadow: range === r.value ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
               }}>
               {r.label}
@@ -122,20 +122,20 @@ export default function Reports() {
 
         {/* Charts */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2 p-4" style={{ background: '#fff', border: '1px solid #E5E8EE', borderRadius: 8 }}>
-            <h3 className="font-bold text-sm mb-5" style={{ color: '#1C1C28' }}>Horas por día</h3>
+          <div className="col-span-2 p-4" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', borderRadius: 8 }}>
+            <h3 className="font-bold text-sm mb-5" style={{ color: 'var(--c-text-1)' }}>Horas por día</h3>
             {loading ? (
-              <div className="h-48 flex items-center justify-center text-sm" style={{ color: '#7A7F9A' }}>Cargando...</div>
+              <div className="h-48 flex items-center justify-center text-sm" style={{ color: 'var(--c-text-3)' }}>Cargando...</div>
             ) : (
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={byDayData} barSize={24}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F8" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9095B0' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#9095B0' }} axisLine={false} tickLine={false} unit="h" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--c-text-3)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: 'var(--c-text-3)' }} axisLine={false} tickLine={false} unit="h" />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(123,104,238,0.06)', radius: 6 }} />
                   <Bar dataKey="horas" radius={[6, 6, 0, 0]}>
                     {byDayData.map((entry, i) => (
-                      <Cell key={i} fill={entry.horas > 0 ? 'url(#barGrad)' : '#F0F0F8'} />
+                      <Cell key={i} fill={entry.horas > 0 ? 'url(#barGrad)' : 'var(--c-border-light)'} />
                     ))}
                   </Bar>
                   <defs>
@@ -149,10 +149,10 @@ export default function Reports() {
             )}
           </div>
 
-          <div className="p-4" style={{ background: '#fff', border: '1px solid #E5E8EE', borderRadius: 8 }}>
-            <h3 className="font-bold text-sm mb-4" style={{ color: '#1C1C28' }}>Por proyecto</h3>
+          <div className="p-4" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', borderRadius: 8 }}>
+            <h3 className="font-bold text-sm mb-4" style={{ color: 'var(--c-text-1)' }}>Por proyecto</h3>
             {pieData.length === 0 ? (
-              <div className="h-32 flex items-center justify-center text-sm" style={{ color: '#7A7F9A' }}>Sin datos</div>
+              <div className="h-32 flex items-center justify-center text-sm" style={{ color: 'var(--c-text-3)' }}>Sin datos</div>
             ) : (
               <ResponsiveContainer width="100%" height={140}>
                 <PieChart>
@@ -167,8 +167,8 @@ export default function Reports() {
               {pieData.map((p, i) => (
                 <div key={i} className="flex items-center gap-2 text-xs">
                   <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
-                  <span className="flex-1 truncate" style={{ color: '#3D4060' }}>{p.name}</span>
-                  <span className="font-bold" style={{ color: '#1C1C28' }}>{p.value}h</span>
+                  <span className="flex-1 truncate" style={{ color: 'var(--c-text-2)' }}>{p.name}</span>
+                  <span className="font-bold" style={{ color: 'var(--c-text-1)' }}>{p.value}h</span>
                 </div>
               ))}
             </div>
@@ -176,30 +176,30 @@ export default function Reports() {
         </div>
 
         {/* Table */}
-        <div className="overflow-hidden" style={{ background: '#fff', border: '1px solid #E5E8EE', borderRadius: 8 }}>
-          <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid #F0F0F8', background: '#FAFAFA' }}>
-            <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#7A7F9A' }}>Entradas detalladas</h3>
+        <div className="overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', borderRadius: 8 }}>
+          <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid #F0F0F8', background: 'var(--c-bg-muted)' }}>
+            <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--c-text-3)' }}>Entradas detalladas</h3>
             <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: 'rgba(123,104,238,0.1)', color: '#7C4DFF' }}>
               {entries.length} registros
             </span>
           </div>
           <div className="divide-y max-h-72 overflow-y-auto" style={{ '--tw-divide-opacity': 1 }}>
             {entries.length === 0 ? (
-              <p className="text-center py-10 text-sm" style={{ color: '#7A7F9A' }}>Sin entradas en este período</p>
+              <p className="text-center py-10 text-sm" style={{ color: 'var(--c-text-3)' }}>Sin entradas en este período</p>
             ) : (
               entries.map(e => (
                 <div key={e.id} className="flex items-center gap-4 px-5 py-3 text-sm transition-colors"
                   style={{ borderBottom: '1px solid #F8F8FC' }}
-                  onMouseEnter={ev => ev.currentTarget.style.background = '#FAFAFA'}
+                  onMouseEnter={ev => ev.currentTarget.style.background = 'var(--c-bg-muted)'}
                   onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}
                 >
                   <span className="w-1.5 h-6 rounded-full flex-shrink-0" style={{ background: e.projects?.color || '#E0E0F0' }} />
-                  <span className="flex-1 font-medium truncate" style={{ color: '#1C1C28' }}>{e.description}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: `${e.projects?.color || '#E0E0F0'}18`, color: e.projects?.color || '#7A7F9A' }}>
+                  <span className="flex-1 font-medium truncate" style={{ color: 'var(--c-text-1)' }}>{e.description}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: `${e.projects?.color || '#E0E0F0'}18`, color: e.projects?.color || 'var(--c-text-3)' }}>
                     {e.projects?.name || 'Sin proyecto'}
                   </span>
-                  <span className="text-xs" style={{ color: '#9095B0' }}>{format(parseISO(e.start_time), 'dd/MM HH:mm')}</span>
-                  <span className="font-numeric font-bold text-xs w-16 text-right" style={{ color: '#3D4060' }}>{fmt(e.duration||0)}</span>
+                  <span className="text-xs" style={{ color: 'var(--c-text-3)' }}>{format(parseISO(e.start_time), 'dd/MM HH:mm')}</span>
+                  <span className="font-numeric font-bold text-xs w-16 text-right" style={{ color: 'var(--c-text-2)' }}>{fmt(e.duration||0)}</span>
                 </div>
               ))
             )}

@@ -3,6 +3,42 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme tokens ──────────────────────────────────────────── */
+:root {
+  --c-bg-app:      #F0F0F7;
+  --c-bg-surface:  #FFFFFF;
+  --c-bg-muted:    #F8F8FD;
+  --c-bg-subtle:   #FAFAFE;
+  --c-bg-hover:    #F0F0FA;
+  --c-border:      #EAEAF2;
+  --c-border-light:#F0F0F5;
+  --c-text-1:      #1A1A2E;
+  --c-text-2:      #6B7090;
+  --c-text-3:      #9095B0;
+  --c-text-4:      #B0B5CC;
+  --c-input-bg:    #F7F8FA;
+  --c-input-border:#E5E8EE;
+  --c-scrollbar:   #D0D3E0;
+}
+
+[data-theme="dark"] {
+  --c-bg-app:      #0A0A18;
+  --c-bg-surface:  #131326;
+  --c-bg-muted:    #1A1A32;
+  --c-bg-subtle:   #0F0F20;
+  --c-bg-hover:    #20203C;
+  --c-border:      #26264A;
+  --c-border-light:#1C1C38;
+  --c-text-1:      #E8E8F4;
+  --c-text-2:      #9095B8;
+  --c-text-3:      #5C6080;
+  --c-text-4:      #3E4260;
+  --c-input-bg:    #1A1A32;
+  --c-input-border:#26264A;
+  --c-scrollbar:   #2A2A50;
+}
+
+/* ── Base ─────────────────────────────────────────────────── */
 * { box-sizing: border-box; }
 
 body {
@@ -11,7 +47,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: 13px;
-  color: #1C1C28;
+  color: var(--c-text-1);
+  background: var(--c-bg-app);
 }
 
 .font-numeric {
@@ -23,9 +60,15 @@ body {
 
 #root { min-height: 100vh; }
 
-/* ClickUp-style scrollbar */
+/* ── Scrollbar ─────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #D0D3E0; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #B0B3C8; }
-* { scrollbar-width: thin; scrollbar-color: #D0D3E0 transparent; }
+::-webkit-scrollbar-thumb { background: var(--c-scrollbar); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--c-text-3); }
+* { scrollbar-width: thin; scrollbar-color: var(--c-scrollbar) transparent; }
+
+/* ── Dark mode: Tailwind class overrides ───────────────────── */
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] [class*="bg-white"] {
+  background-color: var(--c-bg-surface) !important;
+}

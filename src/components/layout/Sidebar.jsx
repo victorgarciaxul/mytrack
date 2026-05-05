@@ -2,9 +2,8 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   Clock, BarChart2, Briefcase, Users, Settings,
   Tag, LayoutDashboard, Bell, UserCog, HelpCircle,
-  ChevronDown, LogOut, Plus,
+  ChevronDown, Plus,
 } from 'lucide-react'
-import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import { useRole } from '../../context/RoleContext'
@@ -40,8 +39,8 @@ export default function Sidebar({ onStartTour }) {
     <aside style={{
       width: 240,
       flexShrink: 0,
-      background: '#FFFFFF',
-      borderRight: '1px solid #F0F0F5',
+      background: 'var(--c-bg-surface)',
+      borderRight: '1px solid var(--c-border-light)',
       display: 'flex',
       flexDirection: 'column',
       height: '100vh',
@@ -50,7 +49,7 @@ export default function Sidebar({ onStartTour }) {
     }}>
 
       {/* Logo */}
-      <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #F5F5FA' }}>
+      <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid var(--c-border-light)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
             width: 34, height: 34, borderRadius: 10,
@@ -60,7 +59,7 @@ export default function Sidebar({ onStartTour }) {
           }}>
             <Clock size={16} color="white" strokeWidth={2.5} />
           </div>
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', letterSpacing: '-0.3px' }}>
+          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--c-text-1)', letterSpacing: '-0.3px' }}>
             MyTrack
           </span>
         </div>
@@ -71,11 +70,11 @@ export default function Sidebar({ onStartTour }) {
         <button style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '8px 10px', borderRadius: 10, width: '100%',
-          background: '#F8F8FD', border: '1px solid #EDEDF8',
+          background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',
           cursor: 'pointer',
         }}
-          onMouseEnter={e => e.currentTarget.style.background = '#F0F0FA'}
-          onMouseLeave={e => e.currentTarget.style.background = '#F8F8FD'}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-hover)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
         >
           <div style={{
             width: 26, height: 26, borderRadius: 7,
@@ -85,29 +84,27 @@ export default function Sidebar({ onStartTour }) {
           }}>
             {wsInitials}
           </div>
-          <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#1A1A2E', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', textAlign: 'left' }}>
+          <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: 'var(--c-text-1)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', textAlign: 'left' }}>
             {wsName}
           </span>
-          <ChevronDown size={12} style={{ color: '#9095B0', flexShrink: 0 }} />
+          <ChevronDown size={12} style={{ color: 'var(--c-text-3)', flexShrink: 0 }} />
         </button>
       </div>
 
       {/* Nav */}
       <nav style={{ flex: 1, overflowY: 'auto', padding: '4px 14px' }}>
 
-        {/* General section */}
         <SectionLabel>General</SectionLabel>
         {generalNav.map(item => (
           <NavItem key={item.to} item={item} location={location} unreadCount={unreadCount} />
         ))}
 
-        {/* Project section */}
         {projectNav.length > 0 && (
           <>
             <SectionLabel extra={
-              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9095B0', display: 'flex', alignItems: 'center', padding: 0 }}
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', display: 'flex', alignItems: 'center', padding: 0 }}
                 onMouseEnter={e => e.currentTarget.style.color = '#7C4DFF'}
-                onMouseLeave={e => e.currentTarget.style.color = '#9095B0'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--c-text-3)'}
               >
                 <Plus size={13} />
               </button>
@@ -127,7 +124,7 @@ export default function Sidebar({ onStartTour }) {
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '5px 8px', borderRadius: 8, cursor: 'default',
                 }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#F8F8FD'}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
                   <div style={{
@@ -137,7 +134,7 @@ export default function Sidebar({ onStartTour }) {
                   }}>
                     <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.color }} />
                   </div>
-                  <span style={{ fontSize: 12, color: '#6B7090', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flex: 1 }}>
+                  <span style={{ fontSize: 12, color: 'var(--c-text-2)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flex: 1 }}>
                     {p.name}
                   </span>
                 </div>
@@ -148,9 +145,9 @@ export default function Sidebar({ onStartTour }) {
       </nav>
 
       {/* Footer */}
-      <div style={{ padding: '10px 14px 16px', borderTop: '1px solid #F5F5FA' }}>
+      <div style={{ padding: '10px 14px 16px', borderTop: '1px solid var(--c-border-light)' }}>
         <NavItem
-          item={{ to: '/settings', icon: Settings, label: 'Settings', color: '#9095B0' }}
+          item={{ to: '/settings', icon: Settings, label: 'Settings', color: 'var(--c-text-3)' }}
           location={location}
           unreadCount={0}
         />
@@ -160,10 +157,10 @@ export default function Sidebar({ onStartTour }) {
             width: '100%', display: 'flex', alignItems: 'center', gap: 8,
             padding: '7px 8px', borderRadius: 8,
             background: 'transparent', border: 'none', cursor: 'pointer',
-            color: '#9095B0', fontSize: 13, marginBottom: 8,
+            color: 'var(--c-text-3)', fontSize: 13, marginBottom: 8,
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#F8F8FD'; e.currentTarget.style.color = '#7C4DFF' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9095B0' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--c-bg-muted)'; e.currentTarget.style.color = '#7C4DFF' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--c-text-3)' }}
         >
           <HelpCircle size={15} style={{ flexShrink: 0 }} />
           <span>Help Center</span>
@@ -175,11 +172,11 @@ export default function Sidebar({ onStartTour }) {
           style={{
             display: 'flex', alignItems: 'center', gap: 8, width: '100%',
             padding: '8px 10px', borderRadius: 10,
-            background: '#F8F8FD', border: '1px solid #EDEDF8',
+            background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',
             cursor: 'pointer',
           }}
-          onMouseEnter={e => e.currentTarget.style.background = '#F0F0FA'}
-          onMouseLeave={e => e.currentTarget.style.background = '#F8F8FD'}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-hover)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
         >
           <div style={{
             width: 28, height: 28, borderRadius: 8, flexShrink: 0,
@@ -191,12 +188,12 @@ export default function Sidebar({ onStartTour }) {
             {userInitials}
           </div>
           <div style={{ flex: 1, textAlign: 'left', overflow: 'hidden', minWidth: 0 }}>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#1A1A2E', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+            <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-1)', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
               {userName}
             </p>
-            <p style={{ fontSize: 10, color: '#9095B0', margin: 0 }}>TEAM</p>
+            <p style={{ fontSize: 10, color: 'var(--c-text-3)', margin: 0 }}>TEAM</p>
           </div>
-          <ChevronDown size={12} style={{ color: '#9095B0', flexShrink: 0 }} />
+          <ChevronDown size={12} style={{ color: 'var(--c-text-3)', flexShrink: 0 }} />
         </button>
       </div>
     </aside>
@@ -209,7 +206,7 @@ function SectionLabel({ children, extra }) {
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '10px 8px 4px',
       fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
-      textTransform: 'uppercase', color: '#B0B5CC',
+      textTransform: 'uppercase', color: 'var(--c-text-4)',
     }}>
       <span>{children}</span>
       {extra}
@@ -218,7 +215,7 @@ function SectionLabel({ children, extra }) {
 }
 
 function NavItem({ item, location, unreadCount }) {
-  const { to, icon: Icon, label, color, badge } = item
+  const { to, icon: Icon, label, badge } = item
   const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to))
   const count = badge ? unreadCount : 0
 
@@ -228,21 +225,21 @@ function NavItem({ item, location, unreadCount }) {
         style={{
           display: 'flex', alignItems: 'center', gap: 9,
           padding: '7px 8px', borderRadius: 9,
-          background: isActive ? '#F3F0FF' : 'transparent',
-          color: isActive ? '#7C4DFF' : '#6B7090',
+          background: isActive ? '#7C4DFF18' : 'transparent',
+          color: isActive ? '#7C4DFF' : 'var(--c-text-2)',
           fontSize: 13, fontWeight: isActive ? 600 : 400,
           transition: 'all 0.1s', cursor: 'pointer', position: 'relative',
         }}
-        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = '#F8F8FD'; e.currentTarget.style.color = '#1A1A2E' } }}
-        onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6B7090' } }}
+        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--c-bg-muted)'; e.currentTarget.style.color = 'var(--c-text-1)' } }}
+        onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--c-text-2)' } }}
       >
         <div style={{
           width: 26, height: 26, borderRadius: 7, flexShrink: 0,
-          background: isActive ? '#EDE9FF' : '#F3F4F8',
+          background: isActive ? '#7C4DFF20' : 'var(--c-bg-muted)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           transition: 'background 0.1s',
         }}>
-          <Icon size={13} style={{ color: isActive ? '#7C4DFF' : '#9095B0' }} />
+          <Icon size={13} style={{ color: isActive ? '#7C4DFF' : 'var(--c-text-3)' }} />
         </div>
         <span style={{ flex: 1 }}>{label}</span>
         {count > 0 && (

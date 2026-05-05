@@ -127,7 +127,7 @@ export default function Tracker() {
               onKeyDown={e => e.key === 'Enter' && !timer.isRunning && timer.start()}
               style={{
                 width: '100%', border: 'none', outline: 'none', background: 'transparent',
-                fontSize: 20, fontWeight: 700, color: '#1A1A2E', marginBottom: 4,
+                fontSize: 20, fontWeight: 700, color: 'var(--c-text-1)', marginBottom: 4,
                 letterSpacing: '-0.3px', boxSizing: 'border-box',
               }}
             />
@@ -144,7 +144,7 @@ export default function Tracker() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{
                 fontSize: 40, fontWeight: 800, letterSpacing: '-1px',
-                color: timer.isRunning ? '#1A1A2E' : '#CBD5E1',
+                color: timer.isRunning ? 'var(--c-text-1)' : 'var(--c-border)',
                 fontVariantNumeric: 'tabular-nums',
                 transition: 'color 0.3s',
               }}>
@@ -177,9 +177,9 @@ export default function Tracker() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '5px 10px', borderRadius: 7,
-                    background: selectedProject ? selectedProject.color + '12' : '#F8F8FD',
+                    background: selectedProject ? selectedProject.color + '12' : 'var(--c-bg-muted)',
                     color: selectedProject ? selectedProject.color : '#94A3B8',
-                    border: `1px solid ${selectedProject ? selectedProject.color + '30' : '#EDEDF8'}`,
+                    border: `1px solid ${selectedProject ? selectedProject.color + '30' : 'var(--c-border)'}`,
                     fontSize: 12, fontWeight: 500, cursor: 'pointer',
                   }}
                 >
@@ -190,7 +190,7 @@ export default function Tracker() {
                 {showProjectPicker && (
                   <div style={{
                     position: 'absolute', left: 0, top: 'calc(100% + 4px)',
-                    minWidth: 200, background: '#fff', borderRadius: 10,
+                    minWidth: 200, background: 'var(--c-bg-surface)', borderRadius: 10,
                     border: '1px solid #EDEDF8', boxShadow: '0 8px 30px rgba(0,0,0,0.1)',
                     zIndex: 50, overflow: 'hidden', padding: '4px 0',
                   }}>
@@ -214,8 +214,8 @@ export default function Tracker() {
                   value={selectedTask?.id || ''}
                   style={{
                     padding: '5px 10px', borderRadius: 7, fontSize: 12,
-                    background: '#F8F8FD', border: '1px solid #EDEDF8',
-                    color: '#94A3B8', cursor: 'pointer', outline: 'none',
+                    background: 'var(--c-bg-muted)', border: '1px solid #EDEDF8',
+                    color: 'var(--c-text-3)', cursor: 'pointer', outline: 'none',
                   }}
                 >
                   <option value="">Tarea</option>
@@ -237,7 +237,7 @@ export default function Tracker() {
             </CardHeader>
             <div style={{ marginTop: 8 }}>
               {recentEntries.length === 0 ? (
-                <p style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', padding: '24px 0' }}>
+                <p style={{ fontSize: 13, color: 'var(--c-text-3)', textAlign: 'center', padding: '24px 0' }}>
                   Sin entradas aún
                 </p>
               ) : recentEntries.map((e, i) => (
@@ -255,25 +255,25 @@ export default function Tracker() {
                     <Clock size={13} style={{ color: e.projects?.color || '#7C4DFF' }} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: '#1A1A2E', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--c-text-1)', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                       {e.description}
                     </p>
-                    <p style={{ fontSize: 11, color: '#94A3B8', margin: '2px 0 0' }}>
+                    <p style={{ fontSize: 11, color: 'var(--c-text-3)', margin: '2px 0 0' }}>
                       {e.projects?.name || 'Sin proyecto'}
                       {e.tasks && <span style={{ color: '#7C4DFF' }}> · {e.tasks.name}</span>}
                     </p>
                   </div>
                   {e.end_time && (
-                    <span style={{ fontSize: 11, color: '#94A3B8', flexShrink: 0 }}>
+                    <span style={{ fontSize: 11, color: 'var(--c-text-3)', flexShrink: 0 }}>
                       {format(parseISO(e.start_time), 'HH:mm')} – {format(parseISO(e.end_time), 'HH:mm')}
                     </span>
                   )}
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E', minWidth: 52, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', minWidth: 52, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {timer.format(e.duration || 0)}
                   </span>
                   <button
                     onClick={() => deleteEntry(e.id)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#CBD5E1', flexShrink: 0 }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-border)', flexShrink: 0 }}
                     onMouseEnter={ev => ev.currentTarget.style.color = '#EF4444'}
                     onMouseLeave={ev => ev.currentTarget.style.color = '#CBD5E1'}
                   >
@@ -286,13 +286,13 @@ export default function Tracker() {
         </div>
 
         {/* ══ MIDDLE COLUMN ══ */}
-        <div style={{ padding: '20px 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, borderLeft: '1px solid #F0F0F7', borderRight: '1px solid #F0F0F7' }}>
+        <div style={{ padding: '20px 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, borderLeft: '1px solid var(--c-border-light)', borderRight: '1px solid var(--c-border-light)' }}>
 
           {/* Week Earns */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Card compact>
-              <p style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Horas hoy</p>
-              <p style={{ fontSize: 26, fontWeight: 800, color: '#1A1A2E', letterSpacing: '-0.5px', margin: 0, fontVariantNumeric: 'tabular-nums' }}>
+              <p style={{ fontSize: 11, color: 'var(--c-text-3)', fontWeight: 500, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Horas hoy</p>
+              <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--c-text-1)', letterSpacing: '-0.5px', margin: 0, fontVariantNumeric: 'tabular-nums' }}>
                 {timer.format(totalToday)}
               </p>
               <p style={{ fontSize: 11, color: '#22C55E', fontWeight: 600, marginTop: 4 }}>
@@ -300,8 +300,8 @@ export default function Tracker() {
               </p>
             </Card>
             <Card compact>
-              <p style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Esta semana</p>
-              <p style={{ fontSize: 26, fontWeight: 800, color: '#1A1A2E', letterSpacing: '-0.5px', margin: 0, fontVariantNumeric: 'tabular-nums' }}>
+              <p style={{ fontSize: 11, color: 'var(--c-text-3)', fontWeight: 500, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Esta semana</p>
+              <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--c-text-1)', letterSpacing: '-0.5px', margin: 0, fontVariantNumeric: 'tabular-nums' }}>
                 {timer.format(totalWeek)}
               </p>
               <p style={{ fontSize: 11, color: '#7C4DFF', fontWeight: 600, marginTop: 4 }}>
@@ -332,19 +332,19 @@ export default function Tracker() {
             <CardHeader title="Por proyecto" />
             <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {projectList.length === 0 ? (
-                <p style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', padding: '12px 0' }}>Sin datos</p>
+                <p style={{ fontSize: 13, color: 'var(--c-text-3)', textAlign: 'center', padding: '12px 0' }}>Sin datos</p>
               ) : projectList.map(p => (
                 <div key={p.name}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color }} />
-                      <span style={{ fontSize: 12, color: '#475569', fontWeight: 500 }}>{p.name}</span>
+                      <span style={{ fontSize: 12, color: 'var(--c-text-2)', fontWeight: 500 }}>{p.name}</span>
                     </div>
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#1A1A2E', fontVariantNumeric: 'tabular-nums' }}>
                       {timer.format(p.secs)}
                     </span>
                   </div>
-                  <div style={{ height: 5, borderRadius: 3, background: '#F0F0F7' }}>
+                  <div style={{ height: 5, borderRadius: 3, background: 'var(--c-border)' }}>
                     <div style={{
                       height: '100%', borderRadius: 3,
                       background: p.color,
@@ -372,7 +372,7 @@ export default function Tracker() {
                 { label: 'Active', value: timer.isRunning ? '1' : '0', color: '#F59E0B' },
               ].map(s => (
                 <div key={s.label} style={{ padding: '10px', borderRadius: 8, background: s.color + '08', border: `1px solid ${s.color}20` }}>
-                  <p style={{ fontSize: 10, color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 4px' }}>{s.label}</p>
+                  <p style={{ fontSize: 10, color: 'var(--c-text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 4px' }}>{s.label}</p>
                   <p style={{ fontSize: 18, fontWeight: 800, color: s.color, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{s.value}</p>
                 </div>
               ))}
@@ -380,12 +380,12 @@ export default function Tracker() {
             {/* Progress bar */}
             <div style={{ marginTop: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 11, color: '#94A3B8' }}>Weekly progress</span>
+                <span style={{ fontSize: 11, color: 'var(--c-text-3)' }}>Weekly progress</span>
                 <span style={{ fontSize: 11, color: '#7C4DFF', fontWeight: 600 }}>
                   {Math.min(100, Math.round((totalWeek / 3600 / 40) * 100))}%
                 </span>
               </div>
-              <div style={{ height: 8, borderRadius: 4, background: '#F0F0F7', overflow: 'hidden' }}>
+              <div style={{ height: 8, borderRadius: 4, background: 'var(--c-border)', overflow: 'hidden' }}>
                 <div style={{
                   height: '100%',
                   background: 'linear-gradient(90deg,#7C4DFF,#E040FB)',
@@ -395,8 +395,8 @@ export default function Tracker() {
                 }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                <span style={{ fontSize: 10, color: '#94A3B8' }}>{timer.format(totalWeek)}</span>
-                <span style={{ fontSize: 10, color: '#94A3B8' }}>40h objetivo</span>
+                <span style={{ fontSize: 10, color: 'var(--c-text-3)' }}>{timer.format(totalWeek)}</span>
+                <span style={{ fontSize: 10, color: 'var(--c-text-3)' }}>40h objetivo</span>
               </div>
             </div>
           </Card>
@@ -407,7 +407,7 @@ export default function Tracker() {
             <div style={{ marginTop: 12 }}>
               {timer.isRunning ? (
                 <div style={{ padding: '12px', borderRadius: 10, background: '#F3F0FF', border: '1px solid #DDD6FE' }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#1A1A2E', margin: '0 0 4px' }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)', margin: '0 0 4px' }}>
                     {description || 'Sin descripción'}
                   </p>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -426,8 +426,8 @@ export default function Tracker() {
                   <div style={{ width: 40, height: 40, borderRadius: 12, background: '#F3F0FF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
                     <Zap size={18} style={{ color: '#7C4DFF' }} />
                   </div>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: '#475569', margin: 0 }}>No hay timer activo</p>
-                  <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>Pulsa play para empezar</p>
+                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--c-text-2)', margin: 0 }}>No hay timer activo</p>
+                  <p style={{ fontSize: 11, color: 'var(--c-text-3)', marginTop: 4 }}>Pulsa play para empezar</p>
                 </div>
               )}
             </div>
@@ -447,8 +447,8 @@ export default function Tracker() {
                   <div style={{ width: 28, height: 28, borderRadius: 7, background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
                     <Briefcase size={13} color="white" />
                   </div>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: '#1A1A2E', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</p>
-                  <p style={{ fontSize: 10, color: '#94A3B8', marginTop: 2 }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-1)', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</p>
+                  <p style={{ fontSize: 10, color: 'var(--c-text-3)', marginTop: 2 }}>
                     {(byProject[p.name]?.secs || 0) > 0 ? timer.format(byProject[p.name].secs) : '0h tracked'}
                   </p>
                 </div>
@@ -478,9 +478,9 @@ export default function Tracker() {
 function Card({ children, compact, ...props }) {
   return (
     <div style={{
-      background: '#FFFFFF',
+      background: 'var(--c-bg-surface)',
       borderRadius: 14,
-      border: '1px solid #EEEEF8',
+      border: '1px solid var(--c-border)',
       padding: compact ? '14px' : '18px',
       boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
     }} {...props}>
@@ -492,7 +492,7 @@ function Card({ children, compact, ...props }) {
 function CardHeader({ title, children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E', margin: 0, letterSpacing: '-0.2px' }}>{title}</h3>
+      <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--c-text-1)', margin: 0, letterSpacing: '-0.2px' }}>{title}</h3>
       {children && <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{children}</div>}
     </div>
   )
@@ -504,10 +504,10 @@ function Opt({ children, onClick, muted }) {
       style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 8,
         padding: '7px 12px', fontSize: 12, fontWeight: 400,
-        color: muted ? '#94A3B8' : '#1E293B',
+        color: muted ? 'var(--c-text-3)' : 'var(--c-text-1)',
         background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
       }}
-      onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
     >
       {children}
@@ -532,7 +532,7 @@ function ActivityGrid({ entries, formatTime }) {
             flex: 1,
             height: secs > 0 ? `${Math.max(8, (secs / max) * 60)}px` : 6,
             borderRadius: 3,
-            background: secs > 0 ? 'linear-gradient(180deg,#7C4DFF,#E040FB)' : '#F0F0F7',
+            background: secs > 0 ? 'linear-gradient(180deg,#7C4DFF,#E040FB)' : 'var(--c-border)',
             transition: 'height 0.3s',
             cursor: secs > 0 ? 'pointer' : 'default',
           }} />
@@ -540,7 +540,7 @@ function ActivityGrid({ entries, formatTime }) {
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
         {[1,5,9,13,17,21].map(h => (
-          <span key={h} style={{ fontSize: 10, color: '#CBD5E1' }}>{h}</span>
+          <span key={h} style={{ fontSize: 10, color: 'var(--c-text-3)' }}>{h}</span>
         ))}
       </div>
     </div>

@@ -97,19 +97,19 @@ export default function ManagerDashboard() {
 
       <div className="px-6 grid grid-cols-1 lg:grid-cols-2 gap-5 pb-6">
         {/* Time by project */}
-        <div className="rounded-lg p-5" style={{ background: '#fff', border: '1px solid #E5E8EE' }}>
+        <div className="rounded-lg p-5" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE' }}>
           <div className="flex items-center gap-2 mb-4">
             <BarChart2 size={16} style={{ color: '#7C4DFF' }} />
-            <h2 className="text-sm font-bold" style={{ color: '#1C1C28' }}>Horas por proyecto</h2>
+            <h2 className="text-sm font-bold" style={{ color: 'var(--c-text-1)' }}>Horas por proyecto</h2>
           </div>
           {byProject.length === 0 ? (
-            <p className="text-sm text-center py-8" style={{ color: '#A0A5C0' }}>Sin entradas esta semana</p>
+            <p className="text-sm text-center py-8" style={{ color: 'var(--c-text-3)' }}>Sin entradas esta semana</p>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={180}>
                 <BarChart data={byProject} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#7A7F9A' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#7A7F9A' }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--c-text-3)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--c-text-3)' }} axisLine={false} tickLine={false} />
                   <Tooltip
                     formatter={v => [`${v.toFixed(1)}h`]}
                     contentStyle={{ borderRadius: 10, border: '1px solid #E5E8EE', fontSize: 12 }}
@@ -123,19 +123,19 @@ export default function ManagerDashboard() {
                 {byProject.map((p, i) => (
                   <div key={i} className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
-                    <span className="flex-1 text-xs truncate" style={{ color: '#3D4060' }}>{p.name}</span>
+                    <span className="flex-1 text-xs truncate" style={{ color: 'var(--c-text-2)' }}>{p.name}</span>
                     {p.budget && (
                       <div className="flex items-center gap-1.5">
-                        <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: '#F0F0F8' }}>
+                        <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--c-border-light)' }}>
                           <div className="h-full rounded-full" style={{
                             width: `${Math.min(100, (p.hours / p.budget) * 100)}%`,
                             background: p.hours / p.budget >= 0.9 ? '#FF4757' : p.hours / p.budget >= 0.7 ? '#f59e0b' : '#22c55e',
                           }} />
                         </div>
-                        <span className="font-numeric text-xs" style={{ color: '#7A7F9A' }}>{Math.round((p.hours / p.budget) * 100)}%</span>
+                        <span className="font-numeric text-xs" style={{ color: 'var(--c-text-3)' }}>{Math.round((p.hours / p.budget) * 100)}%</span>
                       </div>
                     )}
-                    <span className="font-numeric text-xs font-bold w-12 text-right" style={{ color: '#1C1C28' }}>{fmt(p.hours)}</span>
+                    <span className="font-numeric text-xs font-bold w-12 text-right" style={{ color: 'var(--c-text-1)' }}>{fmt(p.hours)}</span>
                   </div>
                 ))}
               </div>
@@ -144,13 +144,13 @@ export default function ManagerDashboard() {
         </div>
 
         {/* Time + billing per person */}
-        <div className="rounded-lg p-5" style={{ background: '#fff', border: '1px solid #E5E8EE' }}>
+        <div className="rounded-lg p-5" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE' }}>
           <div className="flex items-center gap-2 mb-4">
             <Users size={16} style={{ color: '#7C4DFF' }} />
-            <h2 className="text-sm font-bold" style={{ color: '#1C1C28' }}>Horas por persona</h2>
+            <h2 className="text-sm font-bold" style={{ color: 'var(--c-text-1)' }}>Horas por persona</h2>
           </div>
           {byMember.length === 0 ? (
-            <p className="text-sm text-center py-8" style={{ color: '#A0A5C0' }}>Sin entradas esta semana</p>
+            <p className="text-sm text-center py-8" style={{ color: 'var(--c-text-3)' }}>Sin entradas esta semana</p>
           ) : (
             <div className="space-y-3">
               {byMember.map((m, i) => {
@@ -164,16 +164,16 @@ export default function ManagerDashboard() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-semibold truncate" style={{ color: '#1C1C28' }}>{m.name}</p>
-                        <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#F7F8FA', color: '#7A7F9A' }}>{m.jobTitle}</span>
+                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--c-text-1)' }}>{m.name}</p>
+                        <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'var(--c-input-bg)', color: 'var(--c-text-3)' }}>{m.jobTitle}</span>
                       </div>
                       <div className="flex items-center gap-3 mt-0.5">
                         <span className="font-numeric text-xs font-bold" style={{ color: '#7C4DFF' }}>{fmt(m.hours)}</span>
-                        {m.rate > 0 && <span className="text-xs" style={{ color: '#7A7F9A' }}>€{m.rate}/h · <span className="font-semibold" style={{ color: '#f59e0b' }}>€{Math.round(billing)}</span></span>}
+                        {m.rate > 0 && <span className="text-xs" style={{ color: 'var(--c-text-3)' }}>€{m.rate}/h · <span className="font-semibold" style={{ color: '#f59e0b' }}>€{Math.round(billing)}</span></span>}
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="font-numeric text-xs" style={{ color: '#7A7F9A' }}>{fmt(m.billableHours)} fact.</p>
+                      <p className="font-numeric text-xs" style={{ color: 'var(--c-text-3)' }}>{fmt(m.billableHours)} fact.</p>
                     </div>
                   </div>
                 )
@@ -184,10 +184,10 @@ export default function ManagerDashboard() {
 
         {/* Budget alerts */}
         {budgetAlerts.length > 0 && (
-          <div className="rounded-lg p-5 lg:col-span-2" style={{ background: '#fff', border: '1px solid #FFE0B2' }}>
+          <div className="rounded-lg p-5 lg:col-span-2" style={{ background: 'var(--c-bg-surface)', border: '1px solid #FFE0B2' }}>
             <div className="flex items-center gap-2 mb-3">
               <AlertTriangle size={16} style={{ color: '#f59e0b' }} />
-              <h2 className="text-sm font-bold" style={{ color: '#1C1C28' }}>Proyectos con presupuesto alto</h2>
+              <h2 className="text-sm font-bold" style={{ color: 'var(--c-text-1)' }}>Proyectos con presupuesto alto</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {budgetAlerts.map(p => {
@@ -197,8 +197,8 @@ export default function ManagerDashboard() {
                   <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: '#FFFBF0', border: '1px solid #FFE0B2' }}>
                     <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: p.color }} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate" style={{ color: '#1C1C28' }}>{p.name}</p>
-                      <p className="text-xs" style={{ color: '#7A7F9A' }}>{used.toFixed(1)}h de {p.budget_hours}h ({pct}%)</p>
+                      <p className="text-sm font-semibold truncate" style={{ color: 'var(--c-text-1)' }}>{p.name}</p>
+                      <p className="text-xs" style={{ color: 'var(--c-text-3)' }}>{used.toFixed(1)}h de {p.budget_hours}h ({pct}%)</p>
                     </div>
                     <span className="font-numeric text-sm font-bold" style={{ color: pct >= 100 ? '#FF4757' : '#f59e0b' }}>{pct}%</span>
                   </div>

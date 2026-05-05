@@ -7,7 +7,7 @@ const TYPE_CONFIG = {
   unlogged_time: { icon: Clock,         color: '#FF4757', bg: 'rgba(255,71,87,0.08)',  label: 'Tiempo no imputado' },
   budget_warning: { icon: BarChart2,    color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', label: 'Presupuesto' },
   weekly_summary: { icon: CalendarDays, color: '#7C4DFF', bg: 'rgba(123,104,238,0.08)',label: 'Resumen semanal' },
-  default:        { icon: Bell,         color: '#7A7F9A', bg: 'rgba(144,144,176,0.08)',label: 'Notificación' },
+  default:        { icon: Bell,         color: 'var(--c-text-3)', bg: 'rgba(144,144,176,0.08)',label: 'Notificación' },
 }
 
 export default function Notifications() {
@@ -19,7 +19,7 @@ export default function Notifications() {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: '1px solid #E5E8EE' }}>
-        <span className="text-xs" style={{ color: '#7A7F9A' }}>
+        <span className="text-xs" style={{ color: 'var(--c-text-3)' }}>
           {unreadCount > 0 ? `${unreadCount} sin leer` : 'Todo al día'}
         </span>
         {unreadCount > 0 && (
@@ -43,15 +43,15 @@ export default function Notifications() {
               style={{ background: 'rgba(123,104,238,0.08)' }}>
               <Bell size={28} style={{ color: '#C0C0E0' }} />
             </div>
-            <p className="font-semibold" style={{ color: '#3D4060' }}>Sin notificaciones</p>
-            <p className="text-sm mt-1" style={{ color: '#7A7F9A' }}>Aquí aparecerán las alertas del equipo</p>
+            <p className="font-semibold" style={{ color: 'var(--c-text-2)' }}>Sin notificaciones</p>
+            <p className="text-sm mt-1" style={{ color: 'var(--c-text-3)' }}>Aquí aparecerán las alertas del equipo</p>
           </div>
         )}
 
         {unread.length > 0 && (
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#3D4060' }}>Sin leer</p>
-            <div className="rounded-lg overflow-hidden" style={{ background: '#fff', border: '1px solid #E5E8EE', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
+            <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--c-text-2)' }}>Sin leer</p>
+            <div className="rounded-lg overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
               {unread.map((n, i) => <NotifRow key={n.id} n={n} onRead={markRead} isLast={i === unread.length - 1} />)}
             </div>
           </div>
@@ -59,8 +59,8 @@ export default function Notifications() {
 
         {read.length > 0 && (
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#9095B0' }}>Leídas</p>
-            <div className="rounded-lg overflow-hidden" style={{ background: '#fff', border: '1px solid #E5E8EE', opacity: 0.7 }}>
+            <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--c-text-3)' }}>Leídas</p>
+            <div className="rounded-lg overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', opacity: 0.7 }}>
               {read.map((n, i) => <NotifRow key={n.id} n={n} onRead={markRead} isLast={i === read.length - 1} />)}
             </div>
           </div>
@@ -83,7 +83,7 @@ function NotifRow({ n, onRead, isLast }) {
         background: n.read ? 'transparent' : 'rgba(123,104,238,0.03)',
       }}
       onClick={() => !n.read && onRead(n.id)}
-      onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
       onMouseLeave={e => e.currentTarget.style.background = n.read ? 'transparent' : 'rgba(123,104,238,0.03)'}
     >
       <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: cfg.bg }}>
@@ -91,11 +91,11 @@ function NotifRow({ n, onRead, isLast }) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-semibold" style={{ color: '#1C1C28' }}>{n.title}</p>
+          <p className="text-sm font-semibold" style={{ color: 'var(--c-text-1)' }}>{n.title}</p>
           {!n.read && <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ background: cfg.color }} />}
         </div>
-        <p className="text-xs mt-1 leading-relaxed" style={{ color: '#6B7090' }}>{n.message}</p>
-        <p className="text-xs mt-1.5" style={{ color: '#9095B0' }}>{ago}</p>
+        <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--c-text-2)' }}>{n.message}</p>
+        <p className="text-xs mt-1.5" style={{ color: 'var(--c-text-3)' }}>{ago}</p>
       </div>
     </div>
   )

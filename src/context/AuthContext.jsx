@@ -9,8 +9,18 @@ const ALLOWED_PASSWORD = 'Xul2026'
 
 const AuthContext = createContext(null)
 
+const DEMO_SESSION_KEY = 'mytrack-demo-user'
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(() => {
+    if (DEMO_MODE) {
+      try {
+        const saved = localStorage.getItem(DEMO_SESSION_KEY)
+        return saved ? JSON.parse(saved) : null
+      } catch { return null }
+    }
+    return null
+  })
   const [loading, setLoading] = useState(!DEMO_MODE)
 
   useEffect(() => {
@@ -31,7 +41,9 @@ export function AuthProvider({ children }) {
   const signIn = async (email, password) => {
     if (DEMO_MODE) {
       if (email === ALLOWED_EMAIL && password === ALLOWED_PASSWORD) {
-        setUser({ ...demoUser, email })
+        const u = { ...demoUser, email }
+        setUser(u)
+        localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))
         return { error: null }
       }
       return { error: { message: 'Credenciales incorrectas' } }
@@ -43,7 +55,11 @@ export function AuthProvider({ children }) {
     return supabase.auth.signUp({ email, password, options: { data: { full_name: name } } })
   }
   const signOut = () => {
-    if (DEMO_MODE) { setUser(null); return }
+    if (DEMO_MODE) {
+      setUser(null)
+      localStorage.removeItem(DEMO_SESSION_KEY)
+      return
+    }
     supabase.auth.signOut()
   }
 

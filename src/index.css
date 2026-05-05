@@ -5,20 +5,25 @@
 
 /* ── Theme tokens ──────────────────────────────────────────── */
 :root {
-  --c-bg-app:      #F0F0F7;
+  --c-bg-app:      #EDEDF5;
   --c-bg-surface:  #FFFFFF;
-  --c-bg-muted:    #F8F8FD;
-  --c-bg-subtle:   #FAFAFE;
-  --c-bg-hover:    #F0F0FA;
-  --c-border:      #EAEAF2;
-  --c-border-light:#F0F0F5;
+  --c-bg-muted:    #F4F3FB;
+  --c-bg-subtle:   #F8F7FF;
+  --c-bg-hover:    #EEEEFA;
+  --c-border:      #E2E0F0;
+  --c-border-light:#ECEAF6;
   --c-text-1:      #1A1A2E;
   --c-text-2:      #6B7090;
   --c-text-3:      #9095B0;
   --c-text-4:      #B0B5CC;
-  --c-input-bg:    #F7F8FA;
-  --c-input-border:#E5E8EE;
-  --c-scrollbar:   #D0D3E0;
+  --c-input-bg:    #F7F6FF;
+  --c-input-border:#D8D5EE;
+  --c-scrollbar:   #D0D0E8;
+  /* card palette */
+  --c-card-a: #F5F2FF;
+  --c-card-b: #EEF3FF;
+  --c-card-c: #F0FCF9;
+  --c-card-d: #FFF8EE;
 }
 
 [data-theme="dark"] {
@@ -27,8 +32,8 @@
   --c-bg-muted:    #1A1A36;
   --c-bg-subtle:   #06060F;
   --c-bg-hover:    #20203C;
-  --c-border:      #18183A;
-  --c-border-light:#14142E;
+  --c-border:      transparent;
+  --c-border-light:transparent;
   --c-text-1:      #E8E8F4;
   --c-text-2:      #9095B8;
   --c-text-3:      #5C6080;
@@ -36,6 +41,11 @@
   --c-input-bg:    #1A1A32;
   --c-input-border:#2C2C52;
   --c-scrollbar:   #2A2A50;
+  /* card palette dark */
+  --c-card-a: #17152E;
+  --c-card-b: #101828;
+  --c-card-c: #0D1E1C;
+  --c-card-d: #1E160A;
 }
 
 /* ── Base ─────────────────────────────────────────────────── */

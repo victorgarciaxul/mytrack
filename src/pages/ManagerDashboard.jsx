@@ -128,7 +128,7 @@ export default function ManagerDashboard() {
 
       <div className="px-6 grid grid-cols-1 lg:grid-cols-2 gap-5 pb-6">
         {/* Time by project */}
-        <div className="rounded-lg p-5" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE' }}>
+        <div className="rounded-lg p-5" style={{ background: 'var(--c-card-a)', border: '1px solid var(--c-border)' }}>
           <div className="flex items-center gap-2 mb-4">
             <BarChart2 size={16} style={{ color: '#7C4DFF' }} />
             <h2 className="text-sm font-bold" style={{ color: 'var(--c-text-1)' }}>Horas por proyecto</h2>
@@ -175,7 +175,7 @@ export default function ManagerDashboard() {
         </div>
 
         {/* Time + billing per person */}
-        <div className="rounded-lg p-5" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE' }}>
+        <div className="rounded-lg p-5" style={{ background: 'var(--c-card-a)', border: '1px solid var(--c-border)' }}>
           <div className="flex items-center gap-2 mb-4">
             <Users size={16} style={{ color: '#7C4DFF' }} />
             <h2 className="text-sm font-bold" style={{ color: 'var(--c-text-1)' }}>Horas por persona</h2>
@@ -215,7 +215,7 @@ export default function ManagerDashboard() {
 
         {/* Budget alerts */}
         {budgetAlerts.length > 0 && (
-          <div className="rounded-lg p-5 lg:col-span-2" style={{ background: 'var(--c-bg-surface)', border: '1px solid #FFE0B2' }}>
+          <div className="rounded-lg p-5 lg:col-span-2" style={{ background: 'var(--c-card-d)', border: '1px solid var(--c-border)' }}>
             <div className="flex items-center gap-2 mb-3">
               <AlertTriangle size={16} style={{ color: '#f59e0b' }} />
               <h2 className="text-sm font-bold" style={{ color: 'var(--c-text-1)' }}>Proyectos con presupuesto alto</h2>

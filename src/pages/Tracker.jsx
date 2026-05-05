@@ -101,7 +101,7 @@ export default function Tracker() {
         <div style={{ padding: '20px 12px 20px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
           {/* Active task card */}
-          <Card data-tour="timer-bar">
+          <Card data-tour="timer-bar" color="var(--c-card-a)">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: timer.isRunning ? '#22C55E' : '#E2E8F0', display: 'inline-block' }} />
@@ -226,7 +226,7 @@ export default function Tracker() {
           </Card>
 
           {/* Recent Activity */}
-          <Card>
+          <Card color="var(--c-card-b)">
             <CardHeader title="Recent Activity">
               <button
                 onClick={() => {}}
@@ -290,7 +290,7 @@ export default function Tracker() {
 
           {/* Week Earns */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Card compact>
+            <Card compact color="var(--c-card-c)">
               <p style={{ fontSize: 11, color: 'var(--c-text-3)', fontWeight: 500, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Horas hoy</p>
               <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--c-text-1)', letterSpacing: '-0.5px', margin: 0, fontVariantNumeric: 'tabular-nums' }}>
                 {timer.format(totalToday)}
@@ -299,7 +299,7 @@ export default function Tracker() {
                 {todayEntries.length} entradas
               </p>
             </Card>
-            <Card compact>
+            <Card compact color="var(--c-card-d)">
               <p style={{ fontSize: 11, color: 'var(--c-text-3)', fontWeight: 500, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Esta semana</p>
               <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--c-text-1)', letterSpacing: '-0.5px', margin: 0, fontVariantNumeric: 'tabular-nums' }}>
                 {timer.format(totalWeek)}
@@ -311,7 +311,7 @@ export default function Tracker() {
           </div>
 
           {/* Report analytics / activity heatmap */}
-          <Card>
+          <Card color="var(--c-card-c)">
             <CardHeader title="Report Analytics">
               <div style={{ display: 'flex', gap: 4 }}>
                 {['Hoy', 'Semana', 'Mes'].map(t => (
@@ -328,7 +328,7 @@ export default function Tracker() {
           </Card>
 
           {/* Project time breakdown */}
-          <Card>
+          <Card color="var(--c-card-d)">
             <CardHeader title="Por proyecto" />
             <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {projectList.length === 0 ? (
@@ -362,7 +362,7 @@ export default function Tracker() {
         <div style={{ padding: '20px 20px 20px 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
           {/* Summary */}
-          <Card>
+          <Card color="var(--c-card-a)">
             <CardHeader title="Summary" />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
               {[
@@ -402,7 +402,7 @@ export default function Tracker() {
           </Card>
 
           {/* Ongoing timesheet */}
-          <Card>
+          <Card color="var(--c-card-b)">
             <CardHeader title="Ongoing Timesheet" />
             <div style={{ marginTop: 12 }}>
               {timer.isRunning ? (
@@ -434,7 +434,7 @@ export default function Tracker() {
           </Card>
 
           {/* Quick projects */}
-          <Card>
+          <Card color="var(--c-card-c)">
             <CardHeader title="Pinned Projects">
               <span style={{ fontSize: 11, color: '#7C4DFF', fontWeight: 600 }}>{projects.length} ACTIVE</span>
             </CardHeader>
@@ -475,10 +475,10 @@ export default function Tracker() {
 
 // ── Shared components ──────────────────────────────────────────────────────────
 
-function Card({ children, compact, ...props }) {
+function Card({ children, compact, color, ...props }) {
   return (
     <div style={{
-      background: 'var(--c-bg-surface)',
+      background: color || 'var(--c-bg-surface)',
       borderRadius: 14,
       border: '1px solid var(--c-border)',
       padding: compact ? '14px' : '18px',

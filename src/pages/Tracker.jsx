@@ -106,7 +106,7 @@ export default function Tracker() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: timer.isRunning ? '#22C55E' : '#E2E8F0', display: 'inline-block' }} />
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: timer.isRunning ? '#22C55E' : '#94A3B8' }}>
-                  {timer.isRunning ? 'Active Task' : 'Start Timer'}
+                  {timer.isRunning ? 'Tarea activa' : 'Iniciar temporizador'}
                 </span>
               </div>
               <button
@@ -366,10 +366,10 @@ export default function Tracker() {
             <CardHeader title="Summary" />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
               {[
-                { label: 'Total Hours', value: timer.format(totalWeek), color: '#7C4DFF' },
-                { label: 'Entries', value: entries.length, color: '#06B6D4' },
-                { label: 'Today', value: timer.format(totalToday), color: '#22C55E' },
-                { label: 'Active', value: timer.isRunning ? '1' : '0', color: '#F59E0B' },
+                { label: 'Total horas', value: timer.format(totalWeek), color: '#7C4DFF' },
+                { label: 'Entradas', value: entries.length, color: '#06B6D4' },
+                { label: 'Hoy', value: timer.format(totalToday), color: '#22C55E' },
+                { label: 'Activo', value: timer.isRunning ? '1' : '0', color: '#F59E0B' },
               ].map(s => (
                 <div key={s.label} style={{ padding: '10px', borderRadius: 8, background: s.color + '08', border: `1px solid ${s.color}20` }}>
                   <p style={{ fontSize: 10, color: 'var(--c-text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 4px' }}>{s.label}</p>
@@ -449,7 +449,7 @@ export default function Tracker() {
                   </div>
                   <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-1)', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</p>
                   <p style={{ fontSize: 10, color: 'var(--c-text-3)', marginTop: 2 }}>
-                    {(byProject[p.name]?.secs || 0) > 0 ? timer.format(byProject[p.name].secs) : '0h tracked'}
+                    {(byProject[p.name]?.secs || 0) > 0 ? timer.format(byProject[p.name].secs) : '0h registradas'}
                   </p>
                 </div>
               ))}

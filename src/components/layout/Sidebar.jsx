@@ -22,17 +22,17 @@ export default function Sidebar({ onStartTour }) {
   const userInitials = userName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 
   const generalNav = [
-    ...(isManager ? [{ to: '/dashboard', icon: LayoutDashboard, label: 'Overview', color: '#7C4DFF' }] : []),
-    { to: '/tracker', icon: Clock, label: 'Time Tracker', color: '#7C4DFF' },
-    ...(isManager ? [{ to: '/reports', icon: BarChart2, label: 'Reports', color: '#7C4DFF' }] : []),
-    { to: '/notifications', icon: Bell, label: 'Inbox', color: '#7C4DFF', badge: true },
+    ...(isManager ? [{ to: '/dashboard', icon: LayoutDashboard, label: 'Resumen', color: '#7C4DFF' }] : []),
+    { to: '/tracker', icon: Clock, label: 'Registro de tiempo', color: '#7C4DFF' },
+    ...(isManager ? [{ to: '/reports', icon: BarChart2, label: 'Informes', color: '#7C4DFF' }] : []),
+    { to: '/notifications', icon: Bell, label: 'Bandeja de entrada', color: '#7C4DFF', badge: true },
   ]
 
   const projectNav = [
-    { to: '/projects', icon: Briefcase, label: 'Projects', color: '#10B981' },
-    { to: '/clients', icon: Tag, label: 'Clients', color: '#F59E0B' },
-    ...(isManager ? [{ to: '/team', icon: Users, label: 'Team', color: '#6366F1' }] : []),
-    ...(isAdmin ? [{ to: '/users', icon: UserCog, label: 'Users', color: '#EC4899' }] : []),
+    { to: '/projects', icon: Briefcase, label: 'Proyectos', color: '#10B981' },
+    { to: '/clients', icon: Tag, label: 'Clientes', color: '#F59E0B' },
+    ...(isManager ? [{ to: '/team', icon: Users, label: 'Equipo', color: '#6366F1' }] : []),
+    ...(isAdmin ? [{ to: '/users', icon: UserCog, label: 'Usuarios', color: '#EC4899' }] : []),
   ]
 
   return (
@@ -65,27 +65,16 @@ export default function Sidebar({ onStartTour }) {
         </div>
       </div>
 
-      {/* Workspace pill */}
-      <div style={{ padding: '10px 14px' }}>
-        <button style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '8px 10px', borderRadius: 10, width: '100%',
-          background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',
-          cursor: 'pointer',
-        }}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-hover)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
-        >
-          <img
-            src="/logo-xul.png"
-            alt="XUL"
-            style={{
-              height: 18, width: 'auto', flexShrink: 0,
-              filter: 'var(--logo-filter)',
-            }}
-          />
-          <ChevronDown size={12} style={{ color: 'var(--c-text-3)', flexShrink: 0, marginLeft: 'auto' }} />
-        </button>
+      {/* Logo XUL centrado */}
+      <div style={{ padding: '14px 20px 10px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <img
+          src="/logo-xul.png"
+          alt="XUL"
+          style={{
+            height: 28, width: 'auto',
+            filter: 'var(--logo-filter)',
+          }}
+        />
       </div>
 
       {/* Nav */}
@@ -105,7 +94,7 @@ export default function Sidebar({ onStartTour }) {
               >
                 <Plus size={13} />
               </button>
-            }>Proyecto</SectionLabel>
+            }>Gestión</SectionLabel>
             {projectNav.map(item => (
               <NavItem key={item.to} item={item} location={location} unreadCount={unreadCount} />
             ))}
@@ -144,7 +133,7 @@ export default function Sidebar({ onStartTour }) {
       {/* Footer */}
       <div style={{ padding: '10px 14px 16px', borderTop: '1px solid var(--c-border-light)' }}>
         <NavItem
-          item={{ to: '/settings', icon: Settings, label: 'Settings', color: 'var(--c-text-3)' }}
+          item={{ to: '/settings', icon: Settings, label: 'Configuración', color: 'var(--c-text-3)' }}
           location={location}
           unreadCount={0}
         />
@@ -160,7 +149,7 @@ export default function Sidebar({ onStartTour }) {
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--c-text-3)' }}
         >
           <HelpCircle size={15} style={{ flexShrink: 0 }} />
-          <span>Help Center</span>
+          <span>Centro de ayuda</span>
         </button>
 
         {/* User */}
@@ -188,7 +177,7 @@ export default function Sidebar({ onStartTour }) {
             <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-1)', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
               {userName}
             </p>
-            <p style={{ fontSize: 10, color: 'var(--c-text-3)', margin: 0 }}>TEAM</p>
+            <p style={{ fontSize: 10, color: 'var(--c-text-3)', margin: 0 }}>EQUIPO</p>
           </div>
           <ChevronDown size={12} style={{ color: 'var(--c-text-3)', flexShrink: 0 }} />
         </button>

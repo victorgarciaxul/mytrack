@@ -73,7 +73,7 @@ export default function TopBar() {
       {/* Theme toggle */}
       <button
         onClick={toggle}
-        title={isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+        title={isDark ? 'Tema claro' : 'Tema oscuro'}
         style={{
           width: 36, height: 36, borderRadius: 9,
           background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',

@@ -72,24 +72,34 @@ export default function ManagerDashboard() {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      {/* Stats hero */}
-      <div style={{ background: 'linear-gradient(135deg,#7C4DFF 0%,#E040FB 100%)', padding: '20px 28px 18px', flexShrink: 0 }}>
-        <div style={{ display: 'flex', gap: 32 }}>
-          {[
-            { label: 'Horas esta semana', value: fmt(totalHours), icon: Clock },
-            { label: 'Horas facturables', value: fmt(billableHours), icon: TrendingUp },
-            { label: 'Facturación est.', value: `€${Math.round(totalBilling)}`, icon: DollarSign },
-            { label: 'Alertas', value: unreadAlerts, icon: AlertTriangle },
-          ].map(({ label, value, icon: Icon }, i) => (
-            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {i > 0 && <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.15)' }} />}
-              <div>
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 500, marginBottom: 3, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{label}</p>
-                <p style={{ fontSize: 26, fontWeight: 700, color: '#fff', letterSpacing: '-0.5px', margin: 0 }}>{value}</p>
-              </div>
+      {/* Stats cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, padding: '20px 24px', flexShrink: 0 }}>
+        {[
+          { label: 'Horas esta semana', value: fmt(totalHours),            icon: Clock,          accent: '#3B82F6' },
+          { label: 'Horas facturables', value: fmt(billableHours),         icon: TrendingUp,     accent: '#6366F1' },
+          { label: 'Facturación est.',  value: `€${Math.round(totalBilling)}`, icon: DollarSign, accent: '#0EA5E9' },
+          { label: 'Alertas',           value: unreadAlerts,               icon: AlertTriangle,  accent: '#38BDF8' },
+        ].map(({ label, value, icon: Icon, accent }) => (
+          <div key={label} style={{
+            background: `linear-gradient(135deg, ${accent} 0%, ${accent}CC 100%)`,
+            borderRadius: 14,
+            padding: '18px 20px',
+            boxShadow: `0 4px 20px ${accent}40`,
+            display: 'flex', flexDirection: 'column', gap: 10,
+          }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: 'rgba(255,255,255,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Icon size={18} color="white" />
             </div>
-          ))}
-        </div>
+            <div>
+              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', margin: '0 0 4px' }}>{label}</p>
+              <p style={{ fontSize: 28, fontWeight: 800, color: '#fff', letterSpacing: '-1px', margin: 0, fontVariantNumeric: 'tabular-nums' }}>{value}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* KPI cards */}

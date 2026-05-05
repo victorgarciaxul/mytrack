@@ -42,36 +42,36 @@ export default function TimeEntryRow({ entry, onDelete, onRefresh, projects, for
             onBlur={saveEdit}
             onKeyDown={e => e.key === 'Enter' && saveEdit()}
             className="w-full text-sm outline-none bg-transparent"
-            style={{ color: '#1A1A2E', borderBottom: '1.5px solid #7B68EE' }}
+            style={{ color: '#1C1C28', borderBottom: '1.5px solid #7C4DFF' }}
           />
         ) : (
-          <p className="text-sm font-medium truncate" style={{ color: '#1A1A2E' }}>
-            {entry.description || <span style={{ color: '#C0C0D8', fontStyle: 'italic' }}>Sin descripción</span>}
+          <p className="text-sm font-medium truncate" style={{ color: '#1C1C28' }}>
+            {entry.description || <span style={{ color: '#A0A5C0', fontStyle: 'italic' }}>Sin descripción</span>}
           </p>
         )}
         {(project || task) && (
           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
             {project && <>
               <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: project.color }} />
-              <p className="text-xs" style={{ color: '#9090B0' }}>
+              <p className="text-xs" style={{ color: '#7A7F9A' }}>
                 {project.name}{project.clients ? ` · ${project.clients.name}` : ''}
               </p>
             </>}
             {task && <>
-              {project && <span className="text-xs" style={{ color: '#C0C0D8' }}>›</span>}
-              <p className="text-xs font-medium" style={{ color: '#7B68EE' }}>{task.name}</p>
+              {project && <span className="text-xs" style={{ color: '#A0A5C0' }}>›</span>}
+              <p className="text-xs font-medium" style={{ color: '#7C4DFF' }}>{task.name}</p>
             </>}
           </div>
         )}
       </div>
 
       {/* Time range */}
-      <span className="text-xs hidden sm:block" style={{ color: '#B0B0C8' }}>
+      <span className="text-xs hidden sm:block" style={{ color: '#9095B0' }}>
         {startFmt} – {endFmt}
       </span>
 
       {/* Duration */}
-      <span className="font-numeric text-sm font-bold w-20 text-right" style={{ color: '#4A4A6A' }}>
+      <span className="font-numeric text-sm font-bold w-20 text-right" style={{ color: '#3D4060' }}>
         {formatTime(entry.duration || 0)}
       </span>
 
@@ -80,18 +80,18 @@ export default function TimeEntryRow({ entry, onDelete, onRefresh, projects, for
         <button
           onClick={() => setEditing(true)}
           className="p-1.5 rounded-lg transition-all"
-          style={{ color: '#B0B0C8' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(123,104,238,0.1)'; e.currentTarget.style.color = '#7B68EE' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#B0B0C8' }}
+          style={{ color: '#9095B0' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(123,104,238,0.1)'; e.currentTarget.style.color = '#7C4DFF' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9095B0' }}
         >
           <Edit2 size={13} />
         </button>
         <button
           onClick={() => onDelete(entry.id)}
           className="p-1.5 rounded-lg transition-all"
-          style={{ color: '#B0B0C8' }}
+          style={{ color: '#9095B0' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; e.currentTarget.style.color = '#FF4757' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#B0B0C8' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9095B0' }}
         >
           <Trash2 size={13} />
         </button>

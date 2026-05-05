@@ -102,16 +102,16 @@ export default function Tracker() {
       <div className="px-6 pt-6 pb-2">
         <div className="flex items-center justify-between mb-1">
           <div>
-            <h1 className="text-lg font-bold" style={{ color: '#1A1A2E' }}>Tracker</h1>
-            <p className="text-xs mt-0.5" style={{ color: '#9090B0' }}>
-              Hoy: <span className="font-semibold font-numeric" style={{ color: '#7B68EE' }}>{timer.format(totalToday)}</span> registradas
+            <h1 className="text-lg font-bold" style={{ color: '#1C1C28' }}>Tracker</h1>
+            <p className="text-xs mt-0.5" style={{ color: '#7A7F9A' }}>
+              Hoy: <span className="font-semibold font-numeric" style={{ color: '#7C4DFF' }}>{timer.format(totalToday)}</span> registradas
             </p>
           </div>
           <button
             data-tour="manual-btn"
             onClick={() => setShowManual(true)}
             className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all"
-            style={{ background: 'rgba(123,104,238,0.1)', color: '#7B68EE', border: '1px solid rgba(123,104,238,0.2)' }}
+            style={{ background: 'rgba(123,104,238,0.1)', color: '#7C4DFF', border: '1px solid rgba(123,104,238,0.2)' }}
           >
             <Plus size={14} />
             Manual
@@ -122,7 +122,7 @@ export default function Tracker() {
       {/* Timer bar */}
       <div data-tour="timer-bar" className="mx-6 mb-5 rounded-2xl overflow-hidden" style={{
         background: '#fff',
-        border: '1.5px solid #E8E8F0',
+        border: '1.5px solid #E5E8EE',
         boxShadow: '0 2px 16px rgba(107,78,255,0.06)',
       }}>
         {/* Mode tabs */}
@@ -133,8 +133,8 @@ export default function Tracker() {
               onClick={() => setMode(m)}
               className="flex-1 py-2.5 text-xs font-semibold capitalize transition-all"
               style={{
-                color: mode === m ? '#7B68EE' : '#9090B0',
-                borderBottom: mode === m ? '2px solid #7B68EE' : '2px solid transparent',
+                color: mode === m ? '#7C4DFF' : '#7A7F9A',
+                borderBottom: mode === m ? '2px solid #7C4DFF' : '2px solid transparent',
                 background: 'transparent',
               }}
             >
@@ -151,7 +151,7 @@ export default function Tracker() {
               value={description}
               onChange={e => setDescription(e.target.value)}
               className="flex-1 text-sm bg-transparent border-none outline-none"
-              style={{ color: '#1A1A2E' }}
+              style={{ color: '#1C1C28' }}
             />
 
             {/* Project picker */}
@@ -160,9 +160,9 @@ export default function Tracker() {
                 onClick={() => { setShowProjectPicker(p => !p); setShowTaskPicker(false) }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                 style={{
-                  background: selectedProject ? `${selectedProject.color}18` : '#F4F4FA',
-                  color: selectedProject ? selectedProject.color : '#9090B0',
-                  border: `1.5px solid ${selectedProject ? selectedProject.color + '40' : '#E8E8F0'}`,
+                  background: selectedProject ? `${selectedProject.color}18` : '#F7F8FA',
+                  color: selectedProject ? selectedProject.color : '#7A7F9A',
+                  border: `1.5px solid ${selectedProject ? selectedProject.color + '40' : '#E5E8EE'}`,
                 }}
               >
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: selectedProject?.color || '#D0D0E0' }} />
@@ -171,11 +171,11 @@ export default function Tracker() {
               </button>
               {showProjectPicker && (
                 <div className="absolute right-0 top-full mt-1 w-56 rounded-xl shadow-xl z-20 py-1.5 overflow-hidden"
-                  style={{ background: '#fff', border: '1.5px solid #E8E8F0', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
+                  style={{ background: '#fff', border: '1.5px solid #E5E8EE', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
                   <button onClick={() => { setSelectedProject(null); setSelectedTask(null); setShowProjectPicker(false) }}
                     className="w-full text-left px-4 py-2 text-xs transition-colors"
-                    style={{ color: '#9090B0' }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#F4F4FA'}
+                    style={{ color: '#7A7F9A' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#F7F8FA'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
                     Sin proyecto
@@ -184,8 +184,8 @@ export default function Tracker() {
                     <button key={p.id}
                       onClick={() => { setSelectedProject(p); setSelectedTask(null); setShowProjectPicker(false) }}
                       className="w-full text-left px-4 py-2.5 text-xs flex items-center gap-2.5 transition-colors"
-                      style={{ color: '#1A1A2E' }}
-                      onMouseEnter={e => e.currentTarget.style.background = '#F4F4FA'}
+                      style={{ color: '#1C1C28' }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#F7F8FA'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: p.color }} />
@@ -204,9 +204,9 @@ export default function Tracker() {
                   onClick={() => { setShowTaskPicker(p => !p); setShowProjectPicker(false) }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                   style={{
-                    background: selectedTask ? 'rgba(123,104,238,0.1)' : '#F4F4FA',
-                    color: selectedTask ? '#7B68EE' : '#9090B0',
-                    border: `1.5px solid ${selectedTask ? 'rgba(123,104,238,0.3)' : '#E8E8F0'}`,
+                    background: selectedTask ? 'rgba(123,104,238,0.1)' : '#F7F8FA',
+                    color: selectedTask ? '#7C4DFF' : '#7A7F9A',
+                    border: `1.5px solid ${selectedTask ? 'rgba(123,104,238,0.3)' : '#E5E8EE'}`,
                   }}
                 >
                   <Tag size={11} />
@@ -215,28 +215,28 @@ export default function Tracker() {
                 </button>
                 {showTaskPicker && (
                   <div className="absolute right-0 top-full mt-1 w-52 rounded-xl shadow-xl z-20 py-1.5 overflow-hidden"
-                    style={{ background: '#fff', border: '1.5px solid #E8E8F0', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
+                    style={{ background: '#fff', border: '1.5px solid #E5E8EE', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
                     <button onClick={() => { setSelectedTask(null); setShowTaskPicker(false) }}
                       className="w-full text-left px-4 py-2 text-xs transition-colors"
-                      style={{ color: '#9090B0' }}
-                      onMouseEnter={e => e.currentTarget.style.background = '#F4F4FA'}
+                      style={{ color: '#7A7F9A' }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#F7F8FA'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
                       Sin tarea
                     </button>
                     {projectTasks.length === 0 ? (
-                      <p className="px-4 py-2 text-xs" style={{ color: '#C0C0D8' }}>No hay tareas</p>
+                      <p className="px-4 py-2 text-xs" style={{ color: '#A0A5C0' }}>No hay tareas</p>
                     ) : projectTasks.map(t => (
                       <button key={t.id}
                         onClick={() => { setSelectedTask(t); setShowTaskPicker(false) }}
                         className="w-full text-left px-4 py-2.5 text-xs flex items-center gap-2 transition-colors"
-                        style={{ color: '#1A1A2E' }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#F4F4FA'}
+                        style={{ color: '#1C1C28' }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#F7F8FA'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#7B68EE' }} />
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#7C4DFF' }} />
                         <span className="flex-1 truncate">{t.name}</span>
-                        {t.estimated_hours && <span style={{ color: '#B0B0C8' }}>{t.estimated_hours}h</span>}
+                        {t.estimated_hours && <span style={{ color: '#9095B0' }}>{t.estimated_hours}h</span>}
                       </button>
                     ))}
                   </div>
@@ -246,7 +246,7 @@ export default function Tracker() {
 
             {/* Timer display */}
             <div className="font-numeric text-2xl font-bold w-28 text-center"
-              style={{ color: timer.isRunning ? '#7B68EE' : '#1A1A2E' }}>
+              style={{ color: timer.isRunning ? '#7C4DFF' : '#1C1C28' }}>
               {timer.formatted}
             </div>
 
@@ -257,7 +257,7 @@ export default function Tracker() {
               style={{
                 background: timer.isRunning
                   ? 'linear-gradient(135deg,#FF6B6B,#FF4757)'
-                  : 'linear-gradient(135deg,#7B68EE,#6B4EFF)',
+                  : 'linear-gradient(135deg,#7C4DFF,#6B3EED)',
                 boxShadow: timer.isRunning
                   ? '0 4px 14px rgba(255,71,87,0.4)'
                   : '0 4px 14px rgba(107,78,255,0.4)',
@@ -274,7 +274,7 @@ export default function Tracker() {
             <button
               onClick={() => setShowManual(true)}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-              style={{ background: 'linear-gradient(135deg,#7B68EE,#6B4EFF)', boxShadow: '0 4px 14px rgba(107,78,255,0.3)' }}
+              style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)', boxShadow: '0 4px 14px rgba(107,78,255,0.3)' }}
             >
               <Plus size={16} />
               Añadir entrada manual
@@ -291,27 +291,27 @@ export default function Tracker() {
               style={{ background: 'rgba(123,104,238,0.08)' }}>
               <Clock size={28} style={{ color: '#C0C0E0' }} />
             </div>
-            <p className="font-semibold" style={{ color: '#4A4A6A' }}>Sin entradas esta semana</p>
-            <p className="text-sm mt-1" style={{ color: '#9090B0' }}>Inicia el timer o añade tiempo manualmente</p>
+            <p className="font-semibold" style={{ color: '#3D4060' }}>Sin entradas esta semana</p>
+            <p className="text-sm mt-1" style={{ color: '#7A7F9A' }}>Inicia el timer o añade tiempo manualmente</p>
           </div>
         ) : (
           Object.entries(grouped).map(([day, dayEntries]) => (
             <div key={day}>
               <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#9090B0' }}>{day}</span>
+                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#7A7F9A' }}>{day}</span>
                   <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                    style={{ background: 'rgba(123,104,238,0.1)', color: '#7B68EE' }}>
+                    style={{ background: 'rgba(123,104,238,0.1)', color: '#7C4DFF' }}>
                     {dayEntries.length} {dayEntries.length === 1 ? 'entrada' : 'entradas'}
                   </span>
                 </div>
-                <span className="font-numeric text-sm font-bold" style={{ color: '#4A4A6A' }}>
+                <span className="font-numeric text-sm font-bold" style={{ color: '#3D4060' }}>
                   {timer.format(dayEntries.reduce((s, e) => s + (e.duration || 0), 0))}
                 </span>
               </div>
               <div className="rounded-2xl overflow-hidden" style={{
                 background: '#fff',
-                border: '1.5px solid #E8E8F0',
+                border: '1.5px solid #E5E8EE',
                 boxShadow: '0 1px 8px rgba(0,0,0,0.04)',
               }}>
                 {dayEntries.map((entry, i) => (

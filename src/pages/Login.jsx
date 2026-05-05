@@ -41,14 +41,14 @@ export default function Login() {
       {/* Left panel */}
       <div
         className="hidden lg:flex flex-col justify-between w-[480px] flex-shrink-0 p-12"
-        style={{ background: 'linear-gradient(145deg, #13131F 0%, #1A1A2E 60%, #1E1235 100%)' }}
+        style={{ background: 'linear-gradient(145deg, #191B23 0%, #1C1C28 60%, #1E1235 100%)' }}
       >
         <div className="flex items-center gap-3">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ background: 'linear-gradient(180deg,#1A1A2E,#13131F)', border: '1.5px solid #2E2E4A' }}
+            style={{ background: 'linear-gradient(180deg,#1C1C28,#191B23)', border: '1.5px solid #2A2D3A' }}
           >
-            <Timer size={20} style={{ color: '#7B68EE' }} />
+            <Timer size={20} style={{ color: '#7C4DFF' }} />
           </div>
           <span className="text-white font-bold text-lg">MyTrack</span>
         </div>
@@ -69,12 +69,12 @@ export default function Login() {
                 </div>
                 <div>
                   <p className="text-white font-medium text-sm">{f.title}</p>
-                  <p className="text-sm mt-0.5" style={{ color: '#6B6B8A' }}>{f.desc}</p>
+                  <p className="text-sm mt-0.5" style={{ color: '#6B7090' }}>{f.desc}</p>
                 </div>
               </div>
             ))}
           </div>
-          <p className="text-xs" style={{ color: '#4A4A6A' }}>
+          <p className="text-xs" style={{ color: '#3D4060' }}>
             © 2025 MyTrack. Todos los derechos reservados.
           </p>
         </div>
@@ -91,7 +91,7 @@ export default function Login() {
           <h1 className="text-2xl font-bold text-white mb-1">
             {isLogin ? 'Bienvenido de vuelta' : 'Crear cuenta'}
           </h1>
-          <p className="text-sm mb-8" style={{ color: '#6B6B8A' }}>
+          <p className="text-sm mb-8" style={{ color: '#6B7090' }}>
             {isLogin ? 'Accede a tu workspace de MyTrack' : 'Empieza a registrar tu tiempo hoy'}
           </p>
 
@@ -108,9 +108,9 @@ export default function Login() {
                   onChange={e => setName(e.target.value)}
                   placeholder="Tu nombre"
                   className="w-full px-4 py-3 text-sm text-white placeholder-gray-600 rounded-xl outline-none transition-all"
-                  style={{ background: '#1A1A2E', border: '1.5px solid #2E2E4A' }}
-                  onFocus={e => e.target.style.borderColor = '#7B68EE'}
-                  onBlur={e => e.target.style.borderColor = '#2E2E4A'}
+                  style={{ background: '#1C1C28', border: '1.5px solid #2A2D3A' }}
+                  onFocus={e => e.target.style.borderColor = '#7C4DFF'}
+                  onBlur={e => e.target.style.borderColor = '#2A2D3A'}
                 />
               </div>
             )}
@@ -125,9 +125,9 @@ export default function Login() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="tu@email.com"
                 className="w-full px-4 py-3 text-sm text-white placeholder-gray-600 rounded-xl outline-none transition-all"
-                style={{ background: '#1A1A2E', border: '1.5px solid #2E2E4A' }}
-                onFocus={e => e.target.style.borderColor = '#7B68EE'}
-                onBlur={e => e.target.style.borderColor = '#2E2E4A'}
+                style={{ background: '#1C1C28', border: '1.5px solid #2A2D3A' }}
+                onFocus={e => e.target.style.borderColor = '#7C4DFF'}
+                onBlur={e => e.target.style.borderColor = '#2A2D3A'}
               />
             </div>
             <div>
@@ -141,9 +141,9 @@ export default function Login() {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full px-4 py-3 text-sm text-white placeholder-gray-600 rounded-xl outline-none transition-all"
-                style={{ background: '#1A1A2E', border: '1.5px solid #2E2E4A' }}
-                onFocus={e => e.target.style.borderColor = '#7B68EE'}
-                onBlur={e => e.target.style.borderColor = '#2E2E4A'}
+                style={{ background: '#1C1C28', border: '1.5px solid #2A2D3A' }}
+                onFocus={e => e.target.style.borderColor = '#7C4DFF'}
+                onBlur={e => e.target.style.borderColor = '#2A2D3A'}
               />
             </div>
 
@@ -151,7 +151,7 @@ export default function Login() {
               type="submit"
               disabled={loading}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white transition-all mt-2"
-              style={{ background: 'linear-gradient(135deg,#7B68EE,#6B4EFF)', boxShadow: '0 4px 20px rgba(107,78,255,0.4)' }}
+              style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)', boxShadow: '0 4px 20px rgba(107,78,255,0.4)' }}
               onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
               onMouseLeave={e => e.currentTarget.style.opacity = '1'}
             >
@@ -164,7 +164,7 @@ export default function Login() {
             </button>
           </form>
 
-          <p className="text-center text-xs mt-5" style={{ color: '#4A4A6A' }}>
+          <p className="text-center text-xs mt-5" style={{ color: '#3D4060' }}>
             Acceso restringido · Solo usuarios autorizados
           </p>
         </div>

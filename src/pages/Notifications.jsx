@@ -6,8 +6,8 @@ import { es } from 'date-fns/locale'
 const TYPE_CONFIG = {
   unlogged_time: { icon: Clock,         color: '#FF4757', bg: 'rgba(255,71,87,0.08)',  label: 'Tiempo no imputado' },
   budget_warning: { icon: BarChart2,    color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', label: 'Presupuesto' },
-  weekly_summary: { icon: CalendarDays, color: '#7B68EE', bg: 'rgba(123,104,238,0.08)',label: 'Resumen semanal' },
-  default:        { icon: Bell,         color: '#9090B0', bg: 'rgba(144,144,176,0.08)',label: 'Notificación' },
+  weekly_summary: { icon: CalendarDays, color: '#7C4DFF', bg: 'rgba(123,104,238,0.08)',label: 'Resumen semanal' },
+  default:        { icon: Bell,         color: '#7A7F9A', bg: 'rgba(144,144,176,0.08)',label: 'Notificación' },
 }
 
 export default function Notifications() {
@@ -20,8 +20,8 @@ export default function Notifications() {
     <div className="flex flex-col h-full overflow-y-auto">
       <div className="px-6 pt-6 pb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold" style={{ color: '#1A1A2E' }}>Alertas</h1>
-          <p className="text-xs mt-0.5" style={{ color: '#9090B0' }}>
+          <h1 className="text-lg font-bold" style={{ color: '#1C1C28' }}>Alertas</h1>
+          <p className="text-xs mt-0.5" style={{ color: '#7A7F9A' }}>
             {unreadCount > 0 ? `${unreadCount} sin leer` : 'Todo al día'}
           </p>
         </div>
@@ -29,7 +29,7 @@ export default function Notifications() {
           <button
             onClick={markAllRead}
             className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all"
-            style={{ background: 'rgba(123,104,238,0.1)', color: '#7B68EE', border: '1px solid rgba(123,104,238,0.2)' }}
+            style={{ background: 'rgba(123,104,238,0.1)', color: '#7C4DFF', border: '1px solid rgba(123,104,238,0.2)' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(123,104,238,0.18)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(123,104,238,0.1)' }}
           >
@@ -46,15 +46,15 @@ export default function Notifications() {
               style={{ background: 'rgba(123,104,238,0.08)' }}>
               <Bell size={28} style={{ color: '#C0C0E0' }} />
             </div>
-            <p className="font-semibold" style={{ color: '#4A4A6A' }}>Sin notificaciones</p>
-            <p className="text-sm mt-1" style={{ color: '#9090B0' }}>Aquí aparecerán las alertas del equipo</p>
+            <p className="font-semibold" style={{ color: '#3D4060' }}>Sin notificaciones</p>
+            <p className="text-sm mt-1" style={{ color: '#7A7F9A' }}>Aquí aparecerán las alertas del equipo</p>
           </div>
         )}
 
         {unread.length > 0 && (
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#4A4A6A' }}>Sin leer</p>
-            <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1.5px solid #E8E8F0', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
+            <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#3D4060' }}>Sin leer</p>
+            <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1.5px solid #E5E8EE', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
               {unread.map((n, i) => <NotifRow key={n.id} n={n} onRead={markRead} isLast={i === unread.length - 1} />)}
             </div>
           </div>
@@ -62,8 +62,8 @@ export default function Notifications() {
 
         {read.length > 0 && (
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#B0B0C8' }}>Leídas</p>
-            <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1.5px solid #E8E8F0', opacity: 0.7 }}>
+            <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#9095B0' }}>Leídas</p>
+            <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1.5px solid #E5E8EE', opacity: 0.7 }}>
               {read.map((n, i) => <NotifRow key={n.id} n={n} onRead={markRead} isLast={i === read.length - 1} />)}
             </div>
           </div>
@@ -94,11 +94,11 @@ function NotifRow({ n, onRead, isLast }) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-semibold" style={{ color: '#1A1A2E' }}>{n.title}</p>
+          <p className="text-sm font-semibold" style={{ color: '#1C1C28' }}>{n.title}</p>
           {!n.read && <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ background: cfg.color }} />}
         </div>
-        <p className="text-xs mt-1 leading-relaxed" style={{ color: '#6B6B8A' }}>{n.message}</p>
-        <p className="text-xs mt-1.5" style={{ color: '#B0B0C8' }}>{ago}</p>
+        <p className="text-xs mt-1 leading-relaxed" style={{ color: '#6B7090' }}>{n.message}</p>
+        <p className="text-xs mt-1.5" style={{ color: '#9095B0' }}>{ago}</p>
       </div>
     </div>
   )

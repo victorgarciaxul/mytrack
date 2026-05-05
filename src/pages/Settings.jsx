@@ -72,18 +72,18 @@ export default function Settings() {
       <div className="rounded-xl p-5" style={{ background: 'linear-gradient(135deg,rgba(123,104,238,0.08),rgba(255,107,202,0.06))', border: '1.5px solid rgba(123,104,238,0.2)' }}>
         <div className="flex items-start gap-4">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg,#7B68EE,#6B4EFF)', boxShadow: '0 4px 12px rgba(107,78,255,0.35)' }}>
+            style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)', boxShadow: '0 4px 12px rgba(107,78,255,0.35)' }}>
             <HelpCircle size={18} color="white" />
           </div>
           <div className="flex-1">
-            <h2 className="font-bold text-sm" style={{ color: '#1A1A2E' }}>Tutorial interactivo</h2>
-            <p className="text-xs mt-1 mb-3" style={{ color: '#6B6B8A' }}>
+            <h2 className="font-bold text-sm" style={{ color: '#1C1C28' }}>Tutorial interactivo</h2>
+            <p className="text-xs mt-1 mb-3" style={{ color: '#6B7090' }}>
               Repasa todas las funcionalidades de MyTrack paso a paso. El tour se adapta a tu rol mostrando sólo las secciones relevantes.
             </p>
             <button
               onClick={() => { resetTour(); onStartTour?.() }}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all"
-              style={{ background: 'linear-gradient(135deg,#7B68EE,#6B4EFF)', boxShadow: '0 4px 12px rgba(107,78,255,0.3)' }}
+              style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)', boxShadow: '0 4px 12px rgba(107,78,255,0.3)' }}
               onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
               onMouseLeave={e => e.currentTarget.style.opacity = '1'}
             >

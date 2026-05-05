@@ -5,32 +5,27 @@ export default {
   theme: {
     extend: {
       colors: {
-        cu: {
-          purple:   '#7B68EE',
-          violet:   '#6B4EFF',
-          dark:     '#1A1A2E',
-          darker:   '#13131F',
-          sidebar:  '#16162A',
-          muted:    '#2D2D4A',
-          border:   '#2E2E4A',
-          text:     '#A0A0C0',
-          accent:   '#FF6BCA',
+        ck: {
+          purple:  '#7C4DFF',
+          violet:  '#6B3EED',
+          sidebar: '#191B23',
+          hover:   'rgba(255,255,255,0.05)',
+          active:  'rgba(124,77,255,0.12)',
+          border:  'rgba(255,255,255,0.07)',
+          text:    '#8C8FA8',
+          label:   '#4A4D5E',
+          bg:      '#F7F8FA',
+          card:    '#FFFFFF',
+          line:    '#E5E8EE',
+          dark:    '#1C1C28',
+          muted:   '#7A7F9A',
         },
       },
       fontFamily: {
-        sans: ['Poppins', 'system-ui', 'sans-serif'],
-        numeric: ['Space Grotesk', 'system-ui', 'sans-serif'],
-      },
-      backgroundImage: {
-        'gradient-cu': 'linear-gradient(135deg, #7B68EE 0%, #6B4EFF 100%)',
-        'gradient-cu-soft': 'linear-gradient(135deg, #7B68EE22 0%, #6B4EFF22 100%)',
-      },
-      boxShadow: {
-        'cu': '0 4px 24px rgba(107, 78, 255, 0.25)',
-        'cu-sm': '0 2px 12px rgba(107, 78, 255, 0.15)',
+        sans:    ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        numeric: ['Inter', 'system-ui', 'sans-serif'],
       },
     },
   },
   plugins: [],
 }
-

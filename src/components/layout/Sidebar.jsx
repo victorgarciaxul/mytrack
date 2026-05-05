@@ -1,8 +1,8 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   Clock, BarChart2, Briefcase, Users, Settings,
-  ChevronLeft, ChevronRight, Timer, Tag, ChevronDown,
-  LayoutDashboard, Bell, UserCog, HelpCircle,
+  ChevronLeft, ChevronRight, Timer, Tag,
+  LayoutDashboard, Bell, UserCog, HelpCircle, Search, LogOut,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
@@ -10,98 +10,140 @@ import { useWorkspace } from '../../context/WorkspaceContext'
 import { useRole } from '../../context/RoleContext'
 import { useTour } from '../tour/AppTour'
 
+// ─── ClickUp color tokens ─────────────────────────────────────────────────────
+const S = {
+  bg:      '#191B23',
+  border:  'rgba(255,255,255,0.07)',
+  hover:   'rgba(255,255,255,0.05)',
+  active:  'rgba(124,77,255,0.10)',
+  text:    '#8C8FA8',
+  textOn:  '#FFFFFF',
+  label:   '#454859',
+  primary: '#7C4DFF',
+  input:   'rgba(255,255,255,0.06)',
+}
+
+const NAV_EMPLOYEE = [
+  { to: '/tracker',      icon: Clock,          label: 'Tracker',    color: '#7C4DFF' },
+  { to: '/notifications',icon: Bell,           label: 'Alertas',    color: '#F59E0B', badge: true },
+]
+
+const NAV_MANAGER = [
+  { to: '/dashboard',    icon: LayoutDashboard,label: 'Dashboard',  color: '#06B6D4' },
+  { to: '/tracker',      icon: Clock,          label: 'Tracker',    color: '#7C4DFF' },
+  { to: '/reports',      icon: BarChart2,       label: 'Reportes',   color: '#10B981' },
+  { to: '/projects',     icon: Briefcase,       label: 'Proyectos',  color: '#F59E0B' },
+  { to: '/clients',      icon: Tag,             label: 'Clientes',   color: '#EC4899' },
+  { to: '/team',         icon: Users,           label: 'Equipo',     color: '#8B5CF6' },
+  { to: '/notifications',icon: Bell,           label: 'Alertas',    color: '#F59E0B', badge: true },
+]
+
+const NAV_ADMIN_EXTRA = [
+  { to: '/users',        icon: UserCog,        label: 'Usuarios',   color: '#06B6D4' },
+]
+
 export default function Sidebar({ onStartTour }) {
   const [collapsed, setCollapsed] = useState(false)
+  const [search, setSearch] = useState('')
   const { user, signOut } = useAuth()
   const { workspace } = useWorkspace()
   const { isManager, isAdmin, unreadCount, role } = useRole()
   const location = useLocation()
   const { resetTour } = useTour()
 
-  const employeeNav = [
-    { to: '/tracker',  icon: Clock,            label: 'Tracker',    color: '#7B68EE' },
-    { to: '/notifications', icon: Bell,         label: 'Alertas',    color: '#FF6BCA', badge: unreadCount },
-  ]
+  const mainNav = isManager
+    ? [...NAV_MANAGER, ...(isAdmin ? NAV_ADMIN_EXTRA : [])]
+    : NAV_EMPLOYEE
 
-  const managerNav = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',  color: '#4FC3F7' },
-    { to: '/tracker',   icon: Clock,           label: 'Tracker',    color: '#7B68EE' },
-    { to: '/reports',   icon: BarChart2,        label: 'Reportes',   color: '#FF6BCA' },
-    { to: '/projects',  icon: Briefcase,        label: 'Proyectos',  color: '#81C784' },
-    { to: '/clients',   icon: Tag,              label: 'Clientes',   color: '#FFB74D' },
-    { to: '/team',      icon: Users,            label: 'Equipo',     color: '#26C6DA' },
-    { to: '/notifications', icon: Bell,         label: 'Alertas',    color: '#FF8A65', badge: unreadCount },
-  ]
-
-  const adminExtra = [
-    { to: '/users', icon: UserCog, label: 'Usuarios', color: '#CE93D8' },
-  ]
-
-  const navItems = isManager
-    ? [...managerNav, ...(isAdmin ? adminExtra : [])]
-    : employeeNav
-
-  const tourAttr = (key) => ({ 'data-tour': key })
-
-  const roleBadge = { admin: 'Admin', manager: 'Manager', employee: 'Empleado' }[role] || ''
-  const roleColor = { admin: '#7B68EE', manager: '#4FC3F7', employee: '#81C784' }[role] || '#9090B0'
+  const filtered = search
+    ? mainNav.filter(n => n.label.toLowerCase().includes(search.toLowerCase()))
+    : mainNav
 
   const initials = user?.user_metadata?.full_name
     ? user.user_metadata.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
     : user?.email?.[0]?.toUpperCase() || 'U'
 
+  const W = collapsed ? 52 : 228
+
   return (
     <aside
-      className="relative flex flex-col flex-shrink-0 transition-all duration-300 overflow-hidden"
-      style={{ width: collapsed ? 64 : 220, background: 'linear-gradient(180deg,#13131F 0%,#1A1A2E 100%)', borderRight: '1px solid #2E2E4A' }}
+      className="relative flex flex-col flex-shrink-0 transition-all duration-200"
+      style={{ width: W, background: S.bg, borderRight: `1px solid ${S.border}`, overflow: 'hidden' }}
     >
-      {/* Workspace header */}
-      <div className="flex flex-col items-center px-3 py-4" style={{ borderBottom: '1px solid #2E2E4A' }}>
+      {/* ── Workspace header ── */}
+      <div
+        className="flex items-center gap-2.5 flex-shrink-0"
+        style={{ padding: collapsed ? '14px 12px' : '12px 14px', borderBottom: `1px solid ${S.border}`, minHeight: 52 }}
+      >
         {collapsed ? (
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-            style={{ background: 'linear-gradient(180deg,#1A1A2E,#13131F)', border: '1.5px solid #2E2E4A' }}>
-            <Timer size={16} style={{ color: '#7B68EE' }} />
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)' }}>
+            <Timer size={14} color="white" />
           </div>
         ) : (
           <>
-            <img src="/logo-xul.png" alt="XUL" style={{ height: 44, objectFit: 'contain', maxWidth: '100%' }} />
-            <p className="text-xs mt-2 truncate w-full text-center" style={{ color: '#6B6B8A' }}>{user?.email}</p>
+            <img src="/logo-xul.png" alt="XUL" style={{ height: 26, objectFit: 'contain', flexShrink: 0 }} />
+            <span className="flex-1" />
+            <ChevronLeft size={13} style={{ color: S.label, flexShrink: 0 }} />
           </>
         )}
       </div>
 
-      {/* Role badge */}
+      {/* ── Search ── */}
       {!collapsed && (
-        <div className="px-3 py-2">
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: `${roleColor}18`, color: roleColor }}>
-            {roleBadge}
-          </span>
+        <div className="px-3 pt-3 pb-1 flex-shrink-0">
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
+            style={{ background: S.input, border: `1px solid ${S.border}` }}>
+            <Search size={12} style={{ color: S.label, flexShrink: 0 }} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar..."
+              className="bg-transparent border-none outline-none text-xs flex-1"
+              style={{ color: S.text, '::placeholder': { color: S.label } }}
+            />
+          </div>
         </div>
       )}
 
-      {/* Nav */}
-      <div className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto">
+      {/* ── Nav ── */}
+      <nav className="flex-1 overflow-y-auto py-2 px-2">
         {!collapsed && (
-          <p className="text-xs font-semibold uppercase tracking-widest px-2 mb-2" style={{ color: '#4A4A6A' }}>
+          <p className="px-2 mb-1 mt-2" style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', color: S.label, textTransform: 'uppercase' }}>
             {isManager ? 'Gestión' : 'Mi trabajo'}
           </p>
         )}
-        {navItems.map(({ to, icon: Icon, label, color, badge }) => {
+
+        {filtered.map(({ to, icon: Icon, label, color, badge }) => {
           const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to))
-          const tourKey = `nav-${to.replace('/', '')}`
+          const count = badge ? unreadCount : 0
           return (
-            <NavLink key={to} to={to}
-              data-tour={tourKey}
-              className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm font-medium transition-all duration-150 relative"
-              style={{ background: isActive ? 'rgba(107,78,255,0.18)' : 'transparent', color: isActive ? '#fff' : '#8888A8' }}
+            <NavLink
+              key={to}
+              to={to}
+              data-tour={`nav-${to.replace('/', '')}`}
+              title={collapsed ? label : undefined}
+              className="flex items-center gap-2.5 px-2 py-1.5 rounded-md transition-all duration-100 relative group"
+              style={{
+                background: isActive ? S.active : 'transparent',
+                color: isActive ? S.textOn : S.text,
+                fontSize: 13,
+                fontWeight: isActive ? 500 : 400,
+                marginBottom: 1,
+              }}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = S.hover }}
+              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
             >
-              {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full" style={{ background: color }} />}
+              {isActive && (
+                <span className="absolute left-0 top-1 bottom-1 w-0.5 rounded-r-full"
+                  style={{ background: S.primary }} />
+              )}
               <span className="relative flex-shrink-0">
-                <Icon size={17} style={{ color: isActive ? color : '#6B6B8A' }} />
-                {badge > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-white flex items-center justify-center font-bold"
-                    style={{ background: '#FF4757', fontSize: 9 }}>
-                    {badge > 9 ? '9+' : badge}
+                <Icon size={15} style={{ color: isActive ? color : S.text }} />
+                {count > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full text-white flex items-center justify-center font-bold"
+                    style={{ background: '#EF4444', fontSize: 8 }}>
+                    {count > 9 ? '9+' : count}
                   </span>
                 )}
               </span>
@@ -110,54 +152,75 @@ export default function Sidebar({ onStartTour }) {
           )
         })}
 
-        {/* Settings separator */}
-        {!collapsed && <div className="my-2" style={{ borderTop: '1px solid #2E2E4A' }} />}
-        <NavLink to="/settings"
+        {/* Settings */}
+        {!collapsed && (
+          <p className="px-2 mb-1 mt-3" style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', color: S.label, textTransform: 'uppercase' }}>
+            Workspace
+          </p>
+        )}
+        {!collapsed && collapsed === false && <div style={{ height: 1, background: S.border, marginBottom: 6 }} />}
+        <NavLink
+          to="/settings"
           data-tour="nav-settings"
-          className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm font-medium transition-all"
-          style={({ isActive }) => ({ background: isActive ? 'rgba(107,78,255,0.18)' : 'transparent', color: isActive ? '#fff' : '#8888A8' })}
+          title={collapsed ? 'Ajustes' : undefined}
+          className="flex items-center gap-2.5 px-2 py-1.5 rounded-md transition-all duration-100"
+          style={({ isActive }) => ({
+            background: isActive ? S.active : 'transparent',
+            color: isActive ? S.textOn : S.text,
+            fontSize: 13,
+            fontWeight: isActive ? 500 : 400,
+            marginBottom: 1,
+          })}
+          onMouseEnter={e => e.currentTarget.style.background = S.hover}
+          onMouseLeave={e => { if (!e.currentTarget.getAttribute('data-active')) e.currentTarget.style.background = 'transparent' }}
         >
-          <Settings size={17} style={{ color: '#6B6B8A', flexShrink: 0 }} />
+          <Settings size={15} style={{ color: S.text, flexShrink: 0 }} />
           {!collapsed && <span>Ajustes</span>}
         </NavLink>
-      </div>
+      </nav>
 
-      {/* User + signout */}
-      <div className="px-2 pb-3 pt-2" style={{ borderTop: '1px solid #2E2E4A' }}>
-        {/* Tutorial button */}
+      {/* ── Footer ── */}
+      <div className="flex-shrink-0 px-2 pb-3 pt-2" style={{ borderTop: `1px solid ${S.border}` }}>
+        {/* Tutorial */}
         <button
           onClick={() => { resetTour(); onStartTour?.() }}
-          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs transition-all mb-1"
-          style={{ color: '#5A5A7A' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(123,104,238,0.1)'; e.currentTarget.style.color = '#7B68EE' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#5A5A7A' }}
-          title="Ver tutorial"
+          title={collapsed ? 'Tutorial' : undefined}
+          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md transition-all mb-0.5"
+          style={{ color: S.label, fontSize: 13, background: 'transparent' }}
+          onMouseEnter={e => { e.currentTarget.style.background = S.hover; e.currentTarget.style.color = S.text }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = S.label }}
         >
           <HelpCircle size={15} style={{ flexShrink: 0 }} />
-          {!collapsed && <span>Ver tutorial</span>}
+          {!collapsed && <span>Tutorial</span>}
         </button>
-        <button onClick={signOut}
-          className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm transition-all"
-          style={{ color: '#6B6B8A' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#f87171' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6B6B8A' }}
+
+        {/* Sign out */}
+        <button
+          onClick={signOut}
+          title={collapsed ? 'Cerrar sesión' : undefined}
+          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md transition-all"
+          style={{ color: S.label, fontSize: 13, background: 'transparent' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.color = '#FCA5A5' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = S.label }}
         >
-          <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-white"
-            style={{ background: 'linear-gradient(135deg,#7B68EE,#FF6BCA)' }}>
+          <div className="w-5 h-5 rounded-full flex items-center justify-center text-white flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg,#7C4DFF,#EC4899)', fontSize: 9, fontWeight: 700 }}>
             {initials}
           </div>
-          {!collapsed && <span className="truncate">Cerrar sesión</span>}
+          {!collapsed && <span className="flex-1 truncate text-left">{user?.email?.split('@')[0]}</span>}
+          {!collapsed && <LogOut size={13} style={{ flexShrink: 0, opacity: 0.5 }} />}
         </button>
       </div>
 
-      {/* Collapse toggle */}
-      <button onClick={() => setCollapsed(c => !c)}
-        className="absolute -right-3 top-12 w-6 h-6 rounded-full flex items-center justify-center z-10"
-        style={{ background: '#2D2D4A', border: '1px solid #3A3A5A', color: '#8888A8' }}
-        onMouseEnter={e => e.currentTarget.style.background = '#3D3D5A'}
-        onMouseLeave={e => e.currentTarget.style.background = '#2D2D4A'}
+      {/* ── Collapse toggle ── */}
+      <button
+        onClick={() => setCollapsed(c => !c)}
+        className="absolute -right-3 top-14 w-5 h-5 rounded-full flex items-center justify-center z-10 transition-all"
+        style={{ background: '#2A2D3A', border: `1px solid ${S.border}`, color: S.label }}
+        onMouseEnter={e => e.currentTarget.style.background = '#353849'}
+        onMouseLeave={e => e.currentTarget.style.background = '#2A2D3A'}
       >
-        {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+        {collapsed ? <ChevronRight size={10} /> : <ChevronLeft size={10} />}
       </button>
     </aside>
   )

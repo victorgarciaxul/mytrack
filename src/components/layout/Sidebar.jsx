@@ -69,15 +69,7 @@ export default function Sidebar({ onStartTour }) {
 
       {/* Logo XUL centrado */}
       <div style={{ padding: '20px 20px 14px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <img
-          src="/logo-xul.png"
-          alt="XUL"
-          style={{
-            height: 42, width: 'auto',
-            filter: isDark ? 'invert(1)' : 'none',
-            mixBlendMode: isDark ? 'screen' : 'multiply',
-          }}
-        />
+        <div className="xul-logo" />
       </div>
 
       {/* Nav */}

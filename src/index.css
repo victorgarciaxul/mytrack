@@ -79,6 +79,23 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: var(--c-text-3); }
 * { scrollbar-width: thin; scrollbar-color: var(--c-scrollbar) transparent; }
 
+/* ── Logo XUL como máscara (blanco/negro según tema) ───────── */
+.xul-logo {
+  display: block;
+  width: 190px;
+  height: 52px;
+  background-color: var(--c-text-1);
+  -webkit-mask-image: url('/logo-xul.png');
+  mask-image: url('/logo-xul.png');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  flex-shrink: 0;
+}
+
 /* ── Dark mode: eliminar todos los bordes de tarjetas ──────── */
 [data-theme="dark"] .rounded-lg,
 [data-theme="dark"] .rounded-xl,

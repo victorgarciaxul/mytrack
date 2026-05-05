@@ -12,7 +12,7 @@ import { useTour } from '../tour/AppTour'
 
 export default function Sidebar({ onStartTour }) {
   const { user, signOut } = useAuth()
-  const { workspace } = useWorkspace()
+  const { workspace, projects } = useWorkspace()
   const { isManager, isAdmin, unreadCount } = useRole()
   const location = useLocation()
   const { resetTour } = useTour()
@@ -115,6 +115,34 @@ export default function Sidebar({ onStartTour }) {
             {projectNav.map(item => (
               <NavItem key={item.to} item={item} location={location} unreadCount={unreadCount} />
             ))}
+          </>
+        )}
+
+        {/* Recent projects */}
+        {projects.length > 0 && (
+          <>
+            <div style={{ marginTop: 8 }}>
+              {projects.slice(0, 4).map(p => (
+                <div key={p.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '5px 8px', borderRadius: 8, cursor: 'default',
+                }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#F8F8FD'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <div style={{
+                    width: 20, height: 20, borderRadius: 5, flexShrink: 0,
+                    background: p.color + '20',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.color }} />
+                  </div>
+                  <span style={{ fontSize: 12, color: '#6B7090', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flex: 1 }}>
+                    {p.name}
+                  </span>
+                </div>
+              ))}
+            </div>
           </>
         )}
       </nav>

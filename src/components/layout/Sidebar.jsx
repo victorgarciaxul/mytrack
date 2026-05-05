@@ -8,11 +8,13 @@ import { useAuth } from '../../context/AuthContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import { useRole } from '../../context/RoleContext'
 import { useTour } from '../tour/AppTour'
+import { useTheme } from '../../context/ThemeContext'
 
 export default function Sidebar({ onStartTour }) {
   const { user, signOut } = useAuth()
   const { workspace, projects } = useWorkspace()
   const { isManager, isAdmin, unreadCount } = useRole()
+  const { isDark } = useTheme()
   const location = useLocation()
   const { resetTour } = useTour()
 
@@ -66,13 +68,14 @@ export default function Sidebar({ onStartTour }) {
       </div>
 
       {/* Logo XUL centrado */}
-      <div style={{ padding: '14px 20px 10px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <div style={{ padding: '20px 20px 14px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <img
           src="/logo-xul.png"
           alt="XUL"
           style={{
-            height: 28, width: 'auto',
-            filter: 'var(--logo-filter)',
+            height: 42, width: 'auto',
+            filter: isDark ? 'invert(1)' : 'none',
+            mixBlendMode: isDark ? 'screen' : 'multiply',
           }}
         />
       </div>

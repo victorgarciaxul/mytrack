@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Play, Square, Plus, ChevronDown, Tag, Hash } from 'lucide-react'
+import { Play, Square, Plus, ChevronDown, Hash, Zap } from 'lucide-react'
 import { useTimer } from '../hooks/useTimer'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -47,7 +47,6 @@ export default function Tracker() {
     if (secs < 5) { timer.reset(); return }
     const start = new Date(Date.now() - secs * 1000)
     const end = new Date()
-
     if (isDemo) {
       const newEntry = {
         id: `demo-${Date.now()}`,
@@ -67,16 +66,12 @@ export default function Tracker() {
       timer.reset(); setDescription(''); setSelectedProject(null); setSelectedTask(null)
       return
     }
-
     const { error } = await supabase.from('time_entries').insert({
-      workspace_id: workspace.id,
-      user_id: user.id,
+      workspace_id: workspace.id, user_id: user.id,
       description: description || '(sin descripción)',
       project_id: selectedProject?.id || null,
       task_id: selectedTask?.id || null,
-      start_time: start.toISOString(),
-      end_time: end.toISOString(),
-      duration: secs,
+      start_time: start.toISOString(), end_time: end.toISOString(), duration: secs,
     })
     if (error) { toast.error('Error al guardar'); return }
     toast.success('Tiempo registrado')
@@ -91,30 +86,91 @@ export default function Tracker() {
   }
 
   const grouped = groupByDay(entries)
-  const totalToday = entries
-    .filter(e => isToday(parseISO(e.start_time)))
-    .reduce((s, e) => s + (e.duration || 0), 0)
+  const totalToday = entries.filter(e => isToday(parseISO(e.start_time))).reduce((s, e) => s + (e.duration || 0), 0)
+  const todayEntries = entries.filter(e => isToday(parseISO(e.start_time))).length
+  const totalWeek = entries.reduce((s, e) => s + (e.duration || 0), 0)
 
   return (
-    <div className="flex flex-col h-full">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#F8FAFC' }}>
+
+      {/* ── Stats header ── */}
+      <div style={{
+        background: 'linear-gradient(135deg, #7C4DFF 0%, #E040FB 100%)',
+        padding: '20px 28px 18px',
+        flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: 32 }}>
+            <div>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 500, marginBottom: 3, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Hoy</p>
+              <p style={{ fontSize: 28, fontWeight: 700, color: '#fff', letterSpacing: '-0.5px', margin: 0 }}>
+                {timer.format(totalToday)}
+              </p>
+            </div>
+            <div style={{ width: 1, background: 'rgba(255,255,255,0.15)' }} />
+            <div>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 500, marginBottom: 3, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Entradas hoy</p>
+              <p style={{ fontSize: 28, fontWeight: 700, color: '#fff', letterSpacing: '-0.5px', margin: 0 }}>{todayEntries}</p>
+            </div>
+            <div style={{ width: 1, background: 'rgba(255,255,255,0.15)' }} />
+            <div>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 500, marginBottom: 3, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Esta semana</p>
+              <p style={{ fontSize: 28, fontWeight: 700, color: '#fff', letterSpacing: '-0.5px', margin: 0 }}>
+                {timer.format(totalWeek)}
+              </p>
+            </div>
+          </div>
+          <button
+            data-tour="manual-btn"
+            onClick={() => setShowManual(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 16px', borderRadius: 8,
+              background: 'rgba(255,255,255,0.15)',
+              border: '1px solid rgba(255,255,255,0.25)',
+              color: '#fff', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', backdropFilter: 'blur(8px)',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.22)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+          >
+            <Plus size={14} /> Manual
+          </button>
+        </div>
+      </div>
 
       {/* ── Timer entry bar ── */}
       <div
         data-tour="timer-bar"
-        className="flex items-center gap-3 px-6 py-0 flex-shrink-0"
-        style={{ borderBottom: '1px solid #E5E8EE', background: '#fff', height: 56 }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '0 24px',
+          background: '#fff',
+          borderBottom: '1px solid #EEF0F5',
+          height: 60,
+          flexShrink: 0,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        }}
       >
-        {/* Start/Stop button */}
+        {/* Play/Stop */}
         <button
           onClick={timer.isRunning ? handleStop : timer.start}
-          className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all"
           style={{
-            background: timer.isRunning ? '#EF4444' : '#7C4DFF',
+            width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+            background: timer.isRunning
+              ? 'linear-gradient(135deg,#FF4757,#FF6B81)'
+              : 'linear-gradient(135deg,#7C4DFF,#E040FB)',
+            border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: timer.isRunning ? '0 2px 10px rgba(255,71,87,0.4)' : '0 2px 10px rgba(124,77,255,0.4)',
+            transition: 'transform 0.1s',
           }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
         >
           {timer.isRunning
-            ? <Square size={12} fill="white" color="white" />
-            : <Play size={12} fill="white" color="white" style={{ marginLeft: 1 }} />
+            ? <Square size={13} fill="white" color="white" />
+            : <Play size={13} fill="white" color="white" style={{ marginLeft: 2 }} />
           }
         </button>
 
@@ -125,40 +181,38 @@ export default function Tracker() {
           value={description}
           onChange={e => setDescription(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !timer.isRunning && timer.start()}
-          className="flex-1 text-sm bg-transparent border-none outline-none"
-          style={{ color: '#1C1C28' }}
+          style={{
+            flex: 1, fontSize: 14, background: 'transparent',
+            border: 'none', outline: 'none', color: '#0F172A',
+          }}
         />
 
         {/* Project picker */}
-        <div data-tour="project-picker" className="relative">
+        <div data-tour="project-picker" style={{ position: 'relative' }}>
           <button
             onClick={() => { setShowProjectPicker(p => !p); setShowTaskPicker(false) }}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all"
             style={{
-              background: selectedProject ? `${selectedProject.color}15` : 'transparent',
-              color: selectedProject ? selectedProject.color : '#9095B0',
-              border: `1px solid ${selectedProject ? selectedProject.color + '40' : '#E5E8EE'}`,
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '5px 10px', borderRadius: 6,
+              background: selectedProject ? `${selectedProject.color}12` : '#F8FAFC',
+              color: selectedProject ? selectedProject.color : '#64748B',
+              border: `1px solid ${selectedProject ? selectedProject.color + '30' : '#E2E8F0'}`,
+              fontSize: 12, fontWeight: 500, cursor: 'pointer',
             }}
           >
-            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: selectedProject?.color || '#D0D0E0' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: selectedProject?.color || '#CBD5E1', flexShrink: 0 }} />
             {selectedProject?.name || 'Proyecto'}
             <ChevronDown size={11} />
           </button>
           {showProjectPicker && (
             <Dropdown onClose={() => setShowProjectPicker(false)}>
-              <DropdownItem onClick={() => { setSelectedProject(null); setSelectedTask(null); setShowProjectPicker(false) }} muted>Sin proyecto</DropdownItem>
+              <DropItem onClick={() => { setSelectedProject(null); setSelectedTask(null); setShowProjectPicker(false) }} muted>Sin proyecto</DropItem>
               {projects.map(p => (
-                <button key={p.id}
-                  onClick={() => { setSelectedProject(p); setSelectedTask(null); setShowProjectPicker(false) }}
-                  className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 transition-colors"
-                  style={{ color: '#1C1C28' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#F7F8FA'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
-                  <span className="flex-1 truncate">{p.name}</span>
-                  {p.clients && <span style={{ color: '#A0A5C0' }}>{p.clients.name}</span>}
-                </button>
+                <DropItem key={p.id} onClick={() => { setSelectedProject(p); setSelectedTask(null); setShowProjectPicker(false) }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+                  {p.name}
+                  {p.clients && <span style={{ color: '#94A3B8', marginLeft: 'auto' }}>{p.clients.name}</span>}
+                </DropItem>
               ))}
             </Dropdown>
           )}
@@ -166,14 +220,16 @@ export default function Tracker() {
 
         {/* Task picker */}
         {selectedProject && (
-          <div className="relative">
+          <div style={{ position: 'relative' }}>
             <button
               onClick={() => { setShowTaskPicker(p => !p); setShowProjectPicker(false) }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all"
               style={{
-                background: selectedTask ? 'rgba(123,104,238,0.1)' : 'transparent',
-                color: selectedTask ? '#7C4DFF' : '#9095B0',
-                border: `1px solid ${selectedTask ? 'rgba(123,104,238,0.3)' : '#E5E8EE'}`,
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '5px 10px', borderRadius: 6,
+                background: selectedTask ? 'rgba(124,77,255,0.08)' : '#F8FAFC',
+                color: selectedTask ? '#7C4DFF' : '#64748B',
+                border: `1px solid ${selectedTask ? 'rgba(124,77,255,0.25)' : '#E2E8F0'}`,
+                fontSize: 12, fontWeight: 500, cursor: 'pointer',
               }}
             >
               <Hash size={11} />
@@ -182,21 +238,15 @@ export default function Tracker() {
             </button>
             {showTaskPicker && (
               <Dropdown onClose={() => setShowTaskPicker(false)}>
-                <DropdownItem onClick={() => { setSelectedTask(null); setShowTaskPicker(false) }} muted>Sin tarea</DropdownItem>
+                <DropItem onClick={() => { setSelectedTask(null); setShowTaskPicker(false) }} muted>Sin tarea</DropItem>
                 {projectTasks.length === 0
-                  ? <p className="px-3 py-2 text-xs" style={{ color: '#A0A5C0' }}>No hay tareas</p>
+                  ? <p style={{ padding: '8px 12px', fontSize: 12, color: '#94A3B8' }}>No hay tareas</p>
                   : projectTasks.map(t => (
-                    <button key={t.id}
-                      onClick={() => { setSelectedTask(t); setShowTaskPicker(false) }}
-                      className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 transition-colors"
-                      style={{ color: '#1C1C28' }}
-                      onMouseEnter={e => e.currentTarget.style.background = '#F7F8FA'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#7C4DFF' }} />
-                      <span className="flex-1 truncate">{t.name}</span>
-                      {t.estimated_hours && <span style={{ color: '#9095B0' }}>{t.estimated_hours}h</span>}
-                    </button>
+                    <DropItem key={t.id} onClick={() => { setSelectedTask(t); setShowTaskPicker(false) }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#7C4DFF', flexShrink: 0 }} />
+                      {t.name}
+                      {t.estimated_hours && <span style={{ color: '#94A3B8', marginLeft: 'auto' }}>{t.estimated_hours}h</span>}
+                    </DropItem>
                   ))
                 }
               </Dropdown>
@@ -204,66 +254,62 @@ export default function Tracker() {
           </div>
         )}
 
-        {/* Timer display */}
-        <div
-          className="font-numeric text-sm font-semibold w-20 text-right"
-          style={{ color: timer.isRunning ? '#7C4DFF' : '#7A7F9A' }}
-        >
+        {/* Timer */}
+        <div style={{
+          fontVariantNumeric: 'tabular-nums',
+          fontSize: 18, fontWeight: 700,
+          color: timer.isRunning ? '#7C4DFF' : '#94A3B8',
+          letterSpacing: '-0.5px', minWidth: 80, textAlign: 'right',
+          transition: 'color 0.2s',
+        }}>
           {timer.formatted}
         </div>
-
-        {/* Divider + manual */}
-        <div style={{ width: 1, height: 20, background: '#E5E8EE' }} />
-        <button
-          data-tour="manual-btn"
-          onClick={() => setShowManual(true)}
-          className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-all"
-          style={{ color: '#7A7F9A', border: '1px solid #E5E8EE' }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#F7F8FA'; e.currentTarget.style.color = '#1C1C28' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#7A7F9A' }}
-        >
-          <Plus size={12} />
-          Manual
-        </button>
       </div>
 
-      {/* ── Today summary ── */}
-      {totalToday > 0 && (
-        <div className="px-6 py-2 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: '1px solid #F0F0F8', background: '#FAFAFA' }}>
-          <span className="text-xs" style={{ color: '#7A7F9A' }}>Hoy</span>
-          <span className="font-numeric text-xs font-semibold" style={{ color: '#7C4DFF' }}>{timer.format(totalToday)}</span>
-        </div>
-      )}
-
       {/* ── Entries ── */}
-      <div data-tour="entries-list" className="flex-1 overflow-y-auto">
+      <div data-tour="entries-list" style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
         {entries.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32">
-            <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-3"
-              style={{ background: '#F3F4F8' }}>
-              <Play size={20} style={{ color: '#C0C0E0', marginLeft: 2 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 80 }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: 16,
+              background: 'linear-gradient(135deg,rgba(124,77,255,0.12),rgba(224,64,251,0.08))',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+            }}>
+              <Zap size={24} style={{ color: '#7C4DFF' }} />
             </div>
-            <p className="text-sm font-medium" style={{ color: '#3D4060' }}>Sin entradas esta semana</p>
-            <p className="text-xs mt-1" style={{ color: '#9095B0' }}>Inicia el timer o añade tiempo manualmente</p>
+            <p style={{ fontSize: 15, fontWeight: 600, color: '#1E293B', margin: 0 }}>Sin entradas esta semana</p>
+            <p style={{ fontSize: 13, color: '#94A3B8', marginTop: 6 }}>Inicia el timer o añade tiempo manualmente</p>
           </div>
         ) : (
           Object.entries(grouped).map(([day, dayEntries]) => (
-            <div key={day}>
+            <div key={day} style={{ marginBottom: 20 }}>
               {/* Day header */}
-              <div
-                className="flex items-center justify-between px-6 py-2 sticky top-0"
-                style={{ background: '#F7F8FA', borderBottom: '1px solid #EEEEF6', zIndex: 1 }}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold" style={{ color: '#3D4060' }}>{day}</span>
-                  <span className="text-xs" style={{ color: '#9095B0' }}>{dayEntries.length} {dayEntries.length === 1 ? 'entrada' : 'entradas'}</span>
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                marginBottom: 8, padding: '0 4px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>{day}</span>
+                  <span style={{
+                    fontSize: 11, padding: '2px 8px', borderRadius: 20,
+                    background: '#F1F5F9', color: '#64748B', fontWeight: 500,
+                  }}>
+                    {dayEntries.length} {dayEntries.length === 1 ? 'entrada' : 'entradas'}
+                  </span>
                 </div>
-                <span className="font-numeric text-xs font-semibold" style={{ color: '#1C1C28' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#1E293B', fontVariantNumeric: 'tabular-nums' }}>
                   {timer.format(dayEntries.reduce((s, e) => s + (e.duration || 0), 0))}
                 </span>
               </div>
-              {/* Entry rows */}
-              <div style={{ background: '#fff' }}>
+
+              {/* Card with entries */}
+              <div style={{
+                background: '#fff',
+                borderRadius: 12,
+                border: '1px solid #EEF0F5',
+                overflow: 'hidden',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+              }}>
                 {dayEntries.map((entry, i) => (
                   <TimeEntryRow
                     key={entry.id}
@@ -296,24 +342,31 @@ export default function Tracker() {
   )
 }
 
-function Dropdown({ children, onClose }) {
+function Dropdown({ children }) {
   return (
-    <div
-      className="absolute right-0 top-full mt-1 w-52 z-20 py-1 overflow-hidden"
-      style={{ background: '#fff', border: '1px solid #E5E8EE', borderRadius: 8, boxShadow: '0 4px 24px rgba(0,0,0,0.1)' }}
-    >
+    <div style={{
+      position: 'absolute', right: 0, top: 'calc(100% + 4px)',
+      minWidth: 200, background: '#fff', borderRadius: 10,
+      border: '1px solid #E2E8F0', boxShadow: '0 8px 30px rgba(0,0,0,0.1)',
+      zIndex: 50, overflow: 'hidden', padding: '4px 0',
+    }}>
       {children}
     </div>
   )
 }
 
-function DropdownItem({ children, onClick, muted }) {
+function DropItem({ children, onClick, muted }) {
   return (
     <button
       onClick={onClick}
-      className="w-full text-left px-3 py-2 text-xs transition-colors"
-      style={{ color: muted ? '#9095B0' : '#1C1C28' }}
-      onMouseEnter={e => e.currentTarget.style.background = '#F7F8FA'}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+        padding: '7px 12px', fontSize: 12, fontWeight: 400,
+        color: muted ? '#94A3B8' : '#1E293B',
+        background: 'transparent', border: 'none', cursor: 'pointer',
+        textAlign: 'left',
+      }}
+      onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
     >
       {children}

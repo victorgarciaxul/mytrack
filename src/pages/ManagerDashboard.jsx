@@ -72,23 +72,28 @@ export default function ManagerDashboard() {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      {/* KPI cards */}
-      <div data-tour="kpi-cards" className="px-6 pt-5 grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        {[
-          { icon: Clock,         label: 'Horas esta semana',  value: fmt(totalHours),              color: '#7C4DFF', bg: 'rgba(123,104,238,0.08)' },
-          { icon: TrendingUp,    label: 'Horas facturables',  value: fmt(billableHours),            color: '#22c55e', bg: 'rgba(34,197,94,0.08)' },
-          { icon: DollarSign,    label: 'Facturación est.',   value: `€${Math.round(totalBilling)}`,color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
-          { icon: AlertTriangle, label: 'Alertas pendientes', value: unreadAlerts,                  color: '#FF4757', bg: 'rgba(255,71,87,0.08)' },
-        ].map(({ icon: Icon, label, value, color, bg }) => (
-          <div key={label} className="p-4" style={{ background: '#fff', border: '1px solid #E5E8EE', borderRadius: 8 }}>
-            <div className="flex items-center gap-2 mb-2">
-              <Icon size={14} style={{ color }} />
-              <p className="text-xs font-medium uppercase tracking-wider" style={{ color: '#9095B0' }}>{label}</p>
+      {/* Stats hero */}
+      <div style={{ background: 'linear-gradient(135deg,#7C4DFF 0%,#E040FB 100%)', padding: '20px 28px 18px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: 32 }}>
+          {[
+            { label: 'Horas esta semana', value: fmt(totalHours), icon: Clock },
+            { label: 'Horas facturables', value: fmt(billableHours), icon: TrendingUp },
+            { label: 'Facturación est.', value: `€${Math.round(totalBilling)}`, icon: DollarSign },
+            { label: 'Alertas', value: unreadAlerts, icon: AlertTriangle },
+          ].map(({ label, value, icon: Icon }, i) => (
+            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {i > 0 && <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.15)' }} />}
+              <div>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 500, marginBottom: 3, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{label}</p>
+                <p style={{ fontSize: 26, fontWeight: 700, color: '#fff', letterSpacing: '-0.5px', margin: 0 }}>{value}</p>
+              </div>
             </div>
-            <p className="font-numeric text-2xl font-bold" style={{ color: '#1C1C28' }}>{value}</p>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
+
+      {/* KPI cards */}
+      <div data-tour="kpi-cards" />
 
       <div className="px-6 grid grid-cols-1 lg:grid-cols-2 gap-5 pb-6">
         {/* Time by project */}

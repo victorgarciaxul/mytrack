@@ -27,14 +27,14 @@
   --c-bg-muted:    #1A1A36;
   --c-bg-subtle:   #06060F;
   --c-bg-hover:    #20203C;
-  --c-border:      #26264A;
-  --c-border-light:#1C1C38;
+  --c-border:      #18183A;
+  --c-border-light:#14142E;
   --c-text-1:      #E8E8F4;
   --c-text-2:      #9095B8;
   --c-text-3:      #5C6080;
   --c-text-4:      #3E4260;
   --c-input-bg:    #1A1A32;
-  --c-input-border:#26264A;
+  --c-input-border:#2C2C52;
   --c-scrollbar:   #2A2A50;
 }
 

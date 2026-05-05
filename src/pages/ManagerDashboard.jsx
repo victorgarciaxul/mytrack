@@ -3,16 +3,34 @@ import { BarChart2, Clock, Users, TrendingUp, AlertTriangle, DollarSign } from '
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { useRole } from '../context/RoleContext'
+import { useTheme } from '../context/ThemeContext'
 import { demoEntries } from '../lib/demoData'
 import { isThisWeek, parseISO } from 'date-fns'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
 const PROJECT_COLORS = ['#7C4DFF','#8b5cf6','#ec4899','#f97316','#22c55e','#06b6d4','#f59e0b']
 
+const STAT_PALETTES = {
+  light: [
+    { accent: '#6366F1', shadow: '#6366F140' }, // índigo
+    { accent: '#0D9488', shadow: '#0D948840' }, // teal
+    { accent: '#F59E0B', shadow: '#F59E0B40' }, // ámbar
+    { accent: '#EF4444', shadow: '#EF444440' }, // rojo
+  ],
+  dark: [
+    { accent: '#818CF8', shadow: '#818CF830' }, // índigo suave
+    { accent: '#2DD4BF', shadow: '#2DD4BF30' }, // teal suave
+    { accent: '#FBBF24', shadow: '#FBBF2430' }, // ámbar suave
+    { accent: '#F87171', shadow: '#F8717130' }, // rojo suave
+  ],
+}
+
 export default function ManagerDashboard() {
   const { isDemo } = useAuth()
   const { projects, members } = useWorkspace()
   const { notifications } = useRole()
+  const { isDark } = useTheme()
+  const palette = isDark ? STAT_PALETTES.dark : STAT_PALETTES.light
 
   // Use demo entries for demo mode; real would query all team entries
   const entries = isDemo ? demoEntries : []
@@ -75,16 +93,18 @@ export default function ManagerDashboard() {
       {/* Stats cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, padding: '20px 24px', flexShrink: 0 }}>
         {[
-          { label: 'Horas esta semana', value: fmt(totalHours),            icon: Clock,          accent: '#3B82F6' },
-          { label: 'Horas facturables', value: fmt(billableHours),         icon: TrendingUp,     accent: '#6366F1' },
-          { label: 'Facturación est.',  value: `€${Math.round(totalBilling)}`, icon: DollarSign, accent: '#0EA5E9' },
-          { label: 'Alertas',           value: unreadAlerts,               icon: AlertTriangle,  accent: '#38BDF8' },
-        ].map(({ label, value, icon: Icon, accent }) => (
+          { label: 'Horas esta semana', value: fmt(totalHours),                icon: Clock         },
+          { label: 'Horas facturables', value: fmt(billableHours),           icon: TrendingUp    },
+          { label: 'Facturación est.',  value: `€${Math.round(totalBilling)}`, icon: DollarSign  },
+          { label: 'Alertas',           value: unreadAlerts,                 icon: AlertTriangle },
+        ].map(({ label, value, icon: Icon }, i) => {
+          const { accent, shadow } = palette[i]
+          return (
           <div key={label} style={{
-            background: `linear-gradient(135deg, ${accent} 0%, ${accent}CC 100%)`,
+            background: `linear-gradient(135deg, ${accent} 0%, ${accent}DD 100%)`,
             borderRadius: 14,
             padding: '18px 20px',
-            boxShadow: `0 4px 20px ${accent}40`,
+            boxShadow: `0 4px 20px ${shadow}`,
             display: 'flex', flexDirection: 'column', gap: 10,
           }}>
             <div style={{
@@ -99,7 +119,8 @@ export default function ManagerDashboard() {
               <p style={{ fontSize: 28, fontWeight: 800, color: '#fff', letterSpacing: '-1px', margin: 0, fontVariantNumeric: 'tabular-nums' }}>{value}</p>
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* KPI cards */}

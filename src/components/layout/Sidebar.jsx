@@ -1,8 +1,8 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   Clock, BarChart2, Briefcase, Users, Settings,
-  Tag, LayoutDashboard, Bell, UserCog, HelpCircle,
-  ChevronDown, Plus,
+  LayoutDashboard, Bell, UserCog, HelpCircle,
+  ChevronDown, Plus, CalendarDays,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
@@ -26,15 +26,14 @@ export default function Sidebar({ onStartTour }) {
   const generalNav = [
     ...(isManager ? [{ to: '/dashboard', icon: LayoutDashboard, label: 'Resumen', color: '#7C4DFF' }] : []),
     { to: '/tracker', icon: Clock, label: 'Registro de tiempo', color: '#7C4DFF' },
+    { to: '/calendar', icon: CalendarDays, label: 'Calendario', color: '#7C4DFF' },
     ...(isManager ? [{ to: '/reports', icon: BarChart2, label: 'Informes', color: '#7C4DFF' }] : []),
     { to: '/notifications', icon: Bell, label: 'Bandeja de entrada', color: '#7C4DFF', badge: true },
   ]
 
   const projectNav = [
     { to: '/projects', icon: Briefcase, label: 'Proyectos', color: '#10B981' },
-    { to: '/clients', icon: Tag, label: 'Clientes', color: '#F59E0B' },
     ...(isManager ? [{ to: '/team', icon: Users, label: 'Equipo', color: '#6366F1' }] : []),
-    ...(isAdmin ? [{ to: '/users', icon: UserCog, label: 'Usuarios', color: '#EC4899' }] : []),
   ]
 
   return (

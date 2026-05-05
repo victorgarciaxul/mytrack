@@ -6,13 +6,12 @@ import { ThemeProvider } from './context/ThemeContext'
 import AppLayout from './components/layout/AppLayout'
 import Login from './pages/Login'
 import Tracker from './pages/Tracker'
+import Calendar from './pages/Calendar'
 import Reports from './pages/Reports'
 import Projects from './pages/Projects'
-import Clients from './pages/Clients'
 import Team from './pages/Team'
 import Settings from './pages/Settings'
 import ManagerDashboard from './pages/ManagerDashboard'
-import Users from './pages/Users'
 import Notifications from './pages/Notifications'
 
 function ProtectedRoute({ children }) {
@@ -42,12 +41,11 @@ function App() {
           <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/tracker" replace />} />
             <Route path="tracker" element={<Tracker />} />
+            <Route path="calendar" element={<Calendar />} />
             <Route path="dashboard" element={<ManagerDashboard />} />
             <Route path="reports" element={<Reports />} />
             <Route path="projects" element={<Projects />} />
-            <Route path="clients" element={<Clients />} />
             <Route path="team" element={<Team />} />
-            <Route path="users" element={<Users />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="settings" element={<Settings />} />
           </Route>

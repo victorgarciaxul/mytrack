@@ -32,144 +32,171 @@ export default function Login() {
     }
   }
 
-  const inputStyle = {
-    width: '100%',
-    padding: '8px 12px',
-    fontSize: 14,
-    border: '1px solid #E0E0E0',
-    borderRadius: 6,
-    outline: 'none',
-    color: '#1C1C28',
-    background: '#fff',
-    transition: 'border-color 0.15s',
-  }
-
   return (
-    <div style={{ minHeight: '100vh', background: '#F5F6F8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <div style={{ width: 400, background: '#fff', borderRadius: 12, boxShadow: '0 4px 32px rgba(0,0,0,0.10)', padding: '40px 40px 32px', border: '1px solid #E8EAED' }}>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #0F0C29 0%, #302B63 50%, #24243E 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontFamily: 'Inter, system-ui, sans-serif',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* Background orbs */}
+      <div style={{
+        position: 'absolute', width: 500, height: 500, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(124,77,255,0.15) 0%, transparent 70%)',
+        top: '-100px', left: '-100px', pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute', width: 400, height: 400, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)',
+        bottom: '-80px', right: '-80px', pointerEvents: 'none',
+      }} />
 
+      {/* Glass card */}
+      <div style={{
+        width: 420,
+        background: 'rgba(255,255,255,0.05)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: 20,
+        padding: '44px 40px 36px',
+        position: 'relative',
+        zIndex: 1,
+        boxShadow: '0 32px 64px rgba(0,0,0,0.4)',
+      }}>
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 8, background: 'linear-gradient(135deg,#7B68EE,#5E4DC8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <circle cx="10" cy="10" r="3" fill="white" />
-                <path d="M10 3v2M10 15v2M3 10h2M15 10h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </div>
-            <span style={{ fontSize: 20, fontWeight: 700, color: '#1C1C28', letterSpacing: '-0.3px' }}>MyTrack</span>
+        <div style={{ marginBottom: 32, textAlign: 'center' }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 48, height: 48, borderRadius: 14,
+            background: 'linear-gradient(135deg, #7C4DFF, #E040FB)',
+            marginBottom: 14,
+            boxShadow: '0 8px 24px rgba(124,77,255,0.4)',
+          }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
+              <path d="M2 17l10 5 10-5" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
+              <path d="M2 12l10 5 10-5" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
+            </svg>
           </div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#FFFFFF', margin: 0, letterSpacing: '-0.4px' }}>
+            MyTrack
+          </h1>
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>
+            {isLogin ? 'Bienvenido de vuelta' : 'Crea tu cuenta'}
+          </p>
         </div>
 
-        <h1 style={{ fontSize: 18, fontWeight: 700, color: '#1C1C28', marginBottom: 6, textAlign: 'center' }}>
-          {isLogin ? 'Bienvenido de vuelta' : 'Crea tu cuenta'}
-        </h1>
-        <p style={{ fontSize: 13, color: '#7A7F9A', textAlign: 'center', marginBottom: 24 }}>
-          {isLogin ? 'Accede a tu workspace' : 'Empieza a registrar tu tiempo'}
-        </p>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {!isLogin && (
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#3D4060', marginBottom: 4 }}>Nombre completo</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="Tu nombre"
-                style={inputStyle}
-                onFocus={e => e.target.style.borderColor = '#7B68EE'}
-                onBlur={e => e.target.style.borderColor = '#E0E0E0'}
-              />
-            </div>
+            <Field label="Nombre completo">
+              <GlassInput type="text" placeholder="Tu nombre" value={name} onChange={e => setName(e.target.value)} required />
+            </Field>
           )}
-
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#3D4060', marginBottom: 4 }}>Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="tu@email.com"
-              style={inputStyle}
-              onFocus={e => e.target.style.borderColor = '#7B68EE'}
-              onBlur={e => e.target.style.borderColor = '#E0E0E0'}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#3D4060', marginBottom: 4 }}>Contraseña</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              style={inputStyle}
-              onFocus={e => e.target.style.borderColor = '#7B68EE'}
-              onBlur={e => e.target.style.borderColor = '#E0E0E0'}
-            />
-          </div>
+          <Field label="Email">
+            <GlassInput type="email" placeholder="tu@email.com" value={email} onChange={e => setEmail(e.target.value)} required />
+          </Field>
+          <Field label="Contraseña">
+            <GlassInput type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
+          </Field>
 
           <button
             type="submit"
             disabled={loading}
             style={{
-              marginTop: 4,
-              width: '100%',
-              padding: '9px 0',
-              background: '#7B68EE',
+              marginTop: 6,
+              padding: '12px 0',
+              background: 'linear-gradient(135deg, #7C4DFF, #E040FB)',
               color: '#fff',
               border: 'none',
-              borderRadius: 6,
+              borderRadius: 10,
               fontSize: 14,
               fontWeight: 600,
               cursor: loading ? 'not-allowed' : 'pointer',
               opacity: loading ? 0.7 : 1,
-              transition: 'background 0.15s',
+              letterSpacing: '0.01em',
+              boxShadow: '0 4px 20px rgba(124,77,255,0.35)',
+              transition: 'opacity 0.15s, transform 0.1s',
             }}
-            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#6B5ADE' }}
-            onMouseLeave={e => e.currentTarget.style.background = '#7B68EE'}
+            onMouseEnter={e => { if (!loading) e.currentTarget.style.opacity = '0.9' }}
+            onMouseLeave={e => e.currentTarget.style.opacity = loading ? '0.7' : '1'}
           >
-            {loading ? 'Cargando...' : isLogin ? 'Entrar' : 'Crear cuenta'}
+            {loading ? 'Cargando...' : isLogin ? 'Entrar →' : 'Crear cuenta →'}
           </button>
         </form>
 
         <div style={{ marginTop: 20, textAlign: 'center' }}>
-          <span style={{ fontSize: 13, color: '#7A7F9A' }}>
-            {isLogin ? '¿Sin cuenta? ' : '¿Ya tienes cuenta? '}
+          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>
+            {isLogin ? '¿Sin cuenta? ' : '¿Ya tienes una? '}
             <button
               onClick={() => setIsLogin(!isLogin)}
-              style={{ background: 'none', border: 'none', color: '#7B68EE', fontWeight: 600, cursor: 'pointer', fontSize: 13, padding: 0 }}
+              style={{ background: 'none', border: 'none', color: 'rgba(180,140,255,0.9)', fontWeight: 600, cursor: 'pointer', fontSize: 13, padding: 0 }}
             >
               {isLogin ? 'Regístrate' : 'Inicia sesión'}
             </button>
           </span>
         </div>
 
-        <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F0F0F5', textAlign: 'center' }}>
-          <p style={{ fontSize: 11, color: '#B0B5C8', marginBottom: 8 }}>Demo — acceso rápido</p>
+        {/* Demo shortcut */}
+        <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center' }}>
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', marginBottom: 8 }}>Acceso demo rápido</p>
           <button
             onClick={() => { setEmail('victorgarcia@xul.es'); setPassword('Xul2026') }}
             style={{
-              padding: '6px 16px',
+              padding: '7px 18px',
               fontSize: 12,
               fontWeight: 500,
-              color: '#7B68EE',
-              background: 'rgba(123,104,238,0.08)',
-              border: '1px solid rgba(123,104,238,0.2)',
-              borderRadius: 6,
+              color: 'rgba(200,170,255,0.85)',
+              background: 'rgba(124,77,255,0.12)',
+              border: '1px solid rgba(124,77,255,0.25)',
+              borderRadius: 8,
               cursor: 'pointer',
+              transition: 'background 0.15s',
             }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(123,104,238,0.14)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(123,104,238,0.08)'}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(124,77,255,0.22)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(124,77,255,0.12)'}
           >
             Usar credenciales demo
           </button>
         </div>
       </div>
     </div>
+  )
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.45)', marginBottom: 6, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+        {label}
+      </label>
+      {children}
+    </div>
+  )
+}
+
+function GlassInput({ ...props }) {
+  return (
+    <input
+      {...props}
+      style={{
+        width: '100%',
+        padding: '10px 14px',
+        fontSize: 13,
+        color: '#FFFFFF',
+        background: 'rgba(255,255,255,0.07)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: 10,
+        outline: 'none',
+        boxSizing: 'border-box',
+        transition: 'border-color 0.15s, background 0.15s',
+      }}
+      onFocus={e => { e.target.style.borderColor = 'rgba(124,77,255,0.7)'; e.target.style.background = 'rgba(255,255,255,0.1)' }}
+      onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.background = 'rgba(255,255,255,0.07)' }}
+    />
   )
 }

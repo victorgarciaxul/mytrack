@@ -17,20 +17,20 @@ export default function AppLayout() {
   }, [])
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F5F6F8', fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'Inter, system-ui, sans-serif', background: '#F8FAFC' }}>
       <Sidebar onStartTour={() => setTourRunning(true)} />
 
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', minWidth: 0 }}>
         {isDemo && (
           <div style={{
-            background: '#7B68EE',
+            background: 'linear-gradient(90deg, #7C4DFF, #E040FB)',
             color: '#fff',
             fontSize: 11,
             fontWeight: 500,
             textAlign: 'center',
-            padding: '3px 0',
-            letterSpacing: '0.02em',
+            padding: '4px 0',
             flexShrink: 0,
+            letterSpacing: '0.02em',
           }}>
             ✦ Modo demo activo
           </div>
@@ -46,10 +46,10 @@ export default function AppLayout() {
         toastOptions={{
           duration: 3000,
           style: {
-            background: '#1C1C28',
-            color: '#fff',
-            border: '1px solid #2A2D3A',
-            borderRadius: '6px',
+            background: '#0F172A',
+            color: '#F1F5F9',
+            border: '1px solid #1E293B',
+            borderRadius: '8px',
             fontSize: '13px',
             fontFamily: 'Inter, sans-serif',
           },

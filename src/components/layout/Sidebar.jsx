@@ -1,8 +1,8 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   Clock, BarChart2, Briefcase, Users, Settings,
-  ChevronDown, Tag, LayoutDashboard, Bell, UserCog,
-  Search, LogOut, HelpCircle,
+  Tag, LayoutDashboard, Bell, UserCog,
+  Search, LogOut, HelpCircle, ChevronDown,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
@@ -12,7 +12,7 @@ import { useTour } from '../tour/AppTour'
 
 const NAV_EMPLOYEE = [
   { to: '/tracker',       icon: Clock,          label: 'Tracker'   },
-  { to: '/notifications', icon: Bell,           label: 'Alertas', badge: true },
+  { to: '/notifications', icon: Bell,           label: 'Alertas',  badge: true },
   { to: '/settings',      icon: Settings,       label: 'Ajustes'   },
 ]
 const NAV_MANAGER = [
@@ -22,7 +22,7 @@ const NAV_MANAGER = [
   { to: '/projects',      icon: Briefcase,      label: 'Proyectos' },
   { to: '/clients',       icon: Tag,            label: 'Clientes'  },
   { to: '/team',          icon: Users,          label: 'Equipo'    },
-  { to: '/notifications', icon: Bell,           label: 'Alertas', badge: true },
+  { to: '/notifications', icon: Bell,           label: 'Alertas',  badge: true },
   { to: '/settings',      icon: Settings,       label: 'Ajustes'   },
 ]
 const NAV_ADMIN_EXTRA = [
@@ -46,75 +46,82 @@ export default function Sidebar({ onStartTour }) {
     : nav
 
   const wsName = workspace?.name || 'MyTrack'
-  const wsInitials = wsName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  const wsInitials = wsName.slice(0, 2).toUpperCase()
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'
   const userInitials = userName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 
   return (
     <aside style={{
-      width: 240, flexShrink: 0,
-      background: '#1B1B1F',
-      borderRight: '1px solid rgba(255,255,255,0.06)',
-      display: 'flex', flexDirection: 'column',
-      height: '100vh', overflow: 'hidden',
+      width: 232,
+      flexShrink: 0,
+      background: '#0F172A',
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh',
+      overflow: 'hidden',
       fontFamily: 'Inter, system-ui, sans-serif',
     }}>
 
-      {/* Workspace header */}
-      <button
-        style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '10px 12px', width: '100%',
-          background: 'transparent', border: 'none',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          cursor: 'pointer', textAlign: 'left',
+      {/* Workspace */}
+      <div style={{ padding: '16px 14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <button style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          width: '100%', background: 'transparent', border: 'none',
+          cursor: 'pointer', borderRadius: 8, padding: '6px 8px',
+          transition: 'background 0.15s',
         }}
-        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-      >
-        <div style={{
-          width: 28, height: 28, borderRadius: 6, flexShrink: 0,
-          background: 'linear-gradient(135deg,#7B68EE,#5E4DC8)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 700, color: '#fff',
-        }}>
-          {wsInitials}
-        </div>
-        <span style={{
-          flex: 1, fontSize: 13, fontWeight: 600, color: '#fff',
-          overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-        }}>
-          {wsName}
-        </span>
-        <ChevronDown size={13} style={{ color: '#5C6370', flexShrink: 0 }} />
-      </button>
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          <div style={{
+            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+            background: 'linear-gradient(135deg, #7C4DFF, #E040FB)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 12, fontWeight: 700, color: '#fff',
+            boxShadow: '0 2px 8px rgba(124,77,255,0.3)',
+          }}>
+            {wsInitials}
+          </div>
+          <div style={{ flex: 1, textAlign: 'left', overflow: 'hidden' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#F1F5F9', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+              {wsName}
+            </p>
+            <p style={{ fontSize: 10, color: '#475569', margin: 0, marginTop: 1 }}>Workspace</p>
+          </div>
+          <ChevronDown size={13} style={{ color: '#475569', flexShrink: 0 }} />
+        </button>
+      </div>
 
       {/* Search */}
-      <div style={{ padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          padding: '5px 8px', borderRadius: 6,
-          background: 'rgba(255,255,255,0.05)',
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '7px 10px', borderRadius: 8,
+          background: 'rgba(255,255,255,0.04)',
           border: '1px solid rgba(255,255,255,0.07)',
         }}>
-          <Search size={13} style={{ color: '#5C6370', flexShrink: 0 }} />
+          <Search size={13} style={{ color: '#475569', flexShrink: 0 }} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar"
+            placeholder="Buscar..."
             style={{
               background: 'transparent', border: 'none', outline: 'none',
-              fontSize: 12, color: '#9EA6B4', flex: 1,
+              fontSize: 12, color: '#94A3B8', flex: 1,
             }}
           />
         </div>
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, overflowY: 'auto', padding: '6px 6px' }}>
-        <div style={{ padding: '8px 8px 3px', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#5C6370' }}>
+      <nav style={{ flex: 1, overflowY: 'auto', padding: '10px 10px' }}>
+        <p style={{
+          fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
+          textTransform: 'uppercase', color: '#334155',
+          padding: '0 6px', marginBottom: 4,
+        }}>
           {isManager ? 'Gestión' : 'Mi trabajo'}
-        </div>
+        </p>
 
         {filtered.map(({ to, icon: Icon, label, badge }) => {
           const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to))
@@ -124,34 +131,44 @@ export default function Sidebar({ onStartTour }) {
               key={to}
               to={to}
               data-tour={`nav-${to.replace('/', '')}`}
-              style={{ textDecoration: 'none', display: 'block', marginBottom: 1 }}
+              style={{ textDecoration: 'none', display: 'block', marginBottom: 2 }}
             >
               <div
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '6px 8px', borderRadius: 6,
-                  background: isActive ? 'rgba(123,104,238,0.15)' : 'transparent',
-                  color: isActive ? '#fff' : '#9EA6B4',
-                  fontSize: 13, fontWeight: isActive ? 500 : 400,
-                  position: 'relative', cursor: 'pointer',
-                  transition: 'background 0.1s',
+                  display: 'flex', alignItems: 'center', gap: 9,
+                  padding: '7px 8px', borderRadius: 8,
+                  background: isActive ? 'rgba(124,77,255,0.18)' : 'transparent',
+                  color: isActive ? '#C4B5FD' : '#64748B',
+                  fontSize: 13,
+                  fontWeight: isActive ? 600 : 400,
+                  position: 'relative',
+                  cursor: 'pointer',
+                  transition: 'all 0.1s',
+                  borderLeft: isActive ? '2px solid #7C4DFF' : '2px solid transparent',
                 }}
-                onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#D0D3DE' } }}
-                onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9EA6B4' } }}
+                onMouseEnter={e => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+                    e.currentTarget.style.color = '#CBD5E1'
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = 'transparent'
+                    e.currentTarget.style.color = '#64748B'
+                  }
+                }}
               >
-                {isActive && (
-                  <span style={{ position: 'absolute', left: 0, top: '18%', bottom: '18%', width: 2, background: '#7B68EE', borderRadius: '0 2px 2px 0' }} />
-                )}
                 <span style={{ position: 'relative', flexShrink: 0, display: 'flex' }}>
-                  <Icon size={14} />
+                  <Icon size={15} />
                   {count > 0 && (
                     <span style={{
-                      position: 'absolute', top: -5, right: -5,
-                      minWidth: 14, height: 14, borderRadius: 7,
+                      position: 'absolute', top: -5, right: -6,
+                      minWidth: 15, height: 15, borderRadius: 8,
                       background: '#EF4444', color: '#fff',
                       fontSize: 9, fontWeight: 700,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      padding: '0 2px',
+                      padding: '0 3px',
                     }}>
                       {count > 9 ? '9+' : count}
                     </span>
@@ -165,17 +182,17 @@ export default function Sidebar({ onStartTour }) {
       </nav>
 
       {/* Footer */}
-      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '6px 6px' }}>
+      <div style={{ padding: '8px 10px 12px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         <button
           onClick={() => { resetTour(); onStartTour?.() }}
           style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-            padding: '6px 8px', borderRadius: 6,
+            width: '100%', display: 'flex', alignItems: 'center', gap: 9,
+            padding: '7px 8px', borderRadius: 8,
             background: 'transparent', border: 'none', cursor: 'pointer',
-            color: '#5C6370', fontSize: 12,
+            color: '#334155', fontSize: 12, marginBottom: 2,
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#9EA6B4' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#5C6370' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#64748B' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#334155' }}
         >
           <HelpCircle size={14} style={{ flexShrink: 0 }} />
           <span>Tutorial</span>
@@ -184,17 +201,17 @@ export default function Sidebar({ onStartTour }) {
         <button
           onClick={signOut}
           style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-            padding: '6px 8px', borderRadius: 6,
+            width: '100%', display: 'flex', alignItems: 'center', gap: 9,
+            padding: '7px 8px', borderRadius: 8,
             background: 'transparent', border: 'none', cursor: 'pointer',
-            color: '#5C6370', fontSize: 12,
+            color: '#334155', fontSize: 12,
           }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.color = '#FCA5A5' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#5C6370' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#334155' }}
         >
           <div style={{
-            width: 20, height: 20, borderRadius: '50%',
-            background: 'linear-gradient(135deg,#7B68EE,#EC4899)',
+            width: 22, height: 22, borderRadius: 6,
+            background: 'linear-gradient(135deg,#7C4DFF,#E040FB)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 9, fontWeight: 700, color: '#fff', flexShrink: 0,
           }}>

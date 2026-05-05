@@ -30,40 +30,40 @@ export default function TopBar() {
 
   return (
     <div style={{
-      height: 48,
+      height: 52,
       background: '#FFFFFF',
-      borderBottom: '1px solid #EAECEF',
+      borderBottom: '1px solid #F1F5F9',
       display: 'flex',
       alignItems: 'center',
-      padding: '0 20px',
-      gap: 8,
+      padding: '0 24px',
       flexShrink: 0,
       fontFamily: 'Inter, system-ui, sans-serif',
     }}>
-      {/* Breadcrumbs */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
-        <span style={{ fontSize: 13, color: '#7A8494', fontWeight: 400 }}>{wsName}</span>
-        <ChevronRight size={13} style={{ color: '#C0C5CF' }} />
-        <span style={{ fontSize: 13, color: '#1C1C28', fontWeight: 600 }}>{pageTitle}</span>
+      {/* Breadcrumb */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
+        <span style={{ fontSize: 12, color: '#94A3B8', fontWeight: 400 }}>{wsName}</span>
+        <ChevronRight size={12} style={{ color: '#CBD5E1' }} />
+        <span style={{ fontSize: 14, color: '#0F172A', fontWeight: 600, letterSpacing: '-0.2px' }}>{pageTitle}</span>
       </div>
 
-      {/* Right actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      {/* Actions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <button
           onClick={() => navigate('/notifications')}
           style={{
-            width: 32, height: 32, borderRadius: 6,
+            width: 34, height: 34, borderRadius: 8,
             background: 'transparent', border: 'none', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            position: 'relative', color: '#7A8494',
+            color: '#94A3B8', position: 'relative',
+            transition: 'background 0.15s',
           }}
-          onMouseEnter={e => e.currentTarget.style.background = '#F3F4F8'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          onMouseEnter={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.color = '#475569' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#94A3B8' }}
         >
-          <Bell size={15} />
+          <Bell size={16} />
           {unreadCount > 0 && (
             <span style={{
-              position: 'absolute', top: 5, right: 5,
+              position: 'absolute', top: 6, right: 6,
               width: 7, height: 7, borderRadius: '50%',
               background: '#EF4444', border: '1.5px solid #fff',
             }} />
@@ -71,10 +71,12 @@ export default function TopBar() {
         </button>
 
         <div title={user?.email} style={{
-          width: 28, height: 28, borderRadius: '50%',
-          background: 'linear-gradient(135deg,#7B68EE,#EC4899)',
+          width: 30, height: 30, borderRadius: 8,
+          background: 'linear-gradient(135deg,#7C4DFF,#E040FB)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 700, color: '#fff', marginLeft: 4,
+          fontSize: 11, fontWeight: 700, color: '#fff',
+          boxShadow: '0 2px 8px rgba(124,77,255,0.3)',
+          cursor: 'default',
         }}>
           {initials}
         </div>

@@ -46,7 +46,7 @@ export default function Login() {
         <div className="flex items-center gap-3">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ background: 'linear-gradient(180deg,#1C1C28,#191B23)', border: '1.5px solid #2A2D3A' }}
+            style={{ background: 'linear-gradient(180deg,#1C1C28,#191B23)', border: '1px solid #2A2D3A' }}
           >
             <Timer size={20} style={{ color: '#7C4DFF' }} />
           </div>
@@ -108,7 +108,7 @@ export default function Login() {
                   onChange={e => setName(e.target.value)}
                   placeholder="Tu nombre"
                   className="w-full px-4 py-3 text-sm text-white placeholder-gray-600 rounded-xl outline-none transition-all"
-                  style={{ background: '#1C1C28', border: '1.5px solid #2A2D3A' }}
+                  style={{ background: '#1C1C28', border: '1px solid #2A2D3A' }}
                   onFocus={e => e.target.style.borderColor = '#7C4DFF'}
                   onBlur={e => e.target.style.borderColor = '#2A2D3A'}
                 />
@@ -125,7 +125,7 @@ export default function Login() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="tu@email.com"
                 className="w-full px-4 py-3 text-sm text-white placeholder-gray-600 rounded-xl outline-none transition-all"
-                style={{ background: '#1C1C28', border: '1.5px solid #2A2D3A' }}
+                style={{ background: '#1C1C28', border: '1px solid #2A2D3A' }}
                 onFocus={e => e.target.style.borderColor = '#7C4DFF'}
                 onBlur={e => e.target.style.borderColor = '#2A2D3A'}
               />
@@ -141,7 +141,7 @@ export default function Login() {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full px-4 py-3 text-sm text-white placeholder-gray-600 rounded-xl outline-none transition-all"
-                style={{ background: '#1C1C28', border: '1.5px solid #2A2D3A' }}
+                style={{ background: '#1C1C28', border: '1px solid #2A2D3A' }}
                 onFocus={e => e.target.style.borderColor = '#7C4DFF'}
                 onBlur={e => e.target.style.borderColor = '#2A2D3A'}
               />
@@ -151,7 +151,7 @@ export default function Login() {
               type="submit"
               disabled={loading}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white transition-all mt-2"
-              style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)', boxShadow: '0 4px 20px rgba(107,78,255,0.4)' }}
+              style={{ background: '#7C4DFF', boxShadow: '0 4px 20px rgba(107,78,255,0.4)' }}
               onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
               onMouseLeave={e => e.currentTarget.style.opacity = '1'}
             >

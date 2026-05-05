@@ -77,7 +77,7 @@ export default function Sidebar({ onStartTour }) {
       >
         {collapsed ? (
           <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)' }}>
+            style={{ background: '#7C4DFF' }}>
             <Timer size={14} color="white" />
           </div>
         ) : (
@@ -204,7 +204,7 @@ export default function Sidebar({ onStartTour }) {
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = S.label }}
         >
           <div className="w-5 h-5 rounded-full flex items-center justify-center text-white flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg,#7C4DFF,#EC4899)', fontSize: 9, fontWeight: 700 }}>
+            style={{ background: '#7C4DFF', fontSize: 9, fontWeight: 700 }}>
             {initials}
           </div>
           {!collapsed && <span className="flex-1 truncate text-left">{user?.email?.split('@')[0]}</span>}

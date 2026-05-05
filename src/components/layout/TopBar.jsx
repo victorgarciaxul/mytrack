@@ -62,7 +62,7 @@ export default function TopBar() {
       {/* Avatar */}
       <div
         className="w-7 h-7 rounded-full flex items-center justify-center text-white flex-shrink-0 cursor-default"
-        style={{ background: 'linear-gradient(135deg,#7C4DFF,#EC4899)', fontSize: 11, fontWeight: 700 }}
+        style={{ background: '#7C4DFF', fontSize: 11, fontWeight: 700 }}
         title={user?.email}
       >
         {initials}

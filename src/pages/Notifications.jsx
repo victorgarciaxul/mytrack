@@ -18,13 +18,10 @@ export default function Notifications() {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <div className="px-6 pt-6 pb-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-bold" style={{ color: '#1C1C28' }}>Alertas</h1>
-          <p className="text-xs mt-0.5" style={{ color: '#7A7F9A' }}>
-            {unreadCount > 0 ? `${unreadCount} sin leer` : 'Todo al día'}
-          </p>
-        </div>
+      <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: '1px solid #E5E8EE' }}>
+        <span className="text-xs" style={{ color: '#7A7F9A' }}>
+          {unreadCount > 0 ? `${unreadCount} sin leer` : 'Todo al día'}
+        </span>
         {unreadCount > 0 && (
           <button
             onClick={markAllRead}
@@ -42,7 +39,7 @@ export default function Notifications() {
       <div className="px-6 pb-6 space-y-6">
         {notifications.length === 0 && (
           <div className="flex flex-col items-center justify-center py-24">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+            <div className="w-16 h-16 rounded-lg flex items-center justify-center mb-4"
               style={{ background: 'rgba(123,104,238,0.08)' }}>
               <Bell size={28} style={{ color: '#C0C0E0' }} />
             </div>
@@ -54,7 +51,7 @@ export default function Notifications() {
         {unread.length > 0 && (
           <div>
             <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#3D4060' }}>Sin leer</p>
-            <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1.5px solid #E5E8EE', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
+            <div className="rounded-lg overflow-hidden" style={{ background: '#fff', border: '1px solid #E5E8EE', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
               {unread.map((n, i) => <NotifRow key={n.id} n={n} onRead={markRead} isLast={i === unread.length - 1} />)}
             </div>
           </div>
@@ -63,7 +60,7 @@ export default function Notifications() {
         {read.length > 0 && (
           <div>
             <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#9095B0' }}>Leídas</p>
-            <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1.5px solid #E5E8EE', opacity: 0.7 }}>
+            <div className="rounded-lg overflow-hidden" style={{ background: '#fff', border: '1px solid #E5E8EE', opacity: 0.7 }}>
               {read.map((n, i) => <NotifRow key={n.id} n={n} onRead={markRead} isLast={i === read.length - 1} />)}
             </div>
           </div>

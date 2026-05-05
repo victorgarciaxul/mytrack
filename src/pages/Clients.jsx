@@ -30,7 +30,7 @@ export default function Clients() {
     loadClients(workspace.id)
   }
 
-  const inputStyle = { background: '#F7F8FA', border: '1.5px solid #E5E8EE', color: '#1C1C28', borderRadius: 10 }
+  const inputStyle = { background: '#F7F8FA', border: '1px solid #E5E8EE', color: '#1C1C28', borderRadius: 10 }
 
   return (
     <div>
@@ -41,13 +41,13 @@ export default function Clients() {
         </div>
         <button onClick={() => setShowForm(true)}
           className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white"
-          style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)', boxShadow: '0 4px 14px rgba(107,78,255,0.3)' }}>
+          style={{ background: '#7C4DFF',  }}>
           <Plus size={15} />Nuevo cliente
         </button>
       </div>
 
       {showForm && (
-        <div className="mx-6 mb-5 rounded-2xl p-5" style={{ background: '#fff', border: '1.5px solid #E5E8EE', boxShadow: '0 4px 20px rgba(107,78,255,0.08)' }}>
+        <div className="mx-6 mb-5 rounded-lg p-5" style={{ background: '#fff', border: '1px solid #E5E8EE', boxShadow: '0 4px 20px rgba(107,78,255,0.08)' }}>
           <h3 className="font-bold text-sm mb-4" style={{ color: '#1C1C28' }}>Nuevo cliente</h3>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -71,10 +71,10 @@ export default function Clients() {
             <div className="flex gap-3">
               <button type="button" onClick={() => setShowForm(false)}
                 className="px-4 py-2.5 rounded-xl text-sm font-semibold"
-                style={{ background: '#F7F8FA', color: '#3D4060', border: '1.5px solid #E5E8EE' }}>Cancelar</button>
+                style={{ background: '#F7F8FA', color: '#3D4060', border: '1px solid #E5E8EE' }}>Cancelar</button>
               <button type="submit" disabled={saving}
                 className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
-                style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)' }}>
+                style={{ background: '#7C4DFF' }}>
                 {saving ? 'Guardando...' : 'Crear cliente'}
               </button>
             </div>
@@ -85,13 +85,13 @@ export default function Clients() {
       <div className="px-6 pb-6">
         {clients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: 'rgba(123,104,238,0.08)' }}>
+            <div className="w-16 h-16 rounded-lg flex items-center justify-center mb-4" style={{ background: 'rgba(123,104,238,0.08)' }}>
               <Building2 size={28} style={{ color: '#C0C0E0' }} />
             </div>
             <p className="font-semibold" style={{ color: '#3D4060' }}>Sin clientes aún</p>
           </div>
         ) : (
-          <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1.5px solid #E5E8EE' }}>
+          <div className="rounded-lg overflow-hidden" style={{ background: '#fff', border: '1px solid #E5E8EE' }}>
             <div className="grid text-xs font-bold uppercase tracking-wider px-5 py-3" style={{
               gridTemplateColumns: '1fr 1fr 1fr auto', background: '#FAFAFA', borderBottom: '1px solid #F0F0F8', color: '#7A7F9A',
             }}>

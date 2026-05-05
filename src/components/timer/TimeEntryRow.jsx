@@ -42,7 +42,7 @@ export default function TimeEntryRow({ entry, onDelete, onRefresh, projects, for
             onBlur={saveEdit}
             onKeyDown={e => e.key === 'Enter' && saveEdit()}
             className="w-full text-sm outline-none bg-transparent"
-            style={{ color: '#1C1C28', borderBottom: '1.5px solid #7C4DFF' }}
+            style={{ color: '#1C1C28', borderBottom: '1px solid #7C4DFF' }}
           />
         ) : (
           <p className="text-sm font-medium truncate" style={{ color: '#1C1C28' }}>

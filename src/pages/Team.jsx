@@ -21,7 +21,7 @@ export default function Team() {
 
       <div className="px-6 pb-6 space-y-4">
         {/* Members */}
-        <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1.5px solid #E5E8EE' }}>
+        <div className="rounded-lg overflow-hidden" style={{ background: '#fff', border: '1px solid #E5E8EE' }}>
           <div className="px-5 py-3.5" style={{ background: '#FAFAFA', borderBottom: '1px solid #F0F0F8' }}>
             <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#7A7F9A' }}>Miembros</p>
           </div>
@@ -85,7 +85,7 @@ export default function Team() {
         </div>
 
         {/* Invite */}
-        <div className="rounded-2xl p-5" style={{ background: 'linear-gradient(135deg, #191B23, #1C1C28)', border: '1.5px solid #2A2D3A' }}>
+        <div className="rounded-lg p-5" style={{ background: 'linear-gradient(135deg, #191B23, #1C1C28)', border: '1px solid #2A2D3A' }}>
           <div className="flex items-center gap-2 mb-1">
             <Users size={16} style={{ color: '#7C4DFF' }} />
             <h3 className="font-bold text-sm text-white">Invitar al equipo</h3>
@@ -97,7 +97,7 @@ export default function Team() {
             </div>
             <button onClick={copyInvite}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-all"
-              style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)', boxShadow: '0 4px 14px rgba(107,78,255,0.3)' }}>
+              style={{ background: '#7C4DFF',  }}>
               <Copy size={13} />
               Copiar
             </button>

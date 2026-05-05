@@ -72,36 +72,27 @@ export default function ManagerDashboard() {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <div className="px-6 pt-6 pb-4">
-        <h1 className="text-lg font-bold" style={{ color: '#1C1C28' }}>Dashboard</h1>
-        <p className="text-xs mt-0.5" style={{ color: '#7A7F9A' }}>Resumen semanal del equipo</p>
-      </div>
-
       {/* KPI cards */}
-      <div data-tour="kpi-cards" className="px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div data-tour="kpi-cards" className="px-6 pt-5 grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         {[
           { icon: Clock,         label: 'Horas esta semana',  value: fmt(totalHours),              color: '#7C4DFF', bg: 'rgba(123,104,238,0.08)' },
           { icon: TrendingUp,    label: 'Horas facturables',  value: fmt(billableHours),            color: '#22c55e', bg: 'rgba(34,197,94,0.08)' },
           { icon: DollarSign,    label: 'Facturación est.',   value: `€${Math.round(totalBilling)}`,color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
           { icon: AlertTriangle, label: 'Alertas pendientes', value: unreadAlerts,                  color: '#FF4757', bg: 'rgba(255,71,87,0.08)' },
         ].map(({ icon: Icon, label, value, color, bg }) => (
-          <div key={label} className="rounded-2xl p-4" style={{ background: '#fff', border: '1.5px solid #E5E8EE', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: bg }}>
-                <Icon size={18} style={{ color }} />
-              </div>
-              <div className="min-w-0">
-                <p className="font-numeric text-xl font-bold" style={{ color: '#1C1C28' }}>{value}</p>
-                <p className="text-xs truncate" style={{ color: '#7A7F9A' }}>{label}</p>
-              </div>
+          <div key={label} className="p-4" style={{ background: '#fff', border: '1px solid #E5E8EE', borderRadius: 8 }}>
+            <div className="flex items-center gap-2 mb-2">
+              <Icon size={14} style={{ color }} />
+              <p className="text-xs font-medium uppercase tracking-wider" style={{ color: '#9095B0' }}>{label}</p>
             </div>
+            <p className="font-numeric text-2xl font-bold" style={{ color: '#1C1C28' }}>{value}</p>
           </div>
         ))}
       </div>
 
       <div className="px-6 grid grid-cols-1 lg:grid-cols-2 gap-5 pb-6">
         {/* Time by project */}
-        <div className="rounded-2xl p-5" style={{ background: '#fff', border: '1.5px solid #E5E8EE' }}>
+        <div className="rounded-lg p-5" style={{ background: '#fff', border: '1px solid #E5E8EE' }}>
           <div className="flex items-center gap-2 mb-4">
             <BarChart2 size={16} style={{ color: '#7C4DFF' }} />
             <h2 className="text-sm font-bold" style={{ color: '#1C1C28' }}>Horas por proyecto</h2>
@@ -148,7 +139,7 @@ export default function ManagerDashboard() {
         </div>
 
         {/* Time + billing per person */}
-        <div className="rounded-2xl p-5" style={{ background: '#fff', border: '1.5px solid #E5E8EE' }}>
+        <div className="rounded-lg p-5" style={{ background: '#fff', border: '1px solid #E5E8EE' }}>
           <div className="flex items-center gap-2 mb-4">
             <Users size={16} style={{ color: '#7C4DFF' }} />
             <h2 className="text-sm font-bold" style={{ color: '#1C1C28' }}>Horas por persona</h2>
@@ -188,7 +179,7 @@ export default function ManagerDashboard() {
 
         {/* Budget alerts */}
         {budgetAlerts.length > 0 && (
-          <div className="rounded-2xl p-5 lg:col-span-2" style={{ background: '#fff', border: '1.5px solid #FFE0B2' }}>
+          <div className="rounded-lg p-5 lg:col-span-2" style={{ background: '#fff', border: '1px solid #FFE0B2' }}>
             <div className="flex items-center gap-2 mb-3">
               <AlertTriangle size={16} style={{ color: '#f59e0b' }} />
               <h2 className="text-sm font-bold" style={{ color: '#1C1C28' }}>Proyectos con presupuesto alto</h2>

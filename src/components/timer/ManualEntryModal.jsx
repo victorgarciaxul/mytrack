@@ -70,7 +70,7 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
 
   const inputStyle = {
     background: '#F7F8FA',
-    border: '1.5px solid #E5E8EE',
+    border: '1px solid #E5E8EE',
     color: '#1C1C28',
     borderRadius: 10,
   }
@@ -78,7 +78,7 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(13,13,30,0.6)', backdropFilter: 'blur(4px)' }}>
-      <div className="w-full max-w-md rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1.5px solid #E5E8EE', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+      <div className="w-full max-w-md rounded-lg overflow-hidden" style={{ background: '#fff', border: '1px solid #E5E8EE', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid #F0F0F8' }}>
           <h2 className="font-bold text-base" style={{ color: '#1C1C28' }}>Añadir tiempo manual</h2>
@@ -148,7 +148,7 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
 
         <div className="flex gap-3 px-5 pb-5">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all"
-            style={{ background: '#F7F8FA', color: '#3D4060', border: '1.5px solid #E5E8EE' }}
+            style={{ background: '#F7F8FA', color: '#3D4060', border: '1px solid #E5E8EE' }}
             onMouseEnter={e => e.currentTarget.style.background = '#EBEBF5'}
             onMouseLeave={e => e.currentTarget.style.background = '#F7F8FA'}
           >
@@ -156,7 +156,7 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
           </button>
           <button onClick={handleSave} disabled={saving}
             className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-            style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)', boxShadow: '0 4px 14px rgba(107,78,255,0.3)' }}
+            style={{ background: '#7C4DFF',  }}
           >
             {saving ? 'Guardando...' : 'Guardar'}
           </button>

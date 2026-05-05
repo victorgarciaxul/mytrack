@@ -78,24 +78,24 @@ export default function Projects() {
     loadTasks(projects.map(p => p.id))
   }
 
-  const inputStyle = { background: '#F7F8FA', border: '1.5px solid #E5E8EE', color: '#1C1C28', borderRadius: 10 }
+  const inputStyle = { background: '#F7F8FA', border: '1px solid #E5E8EE', color: '#1C1C28', borderRadius: 10 }
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <div className="px-6 pt-6 pb-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-bold" style={{ color: '#1C1C28' }}>Proyectos</h1>
-          <p className="text-xs mt-0.5" style={{ color: '#7A7F9A' }}>{projects.length} proyectos activos</p>
-        </div>
+      <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: '1px solid #E5E8EE' }}>
+        <span className="text-xs" style={{ color: '#7A7F9A' }}>{projects.length} proyectos activos</span>
         <button onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all"
-          style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)', boxShadow: '0 4px 14px rgba(107,78,255,0.3)' }}>
-          <Plus size={15} />Nuevo proyecto
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold text-white transition-all"
+          style={{ background: '#7C4DFF' }}
+          onMouseEnter={e => e.currentTarget.style.background = '#6B3EED'}
+          onMouseLeave={e => e.currentTarget.style.background = '#7C4DFF'}
+        >
+          <Plus size={13} />Nuevo proyecto
         </button>
       </div>
 
       {showForm && (
-        <div className="mx-6 mb-5 rounded-2xl p-5" style={{ background: '#fff', border: '1.5px solid #E5E8EE', boxShadow: '0 4px 20px rgba(107,78,255,0.08)' }}>
+        <div className="mx-6 mb-5 rounded-lg p-5" style={{ background: '#fff', border: '1px solid #E5E8EE', boxShadow: '0 4px 20px rgba(107,78,255,0.08)' }}>
           <h3 className="font-bold text-sm mb-4" style={{ color: '#1C1C28' }}>Nuevo proyecto</h3>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-3 gap-4">
@@ -142,10 +142,10 @@ export default function Projects() {
             <div className="flex gap-3 pt-1">
               <button type="button" onClick={() => setShowForm(false)}
                 className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                style={{ background: '#F7F8FA', color: '#3D4060', border: '1.5px solid #E5E8EE' }}>Cancelar</button>
+                style={{ background: '#F7F8FA', color: '#3D4060', border: '1px solid #E5E8EE' }}>Cancelar</button>
               <button type="submit" disabled={saving}
                 className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-                style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)' }}>
+                style={{ background: '#7C4DFF' }}>
                 {saving ? 'Guardando...' : 'Crear proyecto'}
               </button>
             </div>
@@ -156,7 +156,7 @@ export default function Projects() {
       <div className="px-6 pb-6 space-y-3">
         {projects.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+            <div className="w-16 h-16 rounded-lg flex items-center justify-center mb-4"
               style={{ background: 'rgba(123,104,238,0.08)' }}>
               <Briefcase size={28} style={{ color: '#C0C0E0' }} />
             </div>
@@ -170,8 +170,8 @@ export default function Projects() {
             const isAddingTask = addingTaskFor === project.id
 
             return (
-              <div key={project.id} className="rounded-2xl overflow-hidden"
-                style={{ background: '#fff', border: '1.5px solid #E5E8EE', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
+              <div key={project.id} className="rounded-lg overflow-hidden"
+                style={{ background: '#fff', border: '1px solid #E5E8EE', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
                 {/* Project header */}
                 <div className="flex items-center gap-4 px-5 py-4"
                   style={{ borderBottom: isExpanded ? '1px solid #F0F0F8' : 'none' }}>
@@ -266,7 +266,7 @@ export default function Projects() {
                           onKeyDown={e => { if (e.key === 'Enter') handleAddTask(project.id); if (e.key === 'Escape') setAddingTaskFor(null) }}
                           placeholder="Nombre de la tarea"
                           className="flex-1 text-sm px-2.5 py-1.5 rounded-lg outline-none"
-                          style={{ background: '#F7F8FA', border: '1.5px solid #7C4DFF', color: '#1C1C28' }}
+                          style={{ background: '#F7F8FA', border: '1px solid #7C4DFF', color: '#1C1C28' }}
                         />
                         <input
                           type="number"
@@ -275,11 +275,11 @@ export default function Projects() {
                           onChange={e => setNewTaskHours(e.target.value)}
                           placeholder="h est."
                           className="w-20 text-sm px-2.5 py-1.5 rounded-lg outline-none"
-                          style={{ background: '#F7F8FA', border: '1.5px solid #E5E8EE', color: '#1C1C28' }}
+                          style={{ background: '#F7F8FA', border: '1px solid #E5E8EE', color: '#1C1C28' }}
                         />
                         <button onClick={() => handleAddTask(project.id)}
                           className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all"
-                          style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)' }}>
+                          style={{ background: '#7C4DFF' }}>
                           Añadir
                         </button>
                         <button onClick={() => setAddingTaskFor(null)}

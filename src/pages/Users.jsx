@@ -49,17 +49,12 @@ export default function Users() {
   }
 
   const inputCls = 'px-2.5 py-1.5 text-sm rounded-lg outline-none transition-all'
-  const inputStyle = { background: '#F7F8FA', border: '1.5px solid #E5E8EE', color: '#1C1C28' }
+  const inputStyle = { background: '#F7F8FA', border: '1px solid #E5E8EE', color: '#1C1C28' }
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <div className="px-6 pt-6 pb-4">
-        <h1 className="text-lg font-bold" style={{ color: '#1C1C28' }}>Usuarios</h1>
-        <p className="text-xs mt-0.5" style={{ color: '#7A7F9A' }}>Gestiona roles y perfiles de facturación</p>
-      </div>
-
-      <div className="px-6 pb-6">
-        <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1.5px solid #E5E8EE', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
+      <div className="px-6 pb-6 pt-5">
+        <div className="rounded-lg overflow-hidden" style={{ background: '#fff', border: '1px solid #E5E8EE', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
           {/* Table header */}
           <div className="grid grid-cols-12 gap-4 px-4 py-3 text-xs font-bold uppercase tracking-wider" style={{ borderBottom: '1px solid #F0F0F8', color: '#7A7F9A' }}>
             <div className="col-span-4">Usuario</div>
@@ -84,7 +79,7 @@ export default function Users() {
                 {/* User info */}
                 <div className="col-span-4 flex items-center gap-3 min-w-0">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                    style={{ background: 'linear-gradient(135deg,#7C4DFF,#EC4899)' }}>
+                    style={{ background: '#7C4DFF' }}>
                     {initials}
                   </div>
                   <div className="min-w-0">

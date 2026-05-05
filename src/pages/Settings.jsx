@@ -69,10 +69,10 @@ export default function Settings() {
       </div>
 
       {/* Tutorial */}
-      <div className="rounded-xl p-5" style={{ background: 'linear-gradient(135deg,rgba(123,104,238,0.08),rgba(255,107,202,0.06))', border: '1.5px solid rgba(123,104,238,0.2)' }}>
+      <div className="rounded-xl p-5" style={{ background: 'linear-gradient(135deg,rgba(123,104,238,0.08),rgba(255,107,202,0.06))', border: '1px solid rgba(123,104,238,0.2)' }}>
         <div className="flex items-start gap-4">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)', boxShadow: '0 4px 12px rgba(107,78,255,0.35)' }}>
+            style={{ background: '#7C4DFF',  }}>
             <HelpCircle size={18} color="white" />
           </div>
           <div className="flex-1">
@@ -83,7 +83,7 @@ export default function Settings() {
             <button
               onClick={() => { resetTour(); onStartTour?.() }}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all"
-              style={{ background: 'linear-gradient(135deg,#7C4DFF,#6B3EED)', boxShadow: '0 4px 12px rgba(107,78,255,0.3)' }}
+              style={{ background: '#7C4DFF', boxShadow: '0 4px 12px rgba(107,78,255,0.3)' }}
               onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
               onMouseLeave={e => e.currentTarget.style.opacity = '1'}
             >

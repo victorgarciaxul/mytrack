@@ -19,9 +19,9 @@ const RANGES = [
 ]
 
 const statCard = (label, value, sub, color = '#7C4DFF') => (
-  <div key={label} className="rounded-2xl p-5" style={{ background: '#fff', border: '1.5px solid #E5E8EE' }}>
-    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#7A7F9A' }}>{label}</p>
-    <p className="text-3xl font-bold font-numeric" style={{ color: '#1C1C28' }}>{value}</p>
+  <div key={label} className="p-4" style={{ background: '#fff', border: '1px solid #E5E8EE', borderRadius: 8 }}>
+    <p className="text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: '#9095B0' }}>{label}</p>
+    <p className="text-2xl font-bold font-numeric" style={{ color: '#1C1C28' }}>{value}</p>
     {sub && <p className="text-xs mt-1" style={{ color }}>{sub}</p>}
   </div>
 )
@@ -96,18 +96,15 @@ export default function Reports() {
 
   return (
     <div>
-      <div className="px-6 py-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-lg font-bold" style={{ color: '#1C1C28' }}>Reportes</h1>
-          <p className="text-xs mt-0.5" style={{ color: '#7A7F9A' }}>Análisis de tiempo registrado</p>
-        </div>
-        <div className="flex gap-1 p-1 rounded-xl" style={{ background: '#fff', border: '1.5px solid #E5E8EE' }}>
+      <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: '1px solid #E5E8EE' }}>
+        <div className="flex gap-0.5 p-0.5 rounded-md" style={{ background: '#F3F4F8' }}>
           {RANGES.map(r => (
             <button key={r.value} onClick={() => setRange(r.value)}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              className="px-3 py-1.5 rounded text-xs font-medium transition-all"
               style={{
-                background: range === r.value ? 'linear-gradient(135deg,#7C4DFF,#6B3EED)' : 'transparent',
-                color: range === r.value ? '#fff' : '#7A7F9A',
+                background: range === r.value ? '#fff' : 'transparent',
+                color: range === r.value ? '#1C1C28' : '#7A7F9A',
+                boxShadow: range === r.value ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
               }}>
               {r.label}
             </button>
@@ -115,7 +112,7 @@ export default function Reports() {
         </div>
       </div>
 
-      <div className="px-6 pb-6 space-y-5">
+      <div className="px-6 py-5 space-y-4">
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
           {statCard('Total horas', `${(totalSecs/3600).toFixed(1)}h`, `${entries.length} entradas`)}
@@ -125,7 +122,7 @@ export default function Reports() {
 
         {/* Charts */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2 rounded-2xl p-5" style={{ background: '#fff', border: '1.5px solid #E5E8EE' }}>
+          <div className="col-span-2 p-4" style={{ background: '#fff', border: '1px solid #E5E8EE', borderRadius: 8 }}>
             <h3 className="font-bold text-sm mb-5" style={{ color: '#1C1C28' }}>Horas por día</h3>
             {loading ? (
               <div className="h-48 flex items-center justify-center text-sm" style={{ color: '#7A7F9A' }}>Cargando...</div>
@@ -152,7 +149,7 @@ export default function Reports() {
             )}
           </div>
 
-          <div className="rounded-2xl p-5" style={{ background: '#fff', border: '1.5px solid #E5E8EE' }}>
+          <div className="p-4" style={{ background: '#fff', border: '1px solid #E5E8EE', borderRadius: 8 }}>
             <h3 className="font-bold text-sm mb-4" style={{ color: '#1C1C28' }}>Por proyecto</h3>
             {pieData.length === 0 ? (
               <div className="h-32 flex items-center justify-center text-sm" style={{ color: '#7A7F9A' }}>Sin datos</div>
@@ -179,7 +176,7 @@ export default function Reports() {
         </div>
 
         {/* Table */}
-        <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1.5px solid #E5E8EE' }}>
+        <div className="overflow-hidden" style={{ background: '#fff', border: '1px solid #E5E8EE', borderRadius: 8 }}>
           <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid #F0F0F8', background: '#FAFAFA' }}>
             <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#7A7F9A' }}>Entradas detalladas</h3>
             <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: 'rgba(123,104,238,0.1)', color: '#7C4DFF' }}>

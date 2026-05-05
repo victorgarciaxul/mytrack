@@ -17,28 +17,37 @@ export default function AppLayout() {
   }, [])
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'Inter, system-ui, sans-serif', background: '#F8FAFC' }}>
+    <div style={{
+      display: 'flex', height: '100vh', overflow: 'hidden',
+      background: '#F0F0F7',
+      fontFamily: 'Inter, system-ui, sans-serif',
+    }}>
       <Sidebar onStartTour={() => setTourRunning(true)} />
 
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', minWidth: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', minWidth: 0, padding: '12px 12px 12px 0' }}>
         {isDemo && (
           <div style={{
-            background: 'linear-gradient(90deg, #7C4DFF, #E040FB)',
-            color: '#fff',
-            fontSize: 11,
-            fontWeight: 500,
-            textAlign: 'center',
-            padding: '4px 0',
-            flexShrink: 0,
-            letterSpacing: '0.02em',
+            background: 'linear-gradient(90deg,#7C4DFF,#E040FB)',
+            color: '#fff', fontSize: 11, fontWeight: 500,
+            textAlign: 'center', padding: '3px 0', flexShrink: 0,
+            borderRadius: '10px 10px 0 0', letterSpacing: '0.02em',
           }}>
             ✦ Modo demo activo
           </div>
         )}
-        <TopBar />
-        <main style={{ flex: 1, overflowY: 'auto', background: '#FFFFFF' }}>
-          <Outlet context={{ onStartTour: () => setTourRunning(true) }} />
-        </main>
+        <div style={{
+          display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden',
+          background: '#FFFFFF',
+          borderRadius: isDemo ? '0 0 14px 14px' : 14,
+          border: '1px solid #EAEAF2',
+          boxShadow: '0 2px 16px rgba(0,0,0,0.05)',
+          overflow: 'hidden',
+        }}>
+          <TopBar />
+          <main style={{ flex: 1, overflowY: 'auto', background: '#FAFAFE' }}>
+            <Outlet context={{ onStartTour: () => setTourRunning(true) }} />
+          </main>
+        </div>
       </div>
 
       <Toaster
@@ -46,12 +55,10 @@ export default function AppLayout() {
         toastOptions={{
           duration: 3000,
           style: {
-            background: '#0F172A',
-            color: '#F1F5F9',
-            border: '1px solid #1E293B',
-            borderRadius: '8px',
-            fontSize: '13px',
-            fontFamily: 'Inter, sans-serif',
+            background: '#1A1A2E', color: '#F1F5F9',
+            border: '1px solid #2A2A4A', borderRadius: '10px',
+            fontSize: '13px', fontFamily: 'Inter, sans-serif',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
           },
         }}
       />

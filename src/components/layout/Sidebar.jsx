@@ -1,8 +1,8 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   Clock, BarChart2, Briefcase, Users, Settings,
-  Tag, LayoutDashboard, Bell, UserCog,
-  Search, LogOut, HelpCircle, ChevronDown,
+  Tag, LayoutDashboard, Bell, UserCog, HelpCircle,
+  ChevronDown, LogOut, Plus,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
@@ -10,51 +10,38 @@ import { useWorkspace } from '../../context/WorkspaceContext'
 import { useRole } from '../../context/RoleContext'
 import { useTour } from '../tour/AppTour'
 
-const NAV_EMPLOYEE = [
-  { to: '/tracker',       icon: Clock,          label: 'Tracker'   },
-  { to: '/notifications', icon: Bell,           label: 'Alertas',  badge: true },
-  { to: '/settings',      icon: Settings,       label: 'Ajustes'   },
-]
-const NAV_MANAGER = [
-  { to: '/dashboard',     icon: LayoutDashboard,label: 'Dashboard' },
-  { to: '/tracker',       icon: Clock,          label: 'Tracker'   },
-  { to: '/reports',       icon: BarChart2,      label: 'Reportes'  },
-  { to: '/projects',      icon: Briefcase,      label: 'Proyectos' },
-  { to: '/clients',       icon: Tag,            label: 'Clientes'  },
-  { to: '/team',          icon: Users,          label: 'Equipo'    },
-  { to: '/notifications', icon: Bell,           label: 'Alertas',  badge: true },
-  { to: '/settings',      icon: Settings,       label: 'Ajustes'   },
-]
-const NAV_ADMIN_EXTRA = [
-  { to: '/users', icon: UserCog, label: 'Usuarios' },
-]
-
 export default function Sidebar({ onStartTour }) {
-  const [search, setSearch] = useState('')
   const { user, signOut } = useAuth()
-  const { workspace } = useWorkspace()
+  const { workspace, projects } = useWorkspace()
   const { isManager, isAdmin, unreadCount } = useRole()
   const location = useLocation()
   const { resetTour } = useTour()
-
-  const nav = isManager
-    ? [...NAV_MANAGER, ...(isAdmin ? NAV_ADMIN_EXTRA : [])]
-    : NAV_EMPLOYEE
-
-  const filtered = search
-    ? nav.filter(n => n.label.toLowerCase().includes(search.toLowerCase()))
-    : nav
 
   const wsName = workspace?.name || 'MyTrack'
   const wsInitials = wsName.slice(0, 2).toUpperCase()
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'
   const userInitials = userName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 
+  const generalNav = [
+    ...(isManager ? [{ to: '/dashboard', icon: LayoutDashboard, label: 'Overview', color: '#7C4DFF' }] : []),
+    { to: '/tracker', icon: Clock, label: 'Time Tracker', color: '#7C4DFF' },
+    ...(isManager ? [{ to: '/reports', icon: BarChart2, label: 'Reports', color: '#7C4DFF' }] : []),
+    { to: '/notifications', icon: Bell, label: 'Inbox', color: '#7C4DFF', badge: true },
+  ]
+
+  const projectNav = [
+    { to: '/projects', icon: Briefcase, label: 'Projects', color: '#10B981' },
+    { to: '/clients', icon: Tag, label: 'Clients', color: '#F59E0B' },
+    ...(isManager ? [{ to: '/team', icon: Users, label: 'Team', color: '#6366F1' }] : []),
+    ...(isAdmin ? [{ to: '/users', icon: UserCog, label: 'Users', color: '#EC4899' }] : []),
+  ]
+
   return (
     <aside style={{
-      width: 232,
+      width: 240,
       flexShrink: 0,
-      background: '#0F172A',
+      background: '#FFFFFF',
+      borderRight: '1px solid #F0F0F5',
       display: 'flex',
       flexDirection: 'column',
       height: '100vh',
@@ -62,167 +49,214 @@ export default function Sidebar({ onStartTour }) {
       fontFamily: 'Inter, system-ui, sans-serif',
     }}>
 
-      {/* Workspace */}
-      <div style={{ padding: '16px 14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <button style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          width: '100%', background: 'transparent', border: 'none',
-          cursor: 'pointer', borderRadius: 8, padding: '6px 8px',
-          transition: 'background 0.15s',
-        }}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-        >
+      {/* Logo */}
+      <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #F5F5FA' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: 'linear-gradient(135deg, #7C4DFF, #E040FB)',
+            width: 34, height: 34, borderRadius: 10,
+            background: 'linear-gradient(135deg,#7C4DFF,#E040FB)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 12, fontWeight: 700, color: '#fff',
-            boxShadow: '0 2px 8px rgba(124,77,255,0.3)',
+            boxShadow: '0 4px 12px rgba(124,77,255,0.3)',
           }}>
-            {wsInitials}
+            <Clock size={16} color="white" strokeWidth={2.5} />
           </div>
-          <div style={{ flex: 1, textAlign: 'left', overflow: 'hidden' }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#F1F5F9', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-              {wsName}
-            </p>
-            <p style={{ fontSize: 10, color: '#475569', margin: 0, marginTop: 1 }}>Workspace</p>
-          </div>
-          <ChevronDown size={13} style={{ color: '#475569', flexShrink: 0 }} />
-        </button>
-      </div>
-
-      {/* Search */}
-      <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '7px 10px', borderRadius: 8,
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.07)',
-        }}>
-          <Search size={13} style={{ color: '#475569', flexShrink: 0 }} />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar..."
-            style={{
-              background: 'transparent', border: 'none', outline: 'none',
-              fontSize: 12, color: '#94A3B8', flex: 1,
-            }}
-          />
+          <span style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', letterSpacing: '-0.3px' }}>
+            MyTrack
+          </span>
         </div>
       </div>
 
-      {/* Nav */}
-      <nav style={{ flex: 1, overflowY: 'auto', padding: '10px 10px' }}>
-        <p style={{
-          fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
-          textTransform: 'uppercase', color: '#334155',
-          padding: '0 6px', marginBottom: 4,
-        }}>
-          {isManager ? 'Gestión' : 'Mi trabajo'}
-        </p>
+      {/* Workspace pill */}
+      <div style={{ padding: '10px 14px' }}>
+        <button style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 10px', borderRadius: 10, width: '100%',
+          background: '#F8F8FD', border: '1px solid #EDEDF8',
+          cursor: 'pointer',
+        }}
+          onMouseEnter={e => e.currentTarget.style.background = '#F0F0FA'}
+          onMouseLeave={e => e.currentTarget.style.background = '#F8F8FD'}
+        >
+          <div style={{
+            width: 26, height: 26, borderRadius: 7,
+            background: 'linear-gradient(135deg,#7C4DFF,#6334E6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0,
+          }}>
+            {wsInitials}
+          </div>
+          <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#1A1A2E', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', textAlign: 'left' }}>
+            {wsName}
+          </span>
+          <ChevronDown size={12} style={{ color: '#9095B0', flexShrink: 0 }} />
+        </button>
+      </div>
 
-        {filtered.map(({ to, icon: Icon, label, badge }) => {
-          const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to))
-          const count = badge ? unreadCount : 0
-          return (
-            <NavLink
-              key={to}
-              to={to}
-              data-tour={`nav-${to.replace('/', '')}`}
-              style={{ textDecoration: 'none', display: 'block', marginBottom: 2 }}
-            >
-              <div
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 9,
-                  padding: '7px 8px', borderRadius: 8,
-                  background: isActive ? 'rgba(124,77,255,0.18)' : 'transparent',
-                  color: isActive ? '#C4B5FD' : '#64748B',
-                  fontSize: 13,
-                  fontWeight: isActive ? 600 : 400,
-                  position: 'relative',
-                  cursor: 'pointer',
-                  transition: 'all 0.1s',
-                  borderLeft: isActive ? '2px solid #7C4DFF' : '2px solid transparent',
-                }}
-                onMouseEnter={e => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-                    e.currentTarget.style.color = '#CBD5E1'
-                  }
-                }}
-                onMouseLeave={e => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = 'transparent'
-                    e.currentTarget.style.color = '#64748B'
-                  }
-                }}
+      {/* Nav */}
+      <nav style={{ flex: 1, overflowY: 'auto', padding: '4px 14px' }}>
+
+        {/* General section */}
+        <SectionLabel>General</SectionLabel>
+        {generalNav.map(item => (
+          <NavItem key={item.to} item={item} location={location} unreadCount={unreadCount} />
+        ))}
+
+        {/* Project section */}
+        {projectNav.length > 0 && (
+          <>
+            <SectionLabel extra={
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9095B0', display: 'flex', alignItems: 'center', padding: 0 }}
+                onMouseEnter={e => e.currentTarget.style.color = '#7C4DFF'}
+                onMouseLeave={e => e.currentTarget.style.color = '#9095B0'}
               >
-                <span style={{ position: 'relative', flexShrink: 0, display: 'flex' }}>
-                  <Icon size={15} />
-                  {count > 0 && (
-                    <span style={{
-                      position: 'absolute', top: -5, right: -6,
-                      minWidth: 15, height: 15, borderRadius: 8,
-                      background: '#EF4444', color: '#fff',
-                      fontSize: 9, fontWeight: 700,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      padding: '0 3px',
-                    }}>
-                      {count > 9 ? '9+' : count}
-                    </span>
-                  )}
-                </span>
-                <span style={{ flex: 1 }}>{label}</span>
-              </div>
-            </NavLink>
-          )
-        })}
+                <Plus size={13} />
+              </button>
+            }>Proyecto</SectionLabel>
+            {projectNav.map(item => (
+              <NavItem key={item.to} item={item} location={location} unreadCount={unreadCount} />
+            ))}
+          </>
+        )}
+
+        {/* Recent projects */}
+        {projects.length > 0 && (
+          <>
+            <div style={{ marginTop: 8 }}>
+              {projects.slice(0, 4).map(p => (
+                <div key={p.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '5px 8px', borderRadius: 8, cursor: 'default',
+                }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#F8F8FD'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <div style={{
+                    width: 20, height: 20, borderRadius: 5, flexShrink: 0,
+                    background: p.color + '20',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.color }} />
+                  </div>
+                  <span style={{ fontSize: 12, color: '#6B7090', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flex: 1 }}>
+                    {p.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </nav>
 
       {/* Footer */}
-      <div style={{ padding: '8px 10px 12px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ padding: '10px 14px 16px', borderTop: '1px solid #F5F5FA' }}>
+        <NavItem
+          item={{ to: '/settings', icon: Settings, label: 'Settings', color: '#9095B0' }}
+          location={location}
+          unreadCount={0}
+        />
         <button
           onClick={() => { resetTour(); onStartTour?.() }}
           style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: 9,
+            width: '100%', display: 'flex', alignItems: 'center', gap: 8,
             padding: '7px 8px', borderRadius: 8,
             background: 'transparent', border: 'none', cursor: 'pointer',
-            color: '#334155', fontSize: 12, marginBottom: 2,
+            color: '#9095B0', fontSize: 13, marginBottom: 8,
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#64748B' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#334155' }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#F8F8FD'; e.currentTarget.style.color = '#7C4DFF' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9095B0' }}
         >
-          <HelpCircle size={14} style={{ flexShrink: 0 }} />
-          <span>Tutorial</span>
+          <HelpCircle size={15} style={{ flexShrink: 0 }} />
+          <span>Help Center</span>
         </button>
 
+        {/* User */}
         <button
           onClick={signOut}
           style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: 9,
-            padding: '7px 8px', borderRadius: 8,
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            color: '#334155', fontSize: 12,
+            display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+            padding: '8px 10px', borderRadius: 10,
+            background: '#F8F8FD', border: '1px solid #EDEDF8',
+            cursor: 'pointer',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.color = '#FCA5A5' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#334155' }}
+          onMouseEnter={e => e.currentTarget.style.background = '#F0F0FA'}
+          onMouseLeave={e => e.currentTarget.style.background = '#F8F8FD'}
         >
           <div style={{
-            width: 22, height: 22, borderRadius: 6,
+            width: 28, height: 28, borderRadius: 8, flexShrink: 0,
             background: 'linear-gradient(135deg,#7C4DFF,#E040FB)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 9, fontWeight: 700, color: '#fff', flexShrink: 0,
+            fontSize: 10, fontWeight: 700, color: '#fff',
+            boxShadow: '0 2px 6px rgba(124,77,255,0.3)',
           }}>
             {userInitials}
           </div>
-          <span style={{ flex: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', textAlign: 'left' }}>
-            {userName}
-          </span>
-          <LogOut size={12} style={{ flexShrink: 0, opacity: 0.4 }} />
+          <div style={{ flex: 1, textAlign: 'left', overflow: 'hidden', minWidth: 0 }}>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#1A1A2E', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+              {userName}
+            </p>
+            <p style={{ fontSize: 10, color: '#9095B0', margin: 0 }}>TEAM</p>
+          </div>
+          <ChevronDown size={12} style={{ color: '#9095B0', flexShrink: 0 }} />
         </button>
       </div>
     </aside>
+  )
+}
+
+function SectionLabel({ children, extra }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '10px 8px 4px',
+      fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+      textTransform: 'uppercase', color: '#B0B5CC',
+    }}>
+      <span>{children}</span>
+      {extra}
+    </div>
+  )
+}
+
+function NavItem({ item, location, unreadCount }) {
+  const { to, icon: Icon, label, color, badge } = item
+  const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to))
+  const count = badge ? unreadCount : 0
+
+  return (
+    <NavLink to={to} data-tour={`nav-${to.replace('/', '')}`} style={{ textDecoration: 'none', display: 'block', marginBottom: 2 }}>
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 9,
+          padding: '7px 8px', borderRadius: 9,
+          background: isActive ? '#F3F0FF' : 'transparent',
+          color: isActive ? '#7C4DFF' : '#6B7090',
+          fontSize: 13, fontWeight: isActive ? 600 : 400,
+          transition: 'all 0.1s', cursor: 'pointer', position: 'relative',
+        }}
+        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = '#F8F8FD'; e.currentTarget.style.color = '#1A1A2E' } }}
+        onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6B7090' } }}
+      >
+        <div style={{
+          width: 26, height: 26, borderRadius: 7, flexShrink: 0,
+          background: isActive ? '#EDE9FF' : '#F3F4F8',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'background 0.1s',
+        }}>
+          <Icon size={13} style={{ color: isActive ? '#7C4DFF' : '#9095B0' }} />
+        </div>
+        <span style={{ flex: 1 }}>{label}</span>
+        {count > 0 && (
+          <span style={{
+            minWidth: 18, height: 18, borderRadius: 9,
+            background: '#EF4444', color: '#fff',
+            fontSize: 10, fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '0 4px',
+          }}>
+            {count > 9 ? '9+' : count}
+          </span>
+        )}
+      </div>
+    </NavLink>
   )
 }

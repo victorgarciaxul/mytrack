@@ -45,11 +45,11 @@ export const demoClients = [
 
 // ── Projects ──────────────────────────────────────────────
 export const demoProjects = [
-  { id: 'p1', workspace_id: 'demo-ws-1', client_id: 'c1', name: 'Web Corporativa', color: '#7B68EE', budget_hours: 120, clients: { name: 'Acme Corp' } },
-  { id: 'p2', workspace_id: 'demo-ws-1', client_id: 'c1', name: 'App Móvil', color: '#8b5cf6', budget_hours: 200, clients: { name: 'Acme Corp' } },
-  { id: 'p3', workspace_id: 'demo-ws-1', client_id: 'c2', name: 'MVP SaaS', color: '#ec4899', budget_hours: 150, clients: { name: 'Startup XYZ' } },
-  { id: 'p4', workspace_id: 'demo-ws-1', client_id: 'c3', name: 'E-commerce', color: '#f97316', budget_hours: 80, clients: { name: 'Retail S.A.' } },
-  { id: 'p5', workspace_id: 'demo-ws-1', client_id: null, name: 'Tareas internas', color: '#22c55e', budget_hours: null, clients: null },
+  { id: 'p1', workspace_id: 'demo-ws-1', client_id: 'c1', name: 'Estructura XUL', color: '#7B68EE', budget_hours: 120, clients: { name: 'Acme Corp' } },
+  { id: 'p2', workspace_id: 'demo-ws-1', client_id: 'c1', name: 'XUL -Grupos de trabajo', color: '#8b5cf6', budget_hours: 200, clients: { name: 'Acme Corp' } },
+  { id: 'p3', workspace_id: 'demo-ws-1', client_id: 'c2', name: 'XUL Miscelánea', color: '#ec4899', budget_hours: 150, clients: { name: 'Startup XYZ' } },
+  { id: 'p4', workspace_id: 'demo-ws-1', client_id: 'c3', name: 'XUL Propuestas y concursos', color: '#f97316', budget_hours: 80, clients: { name: 'Retail S.A.' } },
+  { id: 'p5', workspace_id: 'demo-ws-1', client_id: null, name: 'Xul proyectos', color: '#22c55e', budget_hours: null, clients: null },
 ]
 
 // ── Tasks ─────────────────────────────────────────────────

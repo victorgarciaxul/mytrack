@@ -17,20 +17,26 @@ export default function AppLayout() {
   }, [])
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: '#F7F8FA' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F5F6F8', fontFamily: 'Inter, system-ui, sans-serif' }}>
       <Sidebar onStartTour={() => setTourRunning(true)} />
 
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
         {isDemo && (
-          <div
-            className="text-xs font-medium text-center py-1 flex-shrink-0"
-            style={{ background: 'linear-gradient(90deg,#7C4DFF,#EC4899)', color: '#fff', letterSpacing: '0.02em' }}
-          >
+          <div style={{
+            background: '#7B68EE',
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: 500,
+            textAlign: 'center',
+            padding: '3px 0',
+            letterSpacing: '0.02em',
+            flexShrink: 0,
+          }}>
             ✦ Modo demo activo
           </div>
         )}
         <TopBar />
-        <main className="flex-1 overflow-y-auto" style={{ background: '#F7F8FA' }}>
+        <main style={{ flex: 1, overflowY: 'auto', background: '#FFFFFF' }}>
           <Outlet context={{ onStartTour: () => setTourRunning(true) }} />
         </main>
       </div>
@@ -43,7 +49,7 @@ export default function AppLayout() {
             background: '#1C1C28',
             color: '#fff',
             border: '1px solid #2A2D3A',
-            borderRadius: '8px',
+            borderRadius: '6px',
             fontSize: '13px',
             fontFamily: 'Inter, sans-serif',
           },

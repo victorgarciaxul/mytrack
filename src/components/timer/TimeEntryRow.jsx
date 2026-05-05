@@ -24,7 +24,7 @@ export default function TimeEntryRow({ entry, onDelete, onRefresh, projects, for
     <div
       className="group flex items-center gap-4 px-4 py-3 transition-colors"
       style={{
-        borderBottom: isLast ? 'none' : '1px solid #F0F0F8',
+        borderBottom: isLast ? 'none' : '1px solid var(--c-border-light)',
       }}
       onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}

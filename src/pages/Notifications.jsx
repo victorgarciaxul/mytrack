@@ -18,7 +18,7 @@ export default function Notifications() {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: '1px solid #E5E8EE' }}>
+      <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: '1px solid var(--c-border)' }}>
         <span className="text-xs" style={{ color: 'var(--c-text-3)' }}>
           {unreadCount > 0 ? `${unreadCount} sin leer` : 'Todo al día'}
         </span>
@@ -51,7 +51,7 @@ export default function Notifications() {
         {unread.length > 0 && (
           <div>
             <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--c-text-2)' }}>Sin leer</p>
-            <div className="rounded-lg overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
+            <div className="rounded-lg overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
               {unread.map((n, i) => <NotifRow key={n.id} n={n} onRead={markRead} isLast={i === unread.length - 1} />)}
             </div>
           </div>
@@ -60,7 +60,7 @@ export default function Notifications() {
         {read.length > 0 && (
           <div>
             <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--c-text-3)' }}>Leídas</p>
-            <div className="rounded-lg overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', opacity: 0.7 }}>
+            <div className="rounded-lg overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', opacity: 0.7 }}>
               {read.map((n, i) => <NotifRow key={n.id} n={n} onRead={markRead} isLast={i === read.length - 1} />)}
             </div>
           </div>
@@ -79,7 +79,7 @@ function NotifRow({ n, onRead, isLast }) {
     <div
       className="flex items-start gap-4 px-4 py-4 cursor-pointer transition-colors"
       style={{
-        borderBottom: isLast ? 'none' : '1px solid #F0F0F8',
+        borderBottom: isLast ? 'none' : '1px solid var(--c-border-light)',
         background: n.read ? 'transparent' : 'rgba(123,104,238,0.03)',
       }}
       onClick={() => !n.read && onRead(n.id)}

@@ -76,18 +76,15 @@ export default function Sidebar({ onStartTour }) {
           onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
         >
-          <div style={{
-            width: 26, height: 26, borderRadius: 7,
-            background: 'linear-gradient(135deg,#7C4DFF,#6334E6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0,
-          }}>
-            {wsInitials}
-          </div>
-          <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: 'var(--c-text-1)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', textAlign: 'left' }}>
-            {wsName}
-          </span>
-          <ChevronDown size={12} style={{ color: 'var(--c-text-3)', flexShrink: 0 }} />
+          <img
+            src="/logo-xul.png"
+            alt="XUL"
+            style={{
+              height: 18, width: 'auto', flexShrink: 0,
+              filter: 'var(--logo-filter)',
+            }}
+          />
+          <ChevronDown size={12} style={{ color: 'var(--c-text-3)', flexShrink: 0, marginLeft: 'auto' }} />
         </button>
       </div>
 

@@ -49,14 +49,14 @@ export default function Users() {
   }
 
   const inputCls = 'px-2.5 py-1.5 text-sm rounded-lg outline-none transition-all'
-  const inputStyle = { background: 'var(--c-input-bg)', border: '1px solid #E5E8EE', color: 'var(--c-text-1)' }
+  const inputStyle = { background: 'var(--c-input-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text-1)' }
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       <div className="px-6 pb-6 pt-5">
-        <div className="rounded-lg overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
+        <div className="rounded-lg overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
           {/* Table header */}
-          <div className="grid grid-cols-12 gap-4 px-4 py-3 text-xs font-bold uppercase tracking-wider" style={{ borderBottom: '1px solid #F0F0F8', color: 'var(--c-text-3)' }}>
+          <div className="grid grid-cols-12 gap-4 px-4 py-3 text-xs font-bold uppercase tracking-wider" style={{ borderBottom: '1px solid var(--c-border-light)', color: 'var(--c-text-3)' }}>
             <div className="col-span-4">Usuario</div>
             <div className="col-span-3">Perfil / Cargo</div>
             <div className="col-span-2 text-right">€/hora</div>
@@ -72,7 +72,7 @@ export default function Users() {
             return (
               <div key={m.id}
                 className="grid grid-cols-12 gap-4 items-center px-4 py-3.5 transition-colors"
-                style={{ borderBottom: i === members.length - 1 ? 'none' : '1px solid #F0F0F8' }}
+                style={{ borderBottom: i === members.length - 1 ? 'none' : '1px solid var(--c-border-light)' }}
                 onMouseEnter={e => !isEditingThis && (e.currentTarget.style.background = 'var(--c-bg-muted)')}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >

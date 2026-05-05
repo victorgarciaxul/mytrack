@@ -191,7 +191,7 @@ export default function Tracker() {
                   <div style={{
                     position: 'absolute', left: 0, top: 'calc(100% + 4px)',
                     minWidth: 200, background: 'var(--c-bg-surface)', borderRadius: 10,
-                    border: '1px solid #EDEDF8', boxShadow: '0 8px 30px rgba(0,0,0,0.1)',
+                    border: '1px solid var(--c-border)', boxShadow: '0 8px 30px rgba(0,0,0,0.1)',
                     zIndex: 50, overflow: 'hidden', padding: '4px 0',
                   }}>
                     <Opt onClick={() => { setSelectedProject(null); setSelectedTask(null); setShowProjectPicker(false) }} muted>Sin proyecto</Opt>
@@ -214,7 +214,7 @@ export default function Tracker() {
                   value={selectedTask?.id || ''}
                   style={{
                     padding: '5px 10px', borderRadius: 7, fontSize: 12,
-                    background: 'var(--c-bg-muted)', border: '1px solid #EDEDF8',
+                    background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',
                     color: 'var(--c-text-3)', cursor: 'pointer', outline: 'none',
                   }}
                 >
@@ -244,7 +244,7 @@ export default function Tracker() {
                 <div key={e.id} style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '9px 0',
-                  borderBottom: i < recentEntries.length - 1 ? '1px solid #F5F5FA' : 'none',
+                  borderBottom: i < recentEntries.length - 1 ? '1px solid var(--c-border-light)' : 'none',
                 }}>
                   {/* Project color */}
                   <div style={{
@@ -406,7 +406,7 @@ export default function Tracker() {
             <CardHeader title="Ongoing Timesheet" />
             <div style={{ marginTop: 12 }}>
               {timer.isRunning ? (
-                <div style={{ padding: '12px', borderRadius: 10, background: '#F3F0FF', border: '1px solid #DDD6FE' }}>
+                <div style={{ padding: '12px', borderRadius: 10, background: 'var(--c-card-a)', border: '1px solid var(--c-border)' }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)', margin: '0 0 4px' }}>
                     {description || 'Sin descripción'}
                   </p>
@@ -423,7 +423,7 @@ export default function Tracker() {
                 </div>
               ) : (
                 <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 12, background: '#F3F0FF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--c-card-a)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
                     <Zap size={18} style={{ color: '#7C4DFF' }} />
                   </div>
                   <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--c-text-2)', margin: 0 }}>No hay timer activo</p>

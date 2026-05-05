@@ -30,7 +30,7 @@ export default function Clients() {
     loadClients(workspace.id)
   }
 
-  const inputStyle = { background: '#F7F8FA', border: '1px solid #E5E8EE', color: '#1C1C28', borderRadius: 10 }
+  const inputStyle = { background: 'var(--c-input-bg)', border: '1px solid var(--c-border)', color: '#1C1C28', borderRadius: 10 }
 
   return (
     <div>
@@ -47,7 +47,7 @@ export default function Clients() {
       </div>
 
       {showForm && (
-        <div className="mx-6 mb-5 rounded-lg p-5" style={{ background: '#fff', border: '1px solid #E5E8EE', boxShadow: '0 4px 20px rgba(107,78,255,0.08)' }}>
+        <div className="mx-6 mb-5 rounded-lg p-5" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', boxShadow: '0 4px 20px rgba(107,78,255,0.08)' }}>
           <h3 className="font-bold text-sm mb-4" style={{ color: '#1C1C28' }}>Nuevo cliente</h3>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -55,23 +55,23 @@ export default function Clients() {
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#7A7F9A' }}>Nombre *</label>
                 <input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nombre del cliente"
                   className="w-full px-3.5 py-2.5 text-sm outline-none" style={inputStyle}
-                  onFocus={e => Object.assign(e.target.style, { borderColor: '#7C4DFF', background: '#fff' })}
-                  onBlur={e => Object.assign(e.target.style, { borderColor: '#E5E8EE', background: '#F7F8FA' })}
+                  onFocus={e => Object.assign(e.target.style, { borderColor: '#7C4DFF', background: 'var(--c-bg-surface)' })}
+                  onBlur={e => Object.assign(e.target.style, { borderColor: 'var(--c-input-border)', background: 'var(--c-input-bg)' })}
                 />
               </div>
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#7A7F9A' }}>Email</label>
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="cliente@empresa.com"
                   className="w-full px-3.5 py-2.5 text-sm outline-none" style={inputStyle}
-                  onFocus={e => Object.assign(e.target.style, { borderColor: '#7C4DFF', background: '#fff' })}
-                  onBlur={e => Object.assign(e.target.style, { borderColor: '#E5E8EE', background: '#F7F8FA' })}
+                  onFocus={e => Object.assign(e.target.style, { borderColor: '#7C4DFF', background: 'var(--c-bg-surface)' })}
+                  onBlur={e => Object.assign(e.target.style, { borderColor: 'var(--c-input-border)', background: 'var(--c-input-bg)' })}
                 />
               </div>
             </div>
             <div className="flex gap-3">
               <button type="button" onClick={() => setShowForm(false)}
                 className="px-4 py-2.5 rounded-xl text-sm font-semibold"
-                style={{ background: '#F7F8FA', color: '#3D4060', border: '1px solid #E5E8EE' }}>Cancelar</button>
+                style={{ background: 'var(--c-input-bg)', color: '#3D4060', border: '1px solid var(--c-border)' }}>Cancelar</button>
               <button type="submit" disabled={saving}
                 className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
                 style={{ background: '#7C4DFF' }}>
@@ -91,16 +91,16 @@ export default function Clients() {
             <p className="font-semibold" style={{ color: '#3D4060' }}>Sin clientes aún</p>
           </div>
         ) : (
-          <div className="rounded-lg overflow-hidden" style={{ background: '#fff', border: '1px solid #E5E8EE' }}>
+          <div className="rounded-lg overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)' }}>
             <div className="grid text-xs font-bold uppercase tracking-wider px-5 py-3" style={{
-              gridTemplateColumns: '1fr 1fr 1fr auto', background: '#FAFAFA', borderBottom: '1px solid #F0F0F8', color: '#7A7F9A',
+              gridTemplateColumns: '1fr 1fr 1fr auto', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)', color: '#7A7F9A',
             }}>
               <span>Cliente</span><span>Email</span><span>Proyectos</span><span />
             </div>
             {clients.map(client => {
               const cp = projects.filter(p => p.client_id === client.id)
               return (
-                <div key={client.id} className="grid items-center px-5 py-4 group transition-colors" style={{ gridTemplateColumns: '1fr 1fr 1fr auto', borderBottom: '1px solid #F8F8FC' }}
+                <div key={client.id} className="grid items-center px-5 py-4 group transition-colors" style={{ gridTemplateColumns: '1fr 1fr 1fr auto', borderBottom: '1px solid var(--c-border-light)' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >

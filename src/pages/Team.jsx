@@ -21,8 +21,8 @@ export default function Team() {
 
       <div className="px-6 pb-6 space-y-4">
         {/* Members */}
-        <div className="rounded-lg overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE' }}>
-          <div className="px-5 py-3.5" style={{ background: 'var(--c-bg-muted)', borderBottom: '1px solid #F0F0F8' }}>
+        <div className="rounded-lg overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)' }}>
+          <div className="px-5 py-3.5" style={{ background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
             <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--c-text-3)' }}>Miembros</p>
           </div>
           {members.length === 0 ? (
@@ -42,7 +42,7 @@ export default function Team() {
 
                 return (
                   <div key={member.id} className="flex items-center gap-4 px-5 py-4 transition-colors"
-                    style={{ borderBottom: '1px solid #F8F8FC' }}
+                    style={{ borderBottom: '1px solid var(--c-border-light)' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
@@ -85,14 +85,14 @@ export default function Team() {
         </div>
 
         {/* Invite */}
-        <div className="rounded-lg p-5" style={{ background: 'linear-gradient(135deg, #191B23, #1C1C28)', border: '1px solid #2A2D3A' }}>
+        <div className="rounded-lg p-5" style={{ background: 'linear-gradient(135deg, #191B23, #1C1C28)', border: '1px solid var(--c-border)' }}>
           <div className="flex items-center gap-2 mb-1">
             <Users size={16} style={{ color: '#7C4DFF' }} />
             <h3 className="font-bold text-sm text-white">Invitar al equipo</h3>
           </div>
           <p className="text-xs mb-4" style={{ color: 'var(--c-text-2)' }}>Comparte este enlace con tu equipo para que se unan al workspace</p>
           <div className="flex gap-2">
-            <div className="flex-1 px-3 py-2 rounded-xl text-xs truncate" style={{ background: '#0E0E1C', border: '1px solid #2A2D3A', color: '#8888A8' }}>
+            <div className="flex-1 px-3 py-2 rounded-xl text-xs truncate" style={{ background: '#0E0E1C', border: '1px solid var(--c-border)', color: '#8888A8' }}>
               {window.location.origin}/register
             </div>
             <button onClick={copyInvite}

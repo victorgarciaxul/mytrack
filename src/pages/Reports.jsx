@@ -19,7 +19,7 @@ const RANGES = [
 ]
 
 const statCard = (label, value, sub, color = '#7C4DFF') => (
-  <div key={label} className="p-4" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', borderRadius: 8 }}>
+  <div key={label} className="p-4" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', borderRadius: 8 }}>
     <p className="text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--c-text-3)' }}>{label}</p>
     <p className="text-2xl font-bold font-numeric" style={{ color: 'var(--c-text-1)' }}>{value}</p>
     {sub && <p className="text-xs mt-1" style={{ color }}>{sub}</p>}
@@ -88,7 +88,7 @@ export default function Reports() {
   const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload?.length) return null
     return (
-      <div className="px-3 py-2 rounded-xl text-xs" style={{ background: 'var(--c-text-1)', color: '#fff', border: '1px solid #2A2D3A' }}>
+      <div className="px-3 py-2 rounded-xl text-xs" style={{ background: 'var(--c-text-1)', color: '#fff', border: '1px solid var(--c-border)' }}>
         <span className="font-bold">{payload[0].value}h</span>
       </div>
     )
@@ -96,7 +96,7 @@ export default function Reports() {
 
   return (
     <div>
-      <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: '1px solid #E5E8EE' }}>
+      <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: '1px solid var(--c-border)' }}>
         <div className="flex gap-0.5 p-0.5 rounded-md" style={{ background: '#F3F4F8' }}>
           {RANGES.map(r => (
             <button key={r.value} onClick={() => setRange(r.value)}
@@ -122,7 +122,7 @@ export default function Reports() {
 
         {/* Charts */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2 p-4" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', borderRadius: 8 }}>
+          <div className="col-span-2 p-4" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', borderRadius: 8 }}>
             <h3 className="font-bold text-sm mb-5" style={{ color: 'var(--c-text-1)' }}>Horas por día</h3>
             {loading ? (
               <div className="h-48 flex items-center justify-center text-sm" style={{ color: 'var(--c-text-3)' }}>Cargando...</div>
@@ -149,7 +149,7 @@ export default function Reports() {
             )}
           </div>
 
-          <div className="p-4" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', borderRadius: 8 }}>
+          <div className="p-4" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', borderRadius: 8 }}>
             <h3 className="font-bold text-sm mb-4" style={{ color: 'var(--c-text-1)' }}>Por proyecto</h3>
             {pieData.length === 0 ? (
               <div className="h-32 flex items-center justify-center text-sm" style={{ color: 'var(--c-text-3)' }}>Sin datos</div>
@@ -159,7 +159,7 @@ export default function Reports() {
                   <Pie data={pieData} cx="50%" cy="50%" innerRadius={42} outerRadius={65} paddingAngle={3} dataKey="value">
                     {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                   </Pie>
-                  <Tooltip formatter={v => [`${v}h`]} contentStyle={{ borderRadius: 10, border: '1px solid #E5E8EE', fontSize: 12 }} />
+                  <Tooltip formatter={v => [`${v}h`]} contentStyle={{ borderRadius: 10, border: '1px solid var(--c-border)', fontSize: 12 }} />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -176,8 +176,8 @@ export default function Reports() {
         </div>
 
         {/* Table */}
-        <div className="overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', borderRadius: 8 }}>
-          <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid #F0F0F8', background: 'var(--c-bg-muted)' }}>
+        <div className="overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', borderRadius: 8 }}>
+          <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid var(--c-border-light)', background: 'var(--c-bg-muted)' }}>
             <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--c-text-3)' }}>Entradas detalladas</h3>
             <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: 'rgba(123,104,238,0.1)', color: '#7C4DFF' }}>
               {entries.length} registros
@@ -189,7 +189,7 @@ export default function Reports() {
             ) : (
               entries.map(e => (
                 <div key={e.id} className="flex items-center gap-4 px-5 py-3 text-sm transition-colors"
-                  style={{ borderBottom: '1px solid #F8F8FC' }}
+                  style={{ borderBottom: '1px solid var(--c-border-light)' }}
                   onMouseEnter={ev => ev.currentTarget.style.background = 'var(--c-bg-muted)'}
                   onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}
                 >

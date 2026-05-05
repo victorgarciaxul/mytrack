@@ -78,11 +78,11 @@ export default function Projects() {
     loadTasks(projects.map(p => p.id))
   }
 
-  const inputStyle = { background: 'var(--c-input-bg)', border: '1px solid #E5E8EE', color: 'var(--c-text-1)', borderRadius: 10 }
+  const inputStyle = { background: 'var(--c-input-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text-1)', borderRadius: 10 }
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: '1px solid #E5E8EE' }}>
+      <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: '1px solid var(--c-border)' }}>
         <span className="text-xs" style={{ color: 'var(--c-text-3)' }}>{projects.length} proyectos activos</span>
         <button onClick={() => setShowForm(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold text-white transition-all"
@@ -95,7 +95,7 @@ export default function Projects() {
       </div>
 
       {showForm && (
-        <div className="mx-6 mb-5 rounded-lg p-5" style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', boxShadow: '0 4px 20px rgba(107,78,255,0.08)' }}>
+        <div className="mx-6 mb-5 rounded-lg p-5" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', boxShadow: '0 4px 20px rgba(107,78,255,0.08)' }}>
           <h3 className="font-bold text-sm mb-4" style={{ color: 'var(--c-text-1)' }}>Nuevo proyecto</h3>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-3 gap-4">
@@ -142,7 +142,7 @@ export default function Projects() {
             <div className="flex gap-3 pt-1">
               <button type="button" onClick={() => setShowForm(false)}
                 className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                style={{ background: 'var(--c-input-bg)', color: 'var(--c-text-2)', border: '1px solid #E5E8EE' }}>Cancelar</button>
+                style={{ background: 'var(--c-input-bg)', color: 'var(--c-text-2)', border: '1px solid var(--c-border)' }}>Cancelar</button>
               <button type="submit" disabled={saving}
                 className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
                 style={{ background: '#7C4DFF' }}>
@@ -171,10 +171,10 @@ export default function Projects() {
 
             return (
               <div key={project.id} className="rounded-lg overflow-hidden"
-                style={{ background: 'var(--c-bg-surface)', border: '1px solid #E5E8EE', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
+                style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
                 {/* Project header */}
                 <div className="flex items-center gap-4 px-5 py-4"
-                  style={{ borderBottom: isExpanded ? '1px solid #F0F0F8' : 'none' }}>
+                  style={{ borderBottom: isExpanded ? '1px solid var(--c-border-light)' : 'none' }}>
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${project.color}18` }}>
                     <Briefcase size={16} style={{ color: project.color }} />
                   </div>
@@ -232,7 +232,7 @@ export default function Projects() {
                     )}
                     {projectTasks.map((t, i) => (
                       <div key={t.id} className="group flex items-center gap-3 px-5 py-3 transition-colors"
-                        style={{ borderBottom: i < projectTasks.length - 1 || isAddingTask ? '1px solid #F8F8FC' : 'none' }}
+                        style={{ borderBottom: i < projectTasks.length - 1 || isAddingTask ? '1px solid var(--c-border-light)' : 'none' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
@@ -275,7 +275,7 @@ export default function Projects() {
                           onChange={e => setNewTaskHours(e.target.value)}
                           placeholder="h est."
                           className="w-20 text-sm px-2.5 py-1.5 rounded-lg outline-none"
-                          style={{ background: 'var(--c-input-bg)', border: '1px solid #E5E8EE', color: 'var(--c-text-1)' }}
+                          style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text-1)' }}
                         />
                         <button onClick={() => handleAddTask(project.id)}
                           className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all"

@@ -143,7 +143,7 @@ export default function ManagerDashboard() {
                   <YAxis tick={{ fontSize: 10, fill: 'var(--c-text-3)' }} axisLine={false} tickLine={false} />
                   <Tooltip
                     formatter={v => [`${v.toFixed(1)}h`]}
-                    contentStyle={{ borderRadius: 10, border: '1px solid #E5E8EE', fontSize: 12 }}
+                    contentStyle={{ borderRadius: 10, border: '1px solid var(--c-border)', fontSize: 12 }}
                   />
                   <Bar dataKey="hours" radius={[6, 6, 0, 0]}>
                     {byProject.map((p, i) => <Cell key={i} fill={p.color || PROJECT_COLORS[i % PROJECT_COLORS.length]} />)}
@@ -225,7 +225,7 @@ export default function ManagerDashboard() {
                 const used = byProject.find(b => b.name === p.name)?.hours || 0
                 const pct = Math.round((used / p.budget_hours) * 100)
                 return (
-                  <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: '#FFFBF0', border: '1px solid #FFE0B2' }}>
+                  <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--c-card-d)', border: '1px solid var(--c-border)' }}>
                     <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: p.color }} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate" style={{ color: 'var(--c-text-1)' }}>{p.name}</p>

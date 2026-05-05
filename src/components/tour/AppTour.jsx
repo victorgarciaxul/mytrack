@@ -125,7 +125,7 @@ function Tooltip({ step, index, total, rect, onNext, onPrev, onSkip }) {
         ...tooltipStyle(rect),
         zIndex: 9999,
         background: '#1A1A2E',
-        border: '1px solid #2E2E4A',
+        border: '1px solid var(--c-border)',
         borderRadius: 16,
         padding: '22px 24px 18px',
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
@@ -172,7 +172,7 @@ function Tooltip({ step, index, total, rect, onNext, onPrev, onSkip }) {
             onClick={onPrev}
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
-              padding: '7px 14px', borderRadius: 10, border: '1px solid #2E2E4A',
+              padding: '7px 14px', borderRadius: 10, border: '1px solid var(--c-border)',
               background: 'transparent', color: '#8888A8', fontSize: 13, cursor: 'pointer',
             }}
           >

@@ -5,6 +5,7 @@
 
 /* ── Theme tokens ──────────────────────────────────────────── */
 :root {
+  --logo-filter:   none;
   --c-bg-app:      #EDEDF5;
   --c-bg-surface:  #FFFFFF;
   --c-bg-muted:    #F4F3FB;
@@ -27,6 +28,7 @@
 }
 
 [data-theme="dark"] {
+  --logo-filter:   invert(1);
   --c-bg-app:      #03030A;
   --c-bg-surface:  #12122A;
   --c-bg-muted:    #1A1A36;
@@ -77,7 +79,16 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: var(--c-text-3); }
 * { scrollbar-width: thin; scrollbar-color: var(--c-scrollbar) transparent; }
 
-/* ── Dark mode: Tailwind class overrides ───────────────────── */
+/* ── Dark mode: eliminar todos los bordes de tarjetas ──────── */
+[data-theme="dark"] .rounded-lg,
+[data-theme="dark"] .rounded-xl,
+[data-theme="dark"] .overflow-hidden {
+  border-color: transparent !important;
+}
+[data-theme="dark"] [class*="border-b"],
+[data-theme="dark"] [class*="border-t"] {
+  border-color: transparent !important;
+}
 [data-theme="dark"] .bg-white,
 [data-theme="dark"] [class*="bg-white"] {
   background-color: var(--c-bg-surface) !important;

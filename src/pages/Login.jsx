@@ -219,37 +219,6 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Switch mode */}
-        <div style={{ marginTop: 18, textAlign: 'center' }}>
-          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.25)' }}>
-            {isLogin ? '¿Sin cuenta? ' : '¿Ya tienes una? '}
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              style={{ background: 'none', border: 'none', color: 'rgba(167,139,250,0.85)', fontWeight: 600, cursor: 'pointer', fontSize: 13, padding: 0 }}
-            >
-              {isLogin ? 'Regístrate' : 'Inicia sesión'}
-            </button>
-          </span>
-        </div>
-
-        {/* Demo */}
-        <div style={{ marginTop: 20, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-          <button
-            onClick={() => { setEmail('victorgarcia@xul.es'); setPassword('Xul2026') }}
-            style={{
-              padding: '7px 18px', fontSize: 12, fontWeight: 500,
-              color: 'rgba(180,150,255,0.7)',
-              background: 'rgba(124,77,255,0.08)',
-              border: '1px solid rgba(124,77,255,0.18)',
-              borderRadius: 8, cursor: 'pointer', transition: 'background 0.15s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(124,77,255,0.18)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(124,77,255,0.08)'}
-          >
-            Usar credenciales demo
-          </button>
-        </div>
-
         {/* Footer */}
         <p style={{ marginTop: 24, textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.12)', letterSpacing: '0.06em' }}>
           XUL · © 2026

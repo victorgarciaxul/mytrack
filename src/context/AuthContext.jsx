@@ -4,8 +4,8 @@ import { demoUser } from '../lib/demoData'
 
 const DEMO_MODE = import.meta.env.VITE_SUPABASE_URL === 'https://placeholder.supabase.co'
 
-const ALLOWED_EMAIL    = 'victorgarcia@xul.es'
-const ALLOWED_PASSWORD = 'Xul2026'
+const ALLOWED_EMAIL    = 'tech@xul.es'
+const ALLOWED_PASSWORD = 'Xul14$'
 
 const AuthContext = createContext(null)
 

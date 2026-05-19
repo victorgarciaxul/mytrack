@@ -4,8 +4,10 @@ import { demoUser } from '../lib/demoData'
 
 const DEMO_MODE = import.meta.env.VITE_SUPABASE_URL === 'https://placeholder.supabase.co'
 
-const ALLOWED_EMAIL    = 'tech@xul.es'
-const ALLOWED_PASSWORD = 'Xul14$'
+const DEMO_USERS = [
+  { email: 'tech@xul.es',          password: 'Xul14$', name: 'Tech XUL' },
+  { email: 'josecastillo@xul.es',  password: 'Xul14$', name: 'José Castillo' },
+]
 
 const AuthContext = createContext(null)
 
@@ -40,8 +42,9 @@ export function AuthProvider({ children }) {
 
   const signIn = async (email, password) => {
     if (DEMO_MODE) {
-      if (email === ALLOWED_EMAIL && password === ALLOWED_PASSWORD) {
-        const u = { ...demoUser, email }
+      const match = DEMO_USERS.find(u => u.email === email && u.password === password)
+      if (match) {
+        const u = { ...demoUser, email: match.email, user_metadata: { full_name: match.name } }
         setUser(u)
         localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))
         return { error: null }

@@ -21,21 +21,21 @@ const EMPLOYEE_STEPS = [
 ]
 
 const MANAGER_STEPS = [
-  { target: null, title: '👋 Bienvenido a MyTrack', content: 'En un minuto aprenderás todo lo que necesitas como gestor. Puedes saltar el tutorial en cualquier momento.' },
-  { target: '[data-tour="nav-dashboard"]',    title: '📊 Dashboard',            content: 'Tu panel de control: horas del equipo, facturación estimada, consumo de presupuesto por proyecto y alertas pendientes.',                       route: '/dashboard' },
-  { target: '[data-tour="kpi-cards"]',        title: 'KPIs del equipo',         content: 'De un vistazo: horas totales, horas facturables, facturación estimada en euros y alertas activas.',                                             route: '/dashboard' },
-  { target: '[data-tour="nav-tracker"]',      title: '⏱ Tracker',              content: 'Tú también puedes imputar tiempo. Elige siempre proyecto y tarea para que los reportes sean precisos.',                                         route: '/tracker' },
-  { target: '[data-tour="timer-bar"]',        title: 'Proyecto → Tarea',        content: 'Selecciona el proyecto primero — aparecerá el selector de tarea. Así cada entrada queda asociada a una tarea concreta.',                        route: '/tracker' },
-  { target: '[data-tour="nav-projects"]',     title: '📁 Proyectos',            content: 'Crea proyectos con presupuesto de horas. Dentro de cada proyecto defines las tareas que el equipo puede seleccionar al imputar.',               route: '/projects' },
-  { target: '[data-tour="nav-reports"]',      title: '📈 Reportes',             content: 'Filtra por fechas, proyecto o persona. Exporta a CSV para facturar al cliente.',                                                               route: '/reports' },
-  { target: '[data-tour="nav-clients"]',      title: '🏷️ Clientes',            content: 'Gestiona clientes y asócialos a proyectos para el seguimiento de facturación.',                                                                 route: '/clients' },
-  { target: '[data-tour="nav-team"]',         title: '👥 Equipo',               content: 'Visualiza todos los miembros, sus roles y tarifas por hora.',                                                                                   route: '/team' },
-  { target: '[data-tour="nav-notifications"]',title: '🔔 Alertas',              content: 'Notificaciones del sistema: miembros sin imputar, proyectos al límite de presupuesto y resúmenes semanales.',                                   route: '/tracker' },
-  { target: '[data-tour="nav-settings"]',     title: '⚙️ Ajustes',             content: 'Configura el workspace. Desde aquí puedes reiniciar este tutorial cuando quieras.',                                                             route: '/tracker' },
-  { target: null, title: '✅ ¡Todo listo!', content: '¡Ya dominas MyTrack! Empieza creando proyectos y asignando tareas a tu equipo.' },
+  { target: null,                               title: '👋 Bienvenido a MyTrack', content: 'En un minuto aprenderás todo lo que necesitas como gestor. Puedes saltar el tutorial en cualquier momento.' },
+  { target: '[data-tour="nav-dashboard"]',      title: '📊 Dashboard',           content: 'Tu panel de control: horas del equipo, facturación estimada, consumo de presupuesto por proyecto y alertas pendientes.',      route: '/dashboard' },
+  { target: '[data-tour="kpi-cards"]',          title: 'KPIs del equipo',        content: 'De un vistazo: horas totales, horas facturables, facturación estimada en euros y alertas activas.',                            route: '/dashboard' },
+  { target: '[data-tour="nav-tracker"]',        title: '⏱ Tracker',             content: 'Tú también puedes imputar tiempo. Elige siempre proyecto y tarea para que los reportes sean precisos.',                        route: '/tracker' },
+  { target: '[data-tour="timer-bar"]',          title: 'Proyecto → Tarea',       content: 'Selecciona el proyecto primero — aparecerá el selector de tarea. Así cada entrada queda asociada a una tarea concreta.',       route: '/tracker' },
+  { target: '[data-tour="nav-calendar"]',       title: '📅 Calendario',          content: 'Vista mensual de todos tus registros. Haz clic en cualquier día para ver el detalle de horas imputadas.',                     route: '/calendar' },
+  { target: '[data-tour="nav-projects"]',       title: '📁 Proyectos',           content: 'Crea proyectos con presupuesto de horas. Dentro de cada proyecto defines las tareas que el equipo puede seleccionar.',         route: '/projects' },
+  { target: '[data-tour="nav-reports"]',        title: '📈 Informes',            content: 'Filtra por fechas, proyecto o persona. Exporta a CSV para facturar al cliente.',                                               route: '/reports' },
+  { target: '[data-tour="nav-team"]',           title: '👥 Equipo',              content: 'Visualiza todos los miembros, sus roles y tarifas por hora.',                                                                   route: '/team' },
+  { target: '[data-tour="nav-notifications"]',  title: '🔔 Alertas',             content: 'Notificaciones del sistema: miembros sin imputar, proyectos al límite de presupuesto y resúmenes semanales.',                  route: '/notifications' },
+  { target: '[data-tour="nav-settings"]',       title: '⚙️ Ajustes',            content: 'Configura el workspace. Desde aquí puedes reiniciar este tutorial cuando quieras.',                                             route: '/settings' },
+  { target: null,                               title: '✅ ¡Todo listo!',        content: '¡Ya dominas MyTrack! Empieza creando proyectos y asignando tareas a tu equipo.' },
 ]
 
-const ADMIN_EXTRA = { target: '[data-tour="nav-users"]', title: '👤 Usuarios (admin)', content: 'Cambia el rol de cualquier miembro y actualiza su perfil de facturación: cargo y tarifa por hora.', route: '/tracker' }
+const ADMIN_EXTRA = null
 
 // ─── Utility: find element rect ──────────────────────────────────────────────
 
@@ -210,9 +210,7 @@ export default function AppTour({ run, onFinish }) {
   const [rect, setRect] = useState(null)
   const navigatingRef = useRef(false)
 
-  const steps = isManager
-    ? [...MANAGER_STEPS.slice(0, -1), ...(isAdmin ? [ADMIN_EXTRA] : []), MANAGER_STEPS[MANAGER_STEPS.length - 1]]
-    : EMPLOYEE_STEPS
+  const steps = isManager ? MANAGER_STEPS : EMPLOYEE_STEPS
 
   const current = steps[stepIndex]
 

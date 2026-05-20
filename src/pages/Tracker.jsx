@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { demoEntries } from '../lib/demoData'
+import { loadClockifyCache } from '../lib/clockify'
 import { format, parseISO, isToday, isYesterday, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -18,7 +19,18 @@ export default function Tracker() {
   const [description, setDescription] = useState('')
   const [selectedProject, setSelectedProject] = useState(null)
   const [selectedTask, setSelectedTask] = useState(null)
-  const [entries, setEntries] = useState(isDemo ? demoEntries.filter(e => e.user_id === 'demo-user-1') : [])
+  const [entries, setEntries] = useState(() => {
+    if (!isDemo) return []
+    const cache = loadClockifyCache()
+    if (cache?.entries?.length) {
+      // Show last 14 days only in the tracker list
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 14)
+      return cache.entries
+        .filter(e => e.end_time && new Date(e.start_time) >= cutoff)
+        .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
+    }
+    return demoEntries.filter(e => e.user_id === 'demo-user-1')
+  })
   const [showProjectPicker, setShowProjectPicker] = useState(false)
   const [showManual, setShowManual] = useState(false)
 

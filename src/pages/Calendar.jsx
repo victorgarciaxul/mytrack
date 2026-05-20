@@ -9,6 +9,7 @@ import { es } from 'date-fns/locale'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { demoEntries } from '../lib/demoData'
+import { loadClockifyCache } from '../lib/clockify'
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
@@ -25,8 +26,12 @@ export default function Calendar() {
   const [current, setCurrent] = useState(new Date())
   const [selected, setSelected] = useState(null)
 
-  // Use demo entries (or real entries in future)
-  const entries = isDemo ? demoEntries : []
+  // Use Clockify cache if available, otherwise demo entries
+  const entries = (() => {
+    if (!isDemo) return []
+    const cache = loadClockifyCache()
+    return cache?.entries?.filter(e => e.end_time) || demoEntries
+  })()
 
   // Build calendar grid: Mon–Sun weeks
   const monthStart = startOfMonth(current)

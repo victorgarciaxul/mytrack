@@ -2,16 +2,37 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 import { demoWorkspace, demoProjects, demoClients, demoMembers, demoTasks } from '../lib/demoData'
+import { loadClockifyCache } from '../lib/clockify'
 
 const WorkspaceContext = createContext(null)
 
+function getInitialData(isDemo) {
+  if (!isDemo) return { ws: null, projects: [], clients: [], members: [], tasks: [] }
+  const cache = loadClockifyCache()
+  if (cache) return {
+    ws: cache.ws,
+    projects: cache.projects || [],
+    clients: cache.clients || [],
+    members: cache.members || [],
+    tasks: [],
+  }
+  return {
+    ws: demoWorkspace,
+    projects: demoProjects,
+    clients: demoClients,
+    members: demoMembers,
+    tasks: demoTasks,
+  }
+}
+
 export function WorkspaceProvider({ children }) {
   const { user, isDemo } = useAuth()
-  const [workspace, setWorkspace] = useState(isDemo ? demoWorkspace : null)
-  const [projects, setProjects] = useState(isDemo ? demoProjects : [])
-  const [clients, setClients] = useState(isDemo ? demoClients : [])
-  const [tasks, setTasks] = useState(isDemo ? demoTasks : [])
-  const [members, setMembers] = useState(isDemo ? demoMembers : [])
+  const init = getInitialData(isDemo)
+  const [workspace, setWorkspace] = useState(init.ws)
+  const [projects, setProjects] = useState(init.projects)
+  const [clients, setClients] = useState(init.clients)
+  const [tasks, setTasks] = useState(init.tasks)
+  const [members, setMembers] = useState(init.members)
 
   useEffect(() => {
     if (!user || isDemo) return

@@ -4,7 +4,7 @@ import { useTimer } from '../hooks/useTimer'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
-import { loadClockifyCache, clockifyStartTimer, clockifyStopTimer, clockifyDeleteEntry, getClockifyUserId } from '../lib/clockify'
+import { loadClockifyCache, clockifyStartTimer, clockifyStopTimer, clockifyDeleteEntry, getClockifyUserId, isClockifyUser } from '../lib/clockify'
 import { format, parseISO, isToday, isYesterday, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -51,50 +51,62 @@ export default function Tracker() {
     if (data) setEntries(data)
   }
 
+  const syncEnabled = isClockifyUser(user?.email)
+
   async function handleStart() {
-    setSyncing(true)
-    try {
-      await clockifyStartTimer({
-        description: description || '',
-        projectId: selectedProject?.id || null,
-        taskId: selectedTask?.id || null,
-      })
+    if (syncEnabled) {
+      setSyncing(true)
+      try {
+        await clockifyStartTimer({
+          description: description || '',
+          projectId: selectedProject?.id || null,
+          taskId: selectedTask?.id || null,
+        })
+        timer.start()
+        toast.success('⏱ Timer iniciado en Clockify')
+      } catch (err) {
+        toast.error('Error al iniciar en Clockify: ' + err.message)
+      } finally {
+        setSyncing(false)
+      }
+    } else {
       timer.start()
-      toast.success('⏱ Timer iniciado en Clockify')
-    } catch (err) {
-      toast.error('Error al iniciar en Clockify: ' + err.message)
-    } finally {
-      setSyncing(false)
     }
   }
 
   async function handleStop() {
     const secs = timer.stop()
     if (secs < 5) { timer.reset(); return }
-    setSyncing(true)
-    try {
-      const userId = getClockifyUserId()
-      const saved = await clockifyStopTimer(userId)
-      const duration = saved.timeInterval?.duration
-        ? Math.round(saved.timeInterval.duration / 1000)
-        : secs
-      const newEntry = {
-        id: saved.id,
-        workspace_id: workspace?.id,
-        user_id: userId,
-        description: saved.description || description || '(sin descripción)',
-        start_time: saved.timeInterval?.start,
-        end_time: saved.timeInterval?.end,
-        duration,
-        projects: selectedProject
-          ? { name: selectedProject.name, color: selectedProject.color, clients: selectedProject.clients }
-          : null,
-        tasks: selectedTask ? { name: selectedTask.name } : null,
+
+    if (syncEnabled) {
+      setSyncing(true)
+      try {
+        const userId = getClockifyUserId()
+        const saved = await clockifyStopTimer(userId)
+        const duration = saved.timeInterval?.duration
+          ? Math.round(saved.timeInterval.duration / 1000)
+          : secs
+        setEntries(prev => [{
+          id: saved.id,
+          workspace_id: workspace?.id,
+          user_id: userId,
+          description: saved.description || description || '(sin descripción)',
+          start_time: saved.timeInterval?.start,
+          end_time: saved.timeInterval?.end,
+          duration,
+          projects: selectedProject
+            ? { name: selectedProject.name, color: selectedProject.color, clients: selectedProject.clients }
+            : null,
+          tasks: selectedTask ? { name: selectedTask.name } : null,
+        }, ...prev])
+        toast.success('✅ Guardado en Clockify')
+      } catch (err) {
+        toast.error('No se pudo sincronizar con Clockify: ' + err.message)
+      } finally {
+        setSyncing(false)
       }
-      setEntries(prev => [newEntry, ...prev])
-      toast.success('✅ Guardado en Clockify')
-    } catch (err) {
-      // Fallback: save locally even if Clockify fails
+    } else {
+      // Other users: save locally only
       const start = new Date(Date.now() - secs * 1000)
       const end = new Date()
       setEntries(prev => [{
@@ -102,17 +114,17 @@ export default function Tracker() {
         description: description || '(sin descripción)',
         start_time: start.toISOString(), end_time: end.toISOString(), duration: secs,
         projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color, clients: selectedProject.clients } : null,
+        tasks: selectedTask ? { name: selectedTask.name } : null,
       }, ...prev])
-      toast.error('No se pudo sincronizar con Clockify: ' + err.message)
-    } finally {
-      setSyncing(false)
-      timer.reset(); setDescription(''); setSelectedProject(null); setSelectedTask(null)
+      toast.success('Tiempo registrado')
     }
+
+    timer.reset(); setDescription(''); setSelectedProject(null); setSelectedTask(null)
   }
 
   async function deleteEntry(id) {
     try {
-      if (!id.startsWith('local-')) await clockifyDeleteEntry(id)
+      if (syncEnabled && !id.startsWith('local-')) await clockifyDeleteEntry(id)
       setEntries(e => e.filter(x => x.id !== id))
       toast.success('Entrada eliminada')
     } catch (err) {

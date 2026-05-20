@@ -3,7 +3,7 @@ import { X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import { useAuth } from '../../context/AuthContext'
-import { clockifyCreateEntry, loadClockifyCache } from '../../lib/clockify'
+import { clockifyCreateEntry, loadClockifyCache, isClockifyUser } from '../../lib/clockify'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
@@ -33,9 +33,9 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
     const duration = Math.floor((end - start) / 1000)
     setSaving(true)
 
-    // ── Clockify sync (demo mode with Clockify cache) ──
-    const cache = loadClockifyCache()
-    if (isDemo || cache) {
+    // ── Clockify sync — only for the Clockify owner ──
+    const syncEnabled = isClockifyUser(user?.email)
+    if (syncEnabled) {
       const project = projects.find(p => p.id === projectId)
       const task = projectTasks.find(t => t.id === taskId)
       try {
@@ -61,6 +61,27 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
       } catch (err) {
         toast.error('Error Clockify: ' + err.message)
       }
+      setSaving(false)
+      onSave()
+      return
+    }
+
+    // Non-Clockify users: save locally
+    if (isDemo) {
+      const project = projects.find(p => p.id === projectId)
+      const task = projectTasks.find(t => t.id === taskId)
+      onDemoSave?.({
+        id: `local-${Date.now()}`,
+        workspace_id: workspace?.id,
+        user_id: user?.id,
+        description: desc || '(sin descripción)',
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
+        duration,
+        projects: project ? { name: project.name, color: project.color, clients: project.clients } : null,
+        tasks: task ? { name: task.name } : null,
+      })
+      toast.success('Entrada añadida')
       setSaving(false)
       onSave()
       return

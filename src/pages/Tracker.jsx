@@ -531,21 +531,22 @@ export default function Tracker() {
           </Card>
 
           {/* Quick projects */}
-          <Card color="var(--c-card-c)">
-            <CardHeader title="Pinned Projects">
-              <span style={{ fontSize: 11, color: '#7C4DFF', fontWeight: 600 }}>{projects.length} ACTIVE</span>
+          <Card color="var(--c-card-c)" style={{ overflow: 'hidden' }}>
+            <CardHeader title="Proyectos activos">
+              <span style={{ fontSize: 11, color: '#7C4DFF', fontWeight: 600 }}>{projects.length} TOTAL</span>
             </CardHeader>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
               {projects.slice(0, 4).map(p => (
                 <div key={p.id} style={{
-                  padding: '10px', borderRadius: 10,
+                  padding: '10px', borderRadius: 10, minWidth: 0,
                   background: p.color + '10', border: `1px solid ${p.color}20`,
+                  overflow: 'hidden',
                 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 7, background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 7, background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6, flexShrink: 0 }}>
                     <Briefcase size={13} color="white" />
                   </div>
                   <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-1)', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</p>
-                  <p style={{ fontSize: 10, color: 'var(--c-text-3)', marginTop: 2 }}>
+                  <p style={{ fontSize: 10, color: 'var(--c-text-3)', marginTop: 2, whiteSpace: 'nowrap' }}>
                     {(byProject[p.name]?.secs || 0) > 0 ? timer.format(byProject[p.name].secs) : '0h registradas'}
                   </p>
                 </div>
@@ -572,7 +573,7 @@ export default function Tracker() {
 
 // ── Shared components ──────────────────────────────────────────────────────────
 
-function Card({ children, compact, color, ...props }) {
+function Card({ children, compact, color, style, ...props }) {
   return (
     <div style={{
       background: color || 'var(--c-bg-surface)',
@@ -580,6 +581,8 @@ function Card({ children, compact, color, ...props }) {
       border: '1px solid var(--c-border)',
       padding: compact ? '14px' : '18px',
       boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+      minWidth: 0,
+      ...style,
     }} {...props}>
       {children}
     </div>

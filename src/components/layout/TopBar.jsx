@@ -1,10 +1,17 @@
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Bell, Moon, Sun, MoreHorizontal, Calendar } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useRole } from '../../context/RoleContext'
 import { useTheme } from '../../context/ThemeContext'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { loadClockifyCache } from '../../lib/clockify'
+
+const YEAR_KEY = 'mytrack-selected-year'
+
+export function getSelectedYear() {
+  const saved = localStorage.getItem(YEAR_KEY)
+  return saved ? Number(saved) : new Date().getFullYear()
+}
 
 export default function TopBar() {
   const navigate = useNavigate()
@@ -12,7 +19,26 @@ export default function TopBar() {
   const { unreadCount } = useRole()
   const { isDark, toggle } = useTheme()
 
-  const today = format(new Date(), "yyyy", { locale: es })
+  // Compute available years from Clockify cache entries
+  const availableYears = useMemo(() => {
+    const cache = loadClockifyCache()
+    if (cache?.entries?.length) {
+      const years = new Set(
+        cache.entries
+          .filter(e => e.start_time)
+          .map(e => new Date(e.start_time).getFullYear())
+      )
+      return [...years].sort((a, b) => b - a)
+    }
+    return [new Date().getFullYear()]
+  }, [])
+
+  const currentYear = getSelectedYear()
+
+  function handleYearChange(e) {
+    localStorage.setItem(YEAR_KEY, e.target.value)
+    window.location.reload()
+  }
 
   return (
     <div style={{
@@ -43,32 +69,26 @@ export default function TopBar() {
 
       <div style={{ flex: 1 }} />
 
-      {/* Team avatars */}
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        {[...Array(3)].map((_, i) => (
-          <div key={i} style={{
-            width: 28, height: 28, borderRadius: '50%',
-            background: ['linear-gradient(135deg,#7C4DFF,#E040FB)', 'linear-gradient(135deg,#06B6D4,#3B82F6)', 'linear-gradient(135deg,#F59E0B,#EF4444)'][i],
-            border: '2px solid var(--c-bg-surface)',
-            marginLeft: i > 0 ? -8 : 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 10, fontWeight: 700, color: '#fff',
-          }}>
-            {['VG', 'AM', 'LS'][i]}
-          </div>
-        ))}
-      </div>
-
-      {/* Year */}
-      <button style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        padding: '6px 12px', borderRadius: 8,
+      {/* Year selector */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6,
+        padding: '5px 10px', borderRadius: 8,
         background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',
-        fontSize: 13, color: 'var(--c-text-1)', fontWeight: 500, cursor: 'pointer',
       }}>
-        <Calendar size={13} style={{ color: 'var(--c-text-3)' }} />
-        {today}
-      </button>
+        <Calendar size={13} style={{ color: 'var(--c-text-3)', flexShrink: 0 }} />
+        <select
+          value={currentYear}
+          onChange={handleYearChange}
+          style={{
+            background: 'transparent', border: 'none', outline: 'none',
+            fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)',
+            cursor: 'pointer', padding: 0,
+          }}
+        >
+          {availableYears.map(y => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
+      </div>
 
       {/* Theme toggle */}
       <button

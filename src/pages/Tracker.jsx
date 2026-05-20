@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { loadClockifyCache, clockifyStartTimer, clockifyStopTimer, clockifyDeleteEntry, getClockifyUserId, isClockifyUser, clockifyGetProjectTasks } from '../lib/clockify'
+import { getSelectedYear } from '../components/layout/TopBar'
 import { format, parseISO, isToday, isYesterday, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -22,9 +23,9 @@ export default function Tracker() {
     if (!isDemo) return []
     const cache = loadClockifyCache()
     if (cache?.entries?.length) {
-      const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 14)
+      const selectedYear = getSelectedYear()
       return cache.entries
-        .filter(e => e.end_time && new Date(e.start_time) >= cutoff)
+        .filter(e => e.end_time && new Date(e.start_time).getFullYear() === selectedYear)
         .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
     }
     return []

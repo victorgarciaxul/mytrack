@@ -5,7 +5,7 @@ import { demoUser } from '../lib/demoData'
 const DEMO_MODE = import.meta.env.VITE_SUPABASE_URL === 'https://placeholder.supabase.co'
 
 const DEMO_USERS = [
-  { email: 'tech@xul.es',          password: 'Xul14$', name: 'Tech XUL' },
+  { email: 'victorgarcia@xul.es',  password: 'Xul14$', name: 'Víctor García' },
   { email: 'josecastillo@xul.es',  password: 'Xul14$', name: 'José Castillo' },
   { email: 'carlagarcia@xul.es',   password: 'Xul14$', name: 'Carla García' },
 ]

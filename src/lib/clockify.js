@@ -3,7 +3,7 @@ const API_KEY      = 'MDQ0YTczODctZGNhMC00YjE1LTkxNzktMzdjYjM4YTVlMmM4'
 const WORKSPACE_ID = '5e67ae37a4ec9a653886c794'
 
 /** Only this user syncs to Clockify */
-export const CLOCKIFY_OWNER_EMAIL = 'tech@xul.es'
+export const CLOCKIFY_OWNER_EMAIL = 'victorgarcia@xul.es'
 
 /** Returns true if the given email should sync with Clockify */
 export function isClockifyUser(email) {

@@ -24,7 +24,6 @@ export default function Sidebar({ onStartTour }) {
   const userInitials = userName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 
   const generalNav = [
-    ...(isManager ? [{ to: '/dashboard', icon: LayoutDashboard, label: 'Resumen', color: '#7C4DFF' }] : []),
     { to: '/tracker', icon: Clock, label: 'Registro de tiempo', color: '#7C4DFF' },
     { to: '/calendar', icon: CalendarDays, label: 'Calendario', color: '#7C4DFF' },
     ...(isManager ? [{ to: '/reports', icon: BarChart2, label: 'Informes', color: '#7C4DFF' }] : []),

@@ -263,9 +263,10 @@ export default function Tracker() {
                 {showProjectPicker && (
                   <div style={{
                     position: 'absolute', left: 0, top: 'calc(100% + 4px)',
-                    minWidth: 200, background: 'var(--c-bg-surface)', borderRadius: 10,
-                    border: '1px solid var(--c-border)', boxShadow: '0 8px 30px rgba(0,0,0,0.1)',
-                    zIndex: 50, overflow: 'hidden', padding: '4px 0',
+                    minWidth: 220, maxHeight: 280, overflowY: 'auto',
+                    background: 'var(--c-bg-surface)', borderRadius: 10,
+                    border: '1px solid var(--c-border)', boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+                    zIndex: 50, padding: '4px 0',
                   }}>
                     <Opt onClick={() => { setSelectedProject(null); setSelectedTask(null); setShowProjectPicker(false) }} muted>Sin proyecto</Opt>
                     {projects.map(p => (

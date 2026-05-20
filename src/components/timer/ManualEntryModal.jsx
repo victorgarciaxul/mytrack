@@ -1,14 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import { useAuth } from '../../context/AuthContext'
-import { clockifyCreateEntry, loadClockifyCache, isClockifyUser } from '../../lib/clockify'
+import { clockifyCreateEntry, isClockifyUser, clockifyGetProjectTasks } from '../../lib/clockify'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
 export default function ManualEntryModal({ onClose, onSave, projects, workspace, user, isDemo, onDemoSave }) {
-  const { getTasksForProject } = useWorkspace()
   const { isDemo: authIsDemo } = useAuth()
   const today = format(new Date(), 'yyyy-MM-dd')
   const [desc, setDesc] = useState('')
@@ -18,8 +17,16 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
   const [projectId, setProjectId] = useState('')
   const [taskId, setTaskId] = useState('')
   const [saving, setSaving] = useState(false)
+  const [projectTasks, setProjectTasks] = useState([])
+  const [loadingTasks, setLoadingTasks] = useState(false)
 
-  const projectTasks = projectId ? getTasksForProject(projectId) : []
+  useEffect(() => {
+    if (!projectId) { setProjectTasks([]); setTaskId(''); return }
+    setLoadingTasks(true)
+    clockifyGetProjectTasks(projectId)
+      .then(tasks => { setProjectTasks(tasks); setLoadingTasks(false) })
+      .catch(() => setLoadingTasks(false))
+  }, [projectId])
 
   function handleProjectChange(newProjectId) {
     setProjectId(newProjectId)
@@ -146,17 +153,26 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
-          {projectId && (
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#7A7F9A' }}>Tarea</label>
-              <select value={taskId} onChange={e => setTaskId(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm outline-none transition-all"
-                style={inputStyle}>
-                <option value="">Sin tarea</option>
-                {projectTasks.map(t => <option key={t.id} value={t.id}>{t.name}{t.estimated_hours ? ` (${t.estimated_hours}h est.)` : ''}</option>)}
-              </select>
-            </div>
-          )}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#7A7F9A' }}>Tarea</label>
+            <select
+              value={taskId}
+              onChange={e => setTaskId(e.target.value)}
+              disabled={!projectId || loadingTasks}
+              className="w-full px-3.5 py-2.5 text-sm outline-none transition-all"
+              style={{ ...inputStyle, opacity: !projectId ? 0.5 : 1, cursor: !projectId ? 'not-allowed' : 'pointer' }}
+            >
+              {!projectId
+                ? <option value="">Selecciona un proyecto primero</option>
+                : loadingTasks
+                  ? <option value="">Cargando tareas…</option>
+                  : <>
+                      <option value="">Sin tarea</option>
+                      {projectTasks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </>
+              }
+            </select>
+          </div>
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#7A7F9A' }}>Fecha</label>
             <input type="date" value={date} onChange={e => setDate(e.target.value)}

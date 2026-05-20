@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   Clock, BarChart2, Briefcase, Users, Settings,
   LayoutDashboard, Bell, UserCog, HelpCircle,
-  ChevronDown, Plus, CalendarDays,
+  ChevronDown, Plus, CalendarDays, TrendingUp,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
@@ -34,6 +34,7 @@ export default function Sidebar({ onStartTour }) {
   const projectNav = [
     { to: '/projects', icon: Briefcase, label: 'Proyectos', color: '#10B981' },
     ...(isManager ? [{ to: '/team', icon: Users, label: 'Equipo', color: '#6366F1' }] : []),
+    ...(isManager ? [{ to: '/ecofin', icon: TrendingUp, label: 'Control EcoFin', color: '#F59E0B' }] : []),
   ]
 
   return (

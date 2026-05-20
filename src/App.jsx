@@ -13,6 +13,9 @@ import Team from './pages/Team'
 import Settings from './pages/Settings'
 import ManagerDashboard from './pages/ManagerDashboard'
 import Notifications from './pages/Notifications'
+import EcoFin from './pages/EcoFin'
+import EcoFinProyecto from './pages/EcoFinProyecto'
+import EcoFinNuevo from './pages/EcoFinNuevo'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -48,6 +51,9 @@ function App() {
             <Route path="team" element={<Team />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="ecofin" element={<EcoFin />} />
+            <Route path="ecofin/nuevo" element={<EcoFinNuevo />} />
+            <Route path="ecofin/:id" element={<EcoFinProyecto />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

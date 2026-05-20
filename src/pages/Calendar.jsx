@@ -26,11 +26,10 @@ export default function Calendar() {
   const [current, setCurrent] = useState(new Date())
   const [selected, setSelected] = useState(null)
 
-  // Use Clockify cache if available, otherwise demo entries
   const entries = (() => {
     if (!isDemo) return []
     const cache = loadClockifyCache()
-    return cache?.entries?.filter(e => e.end_time) || demoEntries
+    return cache?.entries?.filter(e => e.end_time) || []
   })()
 
   // Build calendar grid: Mon–Sun weeks

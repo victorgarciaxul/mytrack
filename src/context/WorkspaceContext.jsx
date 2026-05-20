@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
-import { demoWorkspace, demoProjects, demoClients, demoMembers, demoTasks } from '../lib/demoData'
 import { loadClockifyCache } from '../lib/clockify'
 
 const WorkspaceContext = createContext(null)
@@ -16,13 +15,7 @@ function getInitialData(isDemo) {
     members: cache.members || [],
     tasks: [],
   }
-  return {
-    ws: demoWorkspace,
-    projects: demoProjects,
-    clients: demoClients,
-    members: demoMembers,
-    tasks: demoTasks,
-  }
+  return { ws: { id: 'demo-ws-1', name: 'XUL', working_hours_per_day: 8, alert_threshold_days: 1 }, projects: [], clients: [], members: [], tasks: [] }
 }
 
 export function WorkspaceProvider({ children }) {

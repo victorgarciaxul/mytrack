@@ -7,8 +7,12 @@ const CACHE_KEY   = 'mytrack-clockify-cache'
 const h = { 'X-Api-Key': API_KEY }
 
 async function get(path) {
-  const res = await fetch(`${BASE}${path}`, { headers: h })
-  if (!res.ok) throw new Error(`Clockify API error ${res.status}: ${path}`)
+  const url = `${BASE}${path}`
+  const res = await fetch(url, { headers: h })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Clockify ${res.status} en ${path}: ${text.slice(0, 100)}`)
+  }
   return res.json()
 }
 
@@ -24,6 +28,8 @@ async function fetchAll(path, pageSize = 50, onProgress) {
     onProgress?.(results.length)
     if (data.length < pageSize) break
     page++
+    // Small delay to avoid rate limiting
+    await new Promise(r => setTimeout(r, 80))
   }
   return results
 }
@@ -149,7 +155,19 @@ export async function importFromClockify(onStatus) {
 
   onStatus('Guardando en caché…', 90)
   const cache = { ws, clients, projects, members, entries, importedAt: new Date().toISOString() }
-  localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
+
+  // localStorage has ~5MB limit — try full save, fall back to without entries body
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
+  } catch (e) {
+    // Too large: store metadata + entries without descriptions
+    console.warn('localStorage full, storing compact version:', e)
+    const compact = {
+      ...cache,
+      entries: entries.map(({ description, ...rest }) => rest),
+    }
+    localStorage.setItem(CACHE_KEY, JSON.stringify(compact))
+  }
 
   onStatus('¡Importación completada!', 100)
   return cache

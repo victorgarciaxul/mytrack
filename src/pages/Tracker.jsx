@@ -23,13 +23,12 @@ export default function Tracker() {
     if (!isDemo) return []
     const cache = loadClockifyCache()
     if (cache?.entries?.length) {
-      // Show last 14 days only in the tracker list
       const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 14)
       return cache.entries
         .filter(e => e.end_time && new Date(e.start_time) >= cutoff)
         .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
     }
-    return demoEntries.filter(e => e.user_id === 'demo-user-1')
+    return []
   })
   const [showProjectPicker, setShowProjectPicker] = useState(false)
   const [showManual, setShowManual] = useState(false)

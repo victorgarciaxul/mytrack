@@ -17,15 +17,15 @@ function ClockifyImportCard({ onImported }) {
     setLoading(true)
     setProgress(0)
     try {
-      await importFromClockify((msg, pct) => {
+      const result = await importFromClockify((msg, pct) => {
         setStatus(msg)
         setProgress(pct)
       })
-      toast.success('Datos importados correctamente')
-      onImported?.()
+      toast.success(`Importados: ${result.projects?.length} proyectos, ${result.entries?.length} entradas`)
+      setTimeout(() => window.location.reload(), 1200)
     } catch (err) {
+      console.error('Import error:', err)
       toast.error('Error al importar: ' + err.message)
-    } finally {
       setLoading(false)
     }
   }

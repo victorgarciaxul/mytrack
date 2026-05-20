@@ -27,20 +27,10 @@ export default function AppLayout() {
       <Sidebar onStartTour={() => setTourRunning(true)} />
 
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', minWidth: 0, padding: '12px 12px 12px 0' }}>
-        {isDemo && (
-          <div style={{
-            background: 'linear-gradient(90deg,#7C4DFF,#E040FB)',
-            color: '#fff', fontSize: 11, fontWeight: 500,
-            textAlign: 'center', padding: '3px 0', flexShrink: 0,
-            borderRadius: '10px 10px 0 0', letterSpacing: '0.02em',
-          }}>
-            ✦ Modo demo activo
-          </div>
-        )}
         <div style={{
           display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden',
           background: 'var(--c-bg-surface)',
-          borderRadius: isDemo ? '0 0 14px 14px' : 14,
+          borderRadius: 14,
           border: '1px solid var(--c-border)',
           boxShadow: isDark ? '0 2px 16px rgba(0,0,0,0.3)' : '0 2px 16px rgba(0,0,0,0.05)',
         }}>

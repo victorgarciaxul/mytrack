@@ -105,7 +105,12 @@ function mapEntry(e) {
 }
 
 // ── Main import function ─────────────────────────────────────
+const CLOCKIFY_USER_ID = '69d4a7086590b46e76292934' // victorgarcia@xul.es
+
 export async function importFromClockify(onStatus) {
+  // Always start clean
+  localStorage.removeItem(CACHE_KEY)
+
   const ws = { id: WORKSPACE_ID, name: 'XUL', working_hours_per_day: 8, alert_threshold_days: 1 }
 
   onStatus('Importando clientes…', 5)
@@ -142,7 +147,7 @@ export async function importFromClockify(onStatus) {
 
   onStatus('Importando entradas de tiempo…', 35)
   const rawEntries = await fetchAll(
-    `/workspaces/${WORKSPACE_ID}/user/69d4a7086590b46e76292934/time-entries`,
+    `/workspaces/${WORKSPACE_ID}/user/${CLOCKIFY_USER_ID}/time-entries`,
     50,
     (n) => onStatus(`Importando entradas… (${n})`, Math.min(35 + Math.floor(n / 20), 85))
   )
@@ -241,14 +246,9 @@ export async function clockifyDeleteEntry(entryId) {
   if (!res.ok) throw new Error(`Clockify delete error ${res.status}`)
 }
 
-/** Get the current user's Clockify userId from cache */
+/** Get the Clockify userId for victorgarcia@xul.es */
 export function getClockifyUserId() {
-  try {
-    const cache = loadClockifyCache()
-    // The workspace owner is always the first active admin member
-    const admin = cache?.members?.find(m => m.role === 'admin')
-    return admin?.user_id || '69d4a7086590b46e76292934'
-  } catch { return '69d4a7086590b46e76292934' }
+  return CLOCKIFY_USER_ID
 }
 
 // ── Load from cache ──────────────────────────────────────────

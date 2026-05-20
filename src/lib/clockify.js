@@ -188,6 +188,20 @@ export async function importFromClockify(onStatus) {
 
 // ── Write API ────────────────────────────────────────────────
 
+/** Fetch tasks for a project (with simple in-memory cache) */
+const _taskCache = {}
+export async function clockifyGetProjectTasks(projectId) {
+  if (_taskCache[projectId]) return _taskCache[projectId]
+  try {
+    const data = await fetchAll(`/workspaces/${WORKSPACE_ID}/projects/${projectId}/tasks?status=ACTIVE`, 100)
+    const tasks = data.map(t => ({ id: t.id, name: t.name, project_id: projectId }))
+    _taskCache[projectId] = tasks
+    return tasks
+  } catch {
+    return []
+  }
+}
+
 /** Start a running timer in Clockify. Returns the new entry object. */
 export async function clockifyStartTimer({ description, projectId, taskId }) {
   const body = {

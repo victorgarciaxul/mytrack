@@ -4,7 +4,7 @@ import { useTimer } from '../hooks/useTimer'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
-import { loadClockifyCache, clockifyStartTimer, clockifyStopTimer, clockifyDeleteEntry, getClockifyUserId, isClockifyUser } from '../lib/clockify'
+import { loadClockifyCache, clockifyStartTimer, clockifyStopTimer, clockifyDeleteEntry, getClockifyUserId, isClockifyUser, clockifyGetProjectTasks } from '../lib/clockify'
 import { format, parseISO, isToday, isYesterday, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -30,10 +30,20 @@ export default function Tracker() {
     return []
   })
   const [showProjectPicker, setShowProjectPicker] = useState(false)
+  const [showTaskPicker, setShowTaskPicker] = useState(false)
   const [showManual, setShowManual] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [projectTasks, setProjectTasks] = useState([])
+  const [loadingTasks, setLoadingTasks] = useState(false)
 
-  const projectTasks = selectedProject ? getTasksForProject(selectedProject.id) : []
+  // Load tasks when project changes
+  useEffect(() => {
+    if (!selectedProject) { setProjectTasks([]); return }
+    setLoadingTasks(true)
+    clockifyGetProjectTasks(selectedProject.id)
+      .then(tasks => { setProjectTasks(tasks); setLoadingTasks(false) })
+      .catch(() => setLoadingTasks(false))
+  }, [selectedProject?.id])
 
   useEffect(() => {
     if (workspace && !isDemo) loadEntries()
@@ -268,22 +278,44 @@ export default function Tracker() {
                 )}
               </div>
 
-              {selectedProject && projectTasks.length > 0 && (
-                <select
-                  onChange={e => {
-                    const t = projectTasks.find(t => t.id === e.target.value)
-                    setSelectedTask(t || null)
-                  }}
-                  value={selectedTask?.id || ''}
-                  style={{
-                    padding: '5px 10px', borderRadius: 7, fontSize: 12,
-                    background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',
-                    color: 'var(--c-text-3)', cursor: 'pointer', outline: 'none',
-                  }}
-                >
-                  <option value="">Tarea</option>
-                  {projectTasks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
+              {selectedProject && (
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => setShowTaskPicker(p => !p)}
+                    disabled={loadingTasks}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '5px 10px', borderRadius: 7,
+                      background: selectedTask ? '#7C4DFF12' : 'var(--c-bg-muted)',
+                      color: selectedTask ? '#7C4DFF' : '#94A3B8',
+                      border: `1px solid ${selectedTask ? '#7C4DFF30' : 'var(--c-border)'}`,
+                      fontSize: 12, fontWeight: 500, cursor: loadingTasks ? 'wait' : 'pointer',
+                    }}
+                  >
+                    {loadingTasks ? '…' : (selectedTask?.name || 'Tarea')}
+                    <ChevronDown size={11} />
+                  </button>
+                  {showTaskPicker && !loadingTasks && (
+                    <div style={{
+                      position: 'absolute', left: 0, top: 'calc(100% + 4px)',
+                      minWidth: 220, maxHeight: 220, overflowY: 'auto',
+                      background: 'var(--c-bg-surface)', borderRadius: 10,
+                      border: '1px solid var(--c-border)', boxShadow: '0 8px 30px rgba(0,0,0,0.1)',
+                      zIndex: 50, padding: '4px 0',
+                    }}>
+                      <Opt onClick={() => { setSelectedTask(null); setShowTaskPicker(false) }} muted>Sin tarea</Opt>
+                      {projectTasks.length === 0
+                        ? <Opt muted>No hay tareas en este proyecto</Opt>
+                        : projectTasks.map(t => (
+                          <Opt key={t.id} onClick={() => { setSelectedTask(t); setShowTaskPicker(false) }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#7C4DFF', flexShrink: 0 }} />
+                            {t.name}
+                          </Opt>
+                        ))
+                      }
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </Card>

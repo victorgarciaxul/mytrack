@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { loadClockifyCache, clockifyStartTimer, clockifyStopTimer, clockifyDeleteEntry, getClockifyUserId, isClockifyUser, clockifyGetProjectTasks } from '../lib/clockify'
 import { getSelectedYear } from '../components/layout/TopBar'
+import { initDB, dbGetEntries, dbInsertEntry, dbDeleteEntry } from '../lib/db'
 import { format, parseISO, isToday, isYesterday, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -47,19 +48,25 @@ export default function Tracker() {
   }, [selectedProject?.id])
 
   useEffect(() => {
-    if (workspace && !isDemo) loadEntries()
-  }, [workspace])
+    if (!syncEnabled) {
+      // Non-Clockify users: load from Neon
+      const year = getSelectedYear()
+      initDB().then(() => dbGetEntries(user.email, year)).then(rows => {
+        setEntries(rows.map(r => ({
+          id: r.id,
+          description: r.description,
+          start_time: r.start_time,
+          end_time: r.end_time,
+          duration: r.duration,
+          projects: r.project_id ? { name: r.project_name, color: r.project_color } : null,
+          tasks: r.task_id ? { name: r.task_name } : null,
+        })))
+      }).catch(console.error)
+    }
+  }, [user?.email])
 
   async function loadEntries() {
-    const since = subDays(new Date(), 7).toISOString()
-    const { data } = await supabase
-      .from('time_entries')
-      .select('*, projects(name, color, clients(name)), tasks(name)')
-      .eq('workspace_id', workspace.id)
-      .eq('user_id', user.id)
-      .gte('start_time', since)
-      .order('start_time', { ascending: false })
-    if (data) setEntries(data)
+    // kept for compatibility (non-demo Supabase mode - not used currently)
   }
 
   const syncEnabled = isClockifyUser(user?.email)
@@ -117,17 +124,37 @@ export default function Tracker() {
         setSyncing(false)
       }
     } else {
-      // Other users: save locally only
+      // Other users: save to Neon
       const start = new Date(Date.now() - secs * 1000)
       const end = new Date()
-      setEntries(prev => [{
-        id: `local-${Date.now()}`,
-        description: description || '(sin descripción)',
-        start_time: start.toISOString(), end_time: end.toISOString(), duration: secs,
-        projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color, clients: selectedProject.clients } : null,
-        tasks: selectedTask ? { name: selectedTask.name } : null,
-      }, ...prev])
-      toast.success('Tiempo registrado')
+      try {
+        await initDB()
+        const saved = await dbInsertEntry({
+          userEmail: user.email,
+          workspaceId: 'xul-ws-1',
+          projectId: selectedProject?.id || null,
+          projectName: selectedProject?.name || null,
+          projectColor: selectedProject?.color || null,
+          taskId: selectedTask?.id || null,
+          taskName: selectedTask?.name || null,
+          description: description || '(sin descripción)',
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+          duration: secs,
+        })
+        setEntries(prev => [{
+          id: saved.id,
+          description: saved.description,
+          start_time: saved.start_time,
+          end_time: saved.end_time,
+          duration: saved.duration,
+          projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color } : null,
+          tasks: selectedTask ? { name: selectedTask.name } : null,
+        }, ...prev])
+        toast.success('Tiempo registrado')
+      } catch (err) {
+        toast.error('Error al guardar: ' + err.message)
+      }
     }
 
     timer.reset(); setDescription(''); setSelectedProject(null); setSelectedTask(null)
@@ -135,7 +162,11 @@ export default function Tracker() {
 
   async function deleteEntry(id) {
     try {
-      if (syncEnabled && !id.startsWith('local-')) await clockifyDeleteEntry(id)
+      if (syncEnabled) {
+        await clockifyDeleteEntry(id)
+      } else {
+        await dbDeleteEntry(id)
+      }
       setEntries(e => e.filter(x => x.id !== id))
       toast.success('Entrada eliminada')
     } catch (err) {

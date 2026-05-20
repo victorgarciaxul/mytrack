@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import { useAuth } from '../../context/AuthContext'
 import { clockifyCreateEntry, isClockifyUser, clockifyGetProjectTasks } from '../../lib/clockify'
+import { initDB, dbInsertEntry } from '../../lib/db'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
@@ -73,40 +74,38 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
       return
     }
 
-    // Non-Clockify users: save locally
-    if (isDemo) {
-      const project = projects.find(p => p.id === projectId)
-      const task = projectTasks.find(t => t.id === taskId)
-      onDemoSave?.({
-        id: `local-${Date.now()}`,
-        workspace_id: workspace?.id,
-        user_id: user?.id,
+    // Non-Clockify users: save to Neon
+    const project = projects.find(p => p.id === projectId)
+    const task = projectTasks.find(t => t.id === taskId)
+    try {
+      await initDB()
+      const saved = await dbInsertEntry({
+        userEmail: user?.email,
+        workspaceId: 'xul-ws-1',
+        projectId: projectId || null,
+        projectName: project?.name || null,
+        projectColor: project?.color || null,
+        taskId: taskId || null,
+        taskName: task?.name || null,
         description: desc || '(sin descripción)',
-        start_time: start.toISOString(),
-        end_time: end.toISOString(),
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
         duration,
+      })
+      onDemoSave?.({
+        id: saved.id,
+        description: saved.description,
+        start_time: saved.start_time,
+        end_time: saved.end_time,
+        duration: saved.duration,
         projects: project ? { name: project.name, color: project.color, clients: project.clients } : null,
         tasks: task ? { name: task.name } : null,
       })
       toast.success('Entrada añadida')
-      setSaving(false)
-      onSave()
-      return
+    } catch (err) {
+      toast.error('Error al guardar: ' + err.message)
     }
-
-    const { error } = await supabase.from('time_entries').insert({
-      workspace_id: workspace.id,
-      user_id: user.id,
-      description: desc || '(sin descripción)',
-      project_id: projectId || null,
-      task_id: taskId || null,
-      start_time: start.toISOString(),
-      end_time: end.toISOString(),
-      duration,
-    })
     setSaving(false)
-    if (error) { toast.error('Error al guardar'); return }
-    toast.success('Entrada añadida')
     onSave()
   }
 

@@ -142,7 +142,7 @@ export async function importFromClockify(onStatus) {
 
   onStatus('Importando entradas de tiempo…', 35)
   const rawEntries = await fetchAll(
-    `/workspaces/${WORKSPACE_ID}/user/5e67ae37a4ec9a653886c793/time-entries`,
+    `/workspaces/${WORKSPACE_ID}/user/69d4a7086590b46e76292934/time-entries`,
     50,
     (n) => onStatus(`Importando entradas… (${n})`, Math.min(35 + Math.floor(n / 20), 85))
   )
@@ -247,8 +247,8 @@ export function getClockifyUserId() {
     const cache = loadClockifyCache()
     // The workspace owner is always the first active admin member
     const admin = cache?.members?.find(m => m.role === 'admin')
-    return admin?.user_id || '5e67ae37a4ec9a653886c793'
-  } catch { return '5e67ae37a4ec9a653886c793' }
+    return admin?.user_id || '69d4a7086590b46e76292934'
+  } catch { return '69d4a7086590b46e76292934' }
 }
 
 // ── Load from cache ──────────────────────────────────────────

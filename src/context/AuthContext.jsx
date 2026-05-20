@@ -7,6 +7,7 @@ const DEMO_MODE = import.meta.env.VITE_SUPABASE_URL === 'https://placeholder.sup
 const DEMO_USERS = [
   { email: 'tech@xul.es',          password: 'Xul14$', name: 'Tech XUL' },
   { email: 'josecastillo@xul.es',  password: 'Xul14$', name: 'José Castillo' },
+  { email: 'carlagarcia@xul.es',   password: 'Xul14$', name: 'Carla García' },
 ]
 
 const AuthContext = createContext(null)

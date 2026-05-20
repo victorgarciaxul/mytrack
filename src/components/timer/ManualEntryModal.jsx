@@ -2,11 +2,14 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../context/WorkspaceContext'
+import { useAuth } from '../../context/AuthContext'
+import { clockifyCreateEntry, loadClockifyCache } from '../../lib/clockify'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
 export default function ManualEntryModal({ onClose, onSave, projects, workspace, user, isDemo, onDemoSave }) {
   const { getTasksForProject } = useWorkspace()
+  const { isDemo: authIsDemo } = useAuth()
   const today = format(new Date(), 'yyyy-MM-dd')
   const [desc, setDesc] = useState('')
   const [date, setDate] = useState(today)
@@ -30,23 +33,34 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
     const duration = Math.floor((end - start) / 1000)
     setSaving(true)
 
-    if (isDemo) {
+    // ── Clockify sync (demo mode with Clockify cache) ──
+    const cache = loadClockifyCache()
+    if (isDemo || cache) {
       const project = projects.find(p => p.id === projectId)
       const task = projectTasks.find(t => t.id === taskId)
-      onDemoSave?.({
-        id: `demo-${Date.now()}`,
-        workspace_id: workspace.id,
-        user_id: user.id,
-        description: desc || '(sin descripción)',
-        project_id: projectId || null,
-        task_id: taskId || null,
-        start_time: start.toISOString(),
-        end_time: end.toISOString(),
-        duration,
-        projects: project ? { name: project.name, color: project.color, clients: project.clients } : null,
-        tasks: task ? { name: task.name } : null,
-      })
-      toast.success('Entrada añadida')
+      try {
+        const saved = await clockifyCreateEntry({
+          description: desc || '',
+          projectId: projectId || null,
+          taskId: taskId || null,
+          start: start.toISOString(),
+          end: end.toISOString(),
+        })
+        const entry = {
+          id: saved.id,
+          workspace_id: workspace?.id,
+          description: saved.description || desc || '(sin descripción)',
+          start_time: saved.timeInterval?.start || start.toISOString(),
+          end_time: saved.timeInterval?.end || end.toISOString(),
+          duration,
+          projects: project ? { name: project.name, color: project.color, clients: project.clients } : null,
+          tasks: task ? { name: task.name } : null,
+        }
+        onDemoSave?.(entry)
+        toast.success('✅ Guardado en Clockify')
+      } catch (err) {
+        toast.error('Error Clockify: ' + err.message)
+      }
       setSaving(false)
       onSave()
       return

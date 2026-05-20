@@ -173,6 +173,76 @@ export async function importFromClockify(onStatus) {
   return cache
 }
 
+// ── Write API ────────────────────────────────────────────────
+
+/** Start a running timer in Clockify. Returns the new entry object. */
+export async function clockifyStartTimer({ description, projectId, taskId }) {
+  const body = {
+    start: new Date().toISOString(),
+    description: description || '',
+    ...(projectId && { projectId }),
+    ...(taskId    && { taskId }),
+    billable: true,
+  }
+  const res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/time-entries`, {
+    method: 'POST',
+    headers: { ...h, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`Clockify start error ${res.status}`)
+  return res.json()
+}
+
+/** Stop the currently running timer. Returns the updated entry. */
+export async function clockifyStopTimer(userId) {
+  const body = { end: new Date().toISOString() }
+  const res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/user/${userId}/time-entries`, {
+    method: 'PATCH',
+    headers: { ...h, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`Clockify stop error ${res.status}`)
+  return res.json()
+}
+
+/** Create a complete manual time entry. Returns the new entry. */
+export async function clockifyCreateEntry({ description, projectId, taskId, start, end }) {
+  const body = {
+    start: new Date(start).toISOString(),
+    end:   new Date(end).toISOString(),
+    description: description || '',
+    ...(projectId && { projectId }),
+    ...(taskId    && { taskId }),
+    billable: true,
+  }
+  const res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/time-entries`, {
+    method: 'POST',
+    headers: { ...h, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`Clockify create error ${res.status}`)
+  return res.json()
+}
+
+/** Delete a time entry by its Clockify ID. */
+export async function clockifyDeleteEntry(entryId) {
+  const res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/time-entries/${entryId}`, {
+    method: 'DELETE',
+    headers: h,
+  })
+  if (!res.ok) throw new Error(`Clockify delete error ${res.status}`)
+}
+
+/** Get the current user's Clockify userId from cache */
+export function getClockifyUserId() {
+  try {
+    const cache = loadClockifyCache()
+    // The workspace owner is always the first active admin member
+    const admin = cache?.members?.find(m => m.role === 'admin')
+    return admin?.user_id || '5e67ae37a4ec9a653886c793'
+  } catch { return '5e67ae37a4ec9a653886c793' }
+}
+
 // ── Load from cache ──────────────────────────────────────────
 export function loadClockifyCache() {
   try {

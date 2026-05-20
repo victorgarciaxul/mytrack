@@ -4,8 +4,7 @@ import { useTimer } from '../hooks/useTimer'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
-import { demoEntries } from '../lib/demoData'
-import { loadClockifyCache } from '../lib/clockify'
+import { loadClockifyCache, clockifyStartTimer, clockifyStopTimer, clockifyDeleteEntry, getClockifyUserId } from '../lib/clockify'
 import { format, parseISO, isToday, isYesterday, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -32,6 +31,7 @@ export default function Tracker() {
   })
   const [showProjectPicker, setShowProjectPicker] = useState(false)
   const [showManual, setShowManual] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
   const projectTasks = selectedProject ? getTasksForProject(selectedProject.id) : []
 
@@ -51,40 +51,79 @@ export default function Tracker() {
     if (data) setEntries(data)
   }
 
+  async function handleStart() {
+    setSyncing(true)
+    try {
+      await clockifyStartTimer({
+        description: description || '',
+        projectId: selectedProject?.id || null,
+        taskId: selectedTask?.id || null,
+      })
+      timer.start()
+      toast.success('⏱ Timer iniciado en Clockify')
+    } catch (err) {
+      toast.error('Error al iniciar en Clockify: ' + err.message)
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   async function handleStop() {
     const secs = timer.stop()
     if (secs < 5) { timer.reset(); return }
-    const start = new Date(Date.now() - secs * 1000)
-    const end = new Date()
-    if (isDemo) {
+    setSyncing(true)
+    try {
+      const userId = getClockifyUserId()
+      const saved = await clockifyStopTimer(userId)
+      const duration = saved.timeInterval?.duration
+        ? Math.round(saved.timeInterval.duration / 1000)
+        : secs
+      const newEntry = {
+        id: saved.id,
+        workspace_id: workspace?.id,
+        user_id: userId,
+        description: saved.description || description || '(sin descripción)',
+        start_time: saved.timeInterval?.start,
+        end_time: saved.timeInterval?.end,
+        duration,
+        projects: selectedProject
+          ? { name: selectedProject.name, color: selectedProject.color, clients: selectedProject.clients }
+          : null,
+        tasks: selectedTask ? { name: selectedTask.name } : null,
+      }
+      setEntries(prev => [newEntry, ...prev])
+      toast.success('✅ Guardado en Clockify')
+    } catch (err) {
+      // Fallback: save locally even if Clockify fails
+      const start = new Date(Date.now() - secs * 1000)
+      const end = new Date()
       setEntries(prev => [{
-        id: `demo-${Date.now()}`,
-        workspace_id: workspace.id, user_id: user.id,
+        id: `local-${Date.now()}`,
         description: description || '(sin descripción)',
         start_time: start.toISOString(), end_time: end.toISOString(), duration: secs,
         projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color, clients: selectedProject.clients } : null,
-        tasks: selectedTask ? { name: selectedTask.name } : null,
       }, ...prev])
-      toast.success('Tiempo registrado')
+      toast.error('No se pudo sincronizar con Clockify: ' + err.message)
+    } finally {
+      setSyncing(false)
       timer.reset(); setDescription(''); setSelectedProject(null); setSelectedTask(null)
-      return
     }
-    await supabase.from('time_entries').insert({
-      workspace_id: workspace.id, user_id: user.id,
-      description: description || '(sin descripción)',
-      project_id: selectedProject?.id || null,
-      task_id: selectedTask?.id || null,
-      start_time: start.toISOString(), end_time: end.toISOString(), duration: secs,
-    })
-    toast.success('Tiempo registrado')
-    timer.reset(); setDescription(''); setSelectedProject(null); setSelectedTask(null)
-    loadEntries()
   }
 
   async function deleteEntry(id) {
-    if (isDemo) { setEntries(e => e.filter(x => x.id !== id)); return }
-    await supabase.from('time_entries').delete().eq('id', id)
-    setEntries(e => e.filter(x => x.id !== id))
+    try {
+      if (!id.startsWith('local-')) await clockifyDeleteEntry(id)
+      setEntries(e => e.filter(x => x.id !== id))
+      toast.success('Entrada eliminada')
+    } catch (err) {
+      toast.error('Error al eliminar: ' + err.message)
+    }
+  }
+
+  function handleManualSave(entry) {
+    setEntries(prev => [entry, ...prev].sort((a, b) =>
+      new Date(b.start_time) - new Date(a.start_time)
+    ))
   }
 
   const todayEntries = entries.filter(e => isToday(parseISO(e.start_time)))
@@ -162,10 +201,11 @@ export default function Tracker() {
                 {timer.formatted}
               </span>
               <button
-                onClick={timer.isRunning ? handleStop : timer.start}
+                onClick={timer.isRunning ? handleStop : handleStart}
+                disabled={syncing}
                 style={{
-                  width: 52, height: 52, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                  background: timer.isRunning ? '#22C55E' : 'linear-gradient(135deg,#7C4DFF,#E040FB)',
+                  width: 52, height: 52, borderRadius: '50%', border: 'none', cursor: syncing ? 'wait' : 'pointer',
+                  background: syncing ? '#94A3B8' : timer.isRunning ? '#22C55E' : 'linear-gradient(135deg,#7C4DFF,#E040FB)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   boxShadow: timer.isRunning ? '0 4px 16px rgba(34,197,94,0.4)' : '0 4px 16px rgba(124,77,255,0.4)',
                   transition: 'all 0.2s',
@@ -477,7 +517,7 @@ export default function Tracker() {
           workspace={workspace}
           user={user}
           isDemo={isDemo}
-          onDemoSave={entry => setEntries(prev => [entry, ...prev])}
+          onDemoSave={handleManualSave}
         />
       )}
     </div>

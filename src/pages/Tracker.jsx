@@ -489,46 +489,6 @@ export default function Tracker() {
         {/* ══ RIGHT COLUMN ══ */}
         <div style={{ padding: '20px 20px 20px 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          {/* Summary */}
-          <Card color="var(--c-card-a)">
-            <CardHeader title="Summary" />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
-              {[
-                { label: 'Total horas', value: timer.format(totalWeek), color: '#7C4DFF' },
-                { label: 'Entradas', value: entries.length, color: '#06B6D4' },
-                { label: 'Hoy', value: timer.format(totalToday), color: '#22C55E' },
-                { label: 'Activo', value: timer.isRunning ? '1' : '0', color: '#F59E0B' },
-              ].map(s => (
-                <div key={s.label} style={{ padding: '10px', borderRadius: 8, background: s.color + '08', border: `1px solid ${s.color}20` }}>
-                  <p style={{ fontSize: 10, color: 'var(--c-text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 4px' }}>{s.label}</p>
-                  <p style={{ fontSize: 18, fontWeight: 800, color: s.color, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{s.value}</p>
-                </div>
-              ))}
-            </div>
-            {/* Progress bar */}
-            <div style={{ marginTop: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 11, color: 'var(--c-text-3)' }}>Weekly progress</span>
-                <span style={{ fontSize: 11, color: '#7C4DFF', fontWeight: 600 }}>
-                  {Math.min(100, Math.round((totalWeek / 3600 / 40) * 100))}%
-                </span>
-              </div>
-              <div style={{ height: 8, borderRadius: 4, background: 'var(--c-border)', overflow: 'hidden' }}>
-                <div style={{
-                  height: '100%',
-                  background: 'linear-gradient(90deg,#7C4DFF,#E040FB)',
-                  borderRadius: 4,
-                  width: `${Math.min(100, (totalWeek / 3600 / 40) * 100)}%`,
-                  transition: 'width 0.4s',
-                }} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                <span style={{ fontSize: 10, color: 'var(--c-text-3)' }}>{timer.format(totalWeek)}</span>
-                <span style={{ fontSize: 10, color: 'var(--c-text-3)' }}>40h objetivo</span>
-              </div>
-            </div>
-          </Card>
-
           {/* Ongoing timesheet */}
           <Card color="var(--c-card-b)">
             <CardHeader title="Ongoing Timesheet" />

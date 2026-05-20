@@ -146,25 +146,46 @@ export async function importFromClockify(onStatus) {
   }))
 
   onStatus('Importando entradas de tiempo…', 35)
-  const rawEntries = await fetchAll(
-    `/workspaces/${WORKSPACE_ID}/user/${CLOCKIFY_USER_ID}/time-entries`,
-    50,
-    (n) => onStatus(`Importando entradas… (${n})`, Math.min(35 + Math.floor(n / 20), 85))
-  )
-
-  // Map entries and enrich with project info
   const projectMap = Object.fromEntries(projects.map(p => [p.id, p]))
-  const entries = rawEntries.map(e => {
-    const entry = mapEntry(e)
-    if (entry.project_id && projectMap[entry.project_id]) {
-      entry.projects = {
-        name: projectMap[entry.project_id].name,
-        color: projectMap[entry.project_id].color,
-        clients: projectMap[entry.project_id].clients,
+
+  // Fetch entries for ALL workspace users
+  const allEntriesForNeon = []
+  const emailMap = Object.fromEntries(rawUsers.map(u => [u.id, u.email]))
+
+  for (let i = 0; i < rawUsers.length; i++) {
+    const u = rawUsers[i]
+    const pct = Math.round(35 + ((i / rawUsers.length) * 45))
+    onStatus(`Importando entradas de ${u.name || u.email}… (${i + 1}/${rawUsers.length})`, pct)
+    try {
+      const userRaw = await fetchAll(
+        `/workspaces/${WORKSPACE_ID}/user/${u.id}/time-entries`, 50
+      )
+      for (const e of userRaw) {
+        const entry = mapEntry(e)
+        const proj = entry.project_id ? projectMap[entry.project_id] : null
+        allEntriesForNeon.push({
+          ...entry,
+          user_email: u.email,
+          project_name: proj?.name || null,
+          project_color: proj?.color || null,
+          client_name: proj?.clients?.name || null,
+        })
       }
+    } catch (err) {
+      console.warn(`Error fetching entries for ${u.email}:`, err.message)
     }
-    return entry
-  })
+  }
+
+  // Entries for the cache (Victor only, for backwards-compat local display)
+  const entries = allEntriesForNeon
+    .filter(e => e.user_email === CLOCKIFY_OWNER_EMAIL)
+    .map(e => {
+      const proj = e.project_id ? projectMap[e.project_id] : null
+      return {
+        ...e,
+        projects: proj ? { name: proj.name, color: proj.color, clients: proj.clients } : null,
+      }
+    })
 
   onStatus('Guardando en caché…', 90)
   const cache = { ws, clients, projects, members, entries, importedAt: new Date().toISOString() }
@@ -183,7 +204,7 @@ export async function importFromClockify(onStatus) {
   }
 
   onStatus('¡Importación completada!', 100)
-  return cache
+  return { ...cache, allEntriesForNeon }
 }
 
 // ── Write API ────────────────────────────────────────────────

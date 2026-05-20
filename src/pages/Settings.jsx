@@ -6,6 +6,7 @@ import { Settings as SettingsIcon, User, Building, HelpCircle, Play, Download, C
 import toast from 'react-hot-toast'
 import { useTour } from '../components/tour/AppTour'
 import { importFromClockify, loadClockifyCache, clearClockifyCache } from '../lib/clockify'
+import { initDB, dbUpsertEntries } from '../lib/db'
 
 function ClockifyImportCard({ onImported }) {
   const [status, setStatus] = useState('')
@@ -17,12 +18,25 @@ function ClockifyImportCard({ onImported }) {
     setLoading(true)
     setProgress(0)
     try {
+      // 1. Import from Clockify API
       const result = await importFromClockify((msg, pct) => {
         setStatus(msg)
         setProgress(pct)
       })
-      toast.success(`Importados: ${result.projects?.length} proyectos, ${result.entries?.length} entradas`)
-      setTimeout(() => window.location.reload(), 1200)
+
+      // 2. Save all users' entries to Neon
+      if (result.allEntriesForNeon?.length) {
+        setStatus(`Guardando ${result.allEntriesForNeon.length} entradas en base de datos…`)
+        setProgress(92)
+        await initDB()
+        await dbUpsertEntries(result.allEntriesForNeon, (done, total) => {
+          setStatus(`Guardando en BD… ${done}/${total}`)
+          setProgress(92 + Math.round((done / total) * 7))
+        })
+      }
+
+      toast.success(`✅ ${result.projects?.length} proyectos · ${result.allEntriesForNeon?.length} entradas de ${result.members?.length} usuarios`)
+      setTimeout(() => window.location.reload(), 1500)
     } catch (err) {
       console.error('Import error:', err)
       toast.error('Error al importar: ' + err.message)

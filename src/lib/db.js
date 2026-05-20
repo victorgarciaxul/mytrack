@@ -38,23 +38,24 @@ export async function initDB() {
   `
   await db`
     CREATE TABLE IF NOT EXISTS time_entries (
-      id           TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-      workspace_id TEXT REFERENCES workspaces(id) ON DELETE CASCADE,
-      user_email   TEXT NOT NULL,
-      project_id   TEXT,
-      project_name TEXT,
+      id            TEXT PRIMARY KEY,
+      workspace_id  TEXT REFERENCES workspaces(id) ON DELETE CASCADE,
+      user_email    TEXT NOT NULL,
+      project_id    TEXT,
+      project_name  TEXT,
       project_color TEXT,
-      task_id      TEXT,
-      task_name    TEXT,
-      description  TEXT DEFAULT '',
-      start_time   TIMESTAMPTZ NOT NULL,
-      end_time     TIMESTAMPTZ,
-      duration     INTEGER,
-      billable     BOOLEAN DEFAULT false,
-      created_at   TIMESTAMPTZ DEFAULT NOW()
+      client_name   TEXT,
+      task_id       TEXT,
+      task_name     TEXT,
+      description   TEXT DEFAULT '',
+      start_time    TIMESTAMPTZ NOT NULL,
+      end_time      TIMESTAMPTZ,
+      duration      INTEGER,
+      billable      BOOLEAN DEFAULT false,
+      created_at    TIMESTAMPTZ DEFAULT NOW()
     )
   `
-  // Seed workspace if missing
+  // Seed workspace
   await db`
     INSERT INTO workspaces (id, name, slug, working_hours_per_day)
     VALUES ('xul-ws-1', 'XUL', 'xul', 8)
@@ -75,20 +76,72 @@ export async function dbGetEntries(userEmail, year) {
   `
 }
 
-export async function dbInsertEntry({ userEmail, workspaceId, projectId, projectName, projectColor, taskId, taskName, description, startTime, endTime, duration }) {
+export async function dbInsertEntry({
+  id, userEmail, workspaceId,
+  projectId, projectName, projectColor, clientName,
+  taskId, taskName, description,
+  startTime, endTime, duration, billable,
+}) {
   const db = sql()
+  const entryId = id || `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
   const rows = await db`
     INSERT INTO time_entries
-      (workspace_id, user_email, project_id, project_name, project_color,
-       task_id, task_name, description, start_time, end_time, duration)
+      (id, workspace_id, user_email, project_id, project_name, project_color, client_name,
+       task_id, task_name, description, start_time, end_time, duration, billable)
     VALUES
-      (${workspaceId || 'xul-ws-1'}, ${userEmail}, ${projectId || null},
-       ${projectName || null}, ${projectColor || null},
+      (${entryId}, ${workspaceId || 'xul-ws-1'}, ${userEmail},
+       ${projectId || null}, ${projectName || null}, ${projectColor || null}, ${clientName || null},
        ${taskId || null}, ${taskName || null}, ${description || ''},
-       ${startTime}, ${endTime || null}, ${duration || null})
+       ${startTime}, ${endTime || null}, ${duration || null}, ${billable || false})
+    ON CONFLICT (id) DO UPDATE SET
+      description   = EXCLUDED.description,
+      project_id    = EXCLUDED.project_id,
+      project_name  = EXCLUDED.project_name,
+      project_color = EXCLUDED.project_color,
+      client_name   = EXCLUDED.client_name,
+      task_id       = EXCLUDED.task_id,
+      task_name     = EXCLUDED.task_name,
+      start_time    = EXCLUDED.start_time,
+      end_time      = EXCLUDED.end_time,
+      duration      = EXCLUDED.duration
     RETURNING *
   `
   return rows[0]
+}
+
+/** Bulk upsert — inserts entries in batches of 50 */
+export async function dbUpsertEntries(entries, onProgress) {
+  const db = sql()
+  const BATCH = 50
+  let done = 0
+  for (let i = 0; i < entries.length; i += BATCH) {
+    const batch = entries.slice(i, i + BATCH)
+    for (const e of batch) {
+      await db`
+        INSERT INTO time_entries
+          (id, workspace_id, user_email, project_id, project_name, project_color, client_name,
+           task_id, task_name, description, start_time, end_time, duration, billable)
+        VALUES
+          (${e.id}, 'xul-ws-1', ${e.user_email},
+           ${e.project_id || null}, ${e.project_name || null},
+           ${e.project_color || null}, ${e.client_name || null},
+           ${e.task_id || null}, ${e.task_name || null},
+           ${e.description || ''}, ${e.start_time}, ${e.end_time || null},
+           ${e.duration || null}, ${e.billable || false})
+        ON CONFLICT (id) DO UPDATE SET
+          description   = EXCLUDED.description,
+          project_name  = EXCLUDED.project_name,
+          project_color = EXCLUDED.project_color,
+          client_name   = EXCLUDED.client_name,
+          task_name     = EXCLUDED.task_name,
+          start_time    = EXCLUDED.start_time,
+          end_time      = EXCLUDED.end_time,
+          duration      = EXCLUDED.duration
+      `
+    }
+    done += batch.length
+    onProgress?.(done, entries.length)
+  }
 }
 
 export async function dbDeleteEntry(id) {

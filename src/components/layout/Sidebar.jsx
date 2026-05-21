@@ -206,24 +206,40 @@ export default function Sidebar({ onStartTour }) {
           {/* Emoji picker */}
           {menuOpen && emojiPickerOpen && (
             <div style={{
-              position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, right: 0,
-              background: 'var(--c-bg-surface)', borderRadius: 10,
-              border: '1px solid var(--c-border)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-              zIndex: 100, padding: 10,
+              position: 'absolute', bottom: 'calc(100% + 6px)', left: -10, right: -10,
+              background: 'var(--c-bg-surface)', borderRadius: 14,
+              border: '1px solid var(--c-border)',
+              boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
+              zIndex: 100, overflow: 'hidden',
             }}>
-              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-text-3)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Elige tu emoji</p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 2, maxHeight: 200, overflowY: 'auto' }}>
+              {/* Header */}
+              <div style={{ padding: '12px 14px 8px', borderBottom: '1px solid var(--c-border-light)' }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-1)', margin: 0 }}>Elige tu avatar</p>
+                <p style={{ fontSize: 11, color: 'var(--c-text-3)', margin: '2px 0 0' }}>Se guarda solo para ti</p>
+              </div>
+              {/* Grid — only vertical scroll */}
+              <div style={{
+                maxHeight: 220, overflowY: 'auto', overflowX: 'hidden',
+                padding: '8px 10px 10px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(8, 1fr)',
+                gap: 4,
+              }}>
                 {FACE_EMOJIS.map(emoji => (
                   <button
                     key={emoji}
                     onClick={() => handleEmojiSelect(emoji)}
+                    title={emoji}
                     style={{
                       background: selectedEmoji === emoji ? '#7C4DFF20' : 'transparent',
-                      border: selectedEmoji === emoji ? '1px solid #7C4DFF40' : '1px solid transparent',
-                      borderRadius: 6, cursor: 'pointer', fontSize: 18, padding: '3px', lineHeight: 1,
+                      border: selectedEmoji === emoji ? '2px solid #7C4DFF' : '2px solid transparent',
+                      borderRadius: 8, cursor: 'pointer',
+                      fontSize: 20, padding: '4px 0', lineHeight: 1,
+                      transition: 'transform 0.1s, background 0.1s',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
-                    onMouseLeave={e => e.currentTarget.style.background = selectedEmoji === emoji ? '#7C4DFF20' : 'transparent'}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#7C4DFF12'; e.currentTarget.style.transform = 'scale(1.25)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = selectedEmoji === emoji ? '#7C4DFF20' : 'transparent'; e.currentTarget.style.transform = 'scale(1)' }}
                   >
                     {emoji}
                   </button>

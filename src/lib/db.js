@@ -15,6 +15,7 @@ export async function initDB() {
   if (_initialized) return
   _initialized = true
   const db = sql()
+
   await db`
     CREATE TABLE IF NOT EXISTS workspaces (
       id          TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
@@ -26,13 +27,15 @@ export async function initDB() {
   `
   await db`
     CREATE TABLE IF NOT EXISTS workspace_members (
-      id           TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-      workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-      user_email   TEXT NOT NULL,
-      user_name    TEXT NOT NULL DEFAULT '',
-      role         TEXT DEFAULT 'employee',
-      hourly_rate  NUMERIC DEFAULT 0,
-      created_at   TIMESTAMPTZ DEFAULT NOW(),
+      id              TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      workspace_id    TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      user_email      TEXT NOT NULL,
+      user_name       TEXT NOT NULL DEFAULT '',
+      role            TEXT DEFAULT 'employee',
+      hourly_rate     NUMERIC DEFAULT 0,
+      password        TEXT DEFAULT 'Xul14$',
+      clockify_user_id TEXT,
+      created_at      TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(workspace_id, user_email)
     )
   `
@@ -55,11 +58,49 @@ export async function initDB() {
       created_at    TIMESTAMPTZ DEFAULT NOW()
     )
   `
+
   // Seed workspace
   await db`
     INSERT INTO workspaces (id, name, slug, working_hours_per_day)
     VALUES ('xul-ws-1', 'XUL', 'xul', 8)
     ON CONFLICT (slug) DO NOTHING
+  `
+
+  // Seed initial known users (in case Neon is queried before first import)
+  const seedUsers = [
+    { email: 'victorgarcia@xul.es', name: 'Víctor García',  role: 'admin' },
+    { email: 'josecastillo@xul.es', name: 'José Castillo',  role: 'employee' },
+    { email: 'carlagarcia@xul.es',  name: 'Carla García',   role: 'employee' },
+  ]
+  for (const u of seedUsers) {
+    await db`
+      INSERT INTO workspace_members (workspace_id, user_email, user_name, role, password)
+      VALUES ('xul-ws-1', ${u.email}, ${u.name}, ${u.role}, 'Xul14$')
+      ON CONFLICT (workspace_id, user_email) DO NOTHING
+    `
+  }
+}
+
+// ── Auth ──────────────────────────────────────────────────────
+
+export async function dbSignIn(email, password) {
+  const db = sql()
+  const rows = await db`
+    SELECT * FROM workspace_members
+    WHERE workspace_id = 'xul-ws-1'
+      AND user_email = ${email}
+      AND password = ${password}
+    LIMIT 1
+  `
+  return rows[0] || null
+}
+
+export async function dbGetAllMembers() {
+  const db = sql()
+  return db`
+    SELECT * FROM workspace_members
+    WHERE workspace_id = 'xul-ws-1'
+    ORDER BY user_name
   `
 }
 
@@ -151,17 +192,14 @@ export async function dbDeleteEntry(id) {
 
 // ── Members ───────────────────────────────────────────────────
 
-export async function dbGetMembers() {
-  const db = sql()
-  return db`SELECT * FROM workspace_members WHERE workspace_id = 'xul-ws-1' ORDER BY user_name`
-}
-
-export async function dbUpsertMember({ userEmail, userName, role }) {
+export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId }) {
   const db = sql()
   await db`
-    INSERT INTO workspace_members (workspace_id, user_email, user_name, role)
-    VALUES ('xul-ws-1', ${userEmail}, ${userName}, ${role || 'employee'})
-    ON CONFLICT (workspace_id, user_email)
-    DO UPDATE SET user_name = EXCLUDED.user_name, role = EXCLUDED.role
+    INSERT INTO workspace_members (workspace_id, user_email, user_name, role, password, clockify_user_id)
+    VALUES ('xul-ws-1', ${userEmail}, ${userName}, ${role || 'employee'}, 'Xul14$', ${clockifyUserId || null})
+    ON CONFLICT (workspace_id, user_email) DO UPDATE SET
+      user_name        = EXCLUDED.user_name,
+      role             = EXCLUDED.role,
+      clockify_user_id = EXCLUDED.clockify_user_id
   `
 }

@@ -6,7 +6,7 @@ import { Settings as SettingsIcon, User, Building, HelpCircle, Play, Download, C
 import toast from 'react-hot-toast'
 import { useTour } from '../components/tour/AppTour'
 import { importFromClockify, loadClockifyCache, clearClockifyCache } from '../lib/clockify'
-import { initDB, dbUpsertEntries } from '../lib/db'
+import { initDB, dbUpsertEntries, dbUpsertMember } from '../lib/db'
 
 function ClockifyImportCard({ onImported }) {
   const [status, setStatus] = useState('')
@@ -24,7 +24,20 @@ function ClockifyImportCard({ onImported }) {
         setProgress(pct)
       })
 
-      // 2. Save all users' entries to Neon
+      // 2. Save all users to Neon (so they can log in to MyTrack)
+      await initDB()
+      setStatus('Registrando usuarios en MyTrack…')
+      setProgress(91)
+      for (const member of result.members || []) {
+        await dbUpsertMember({
+          userEmail: member.profiles?.email || '',
+          userName: member.profiles?.full_name || member.profiles?.email || '',
+          role: member.role || 'employee',
+          clockifyUserId: member.user_id || member.id,
+        })
+      }
+
+      // 3. Save all users' entries to Neon
       if (result.allEntriesForNeon?.length) {
         setStatus(`Guardando ${result.allEntriesForNeon.length} entradas en base de datos…`)
         setProgress(92)
@@ -35,7 +48,7 @@ function ClockifyImportCard({ onImported }) {
         })
       }
 
-      toast.success(`✅ ${result.projects?.length} proyectos · ${result.allEntriesForNeon?.length} entradas de ${result.members?.length} usuarios`)
+      toast.success(`✅ ${result.members?.length} usuarios · ${result.projects?.length} proyectos · ${result.allEntriesForNeon?.length} entradas importadas`)
       setTimeout(() => window.location.reload(), 1500)
     } catch (err) {
       console.error('Import error:', err)

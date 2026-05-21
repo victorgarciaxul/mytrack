@@ -59,6 +59,29 @@ export async function initDB() {
     )
   `
 
+  await db`
+    CREATE TABLE IF NOT EXISTS clients (
+      id           TEXT PRIMARY KEY,
+      workspace_id TEXT DEFAULT 'xul-ws-1',
+      name         TEXT NOT NULL,
+      email        TEXT,
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    )
+  `
+  await db`
+    CREATE TABLE IF NOT EXISTS projects (
+      id           TEXT PRIMARY KEY,
+      workspace_id TEXT DEFAULT 'xul-ws-1',
+      name         TEXT NOT NULL,
+      color        TEXT DEFAULT '#7C4DFF',
+      client_id    TEXT,
+      client_name  TEXT,
+      budget_hours INTEGER,
+      archived     BOOLEAN DEFAULT false,
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    )
+  `
+
   // Seed workspace
   await db`
     INSERT INTO workspaces (id, name, slug, working_hours_per_day)
@@ -199,6 +222,48 @@ export async function dbChangePassword(userEmail, newPassword) {
     SET password = ${newPassword}
     WHERE workspace_id = 'xul-ws-1' AND user_email = ${userEmail}
   `
+}
+
+// ── Projects & Clients ────────────────────────────────────────
+
+export async function dbGetProjects() {
+  const db = sql()
+  return db`SELECT * FROM projects WHERE workspace_id = 'xul-ws-1' AND archived = false ORDER BY name`
+}
+
+export async function dbGetClients() {
+  const db = sql()
+  return db`SELECT * FROM clients WHERE workspace_id = 'xul-ws-1' ORDER BY name`
+}
+
+export async function dbUpsertProjects(projects) {
+  const db = sql()
+  for (const p of projects) {
+    await db`
+      INSERT INTO projects (id, workspace_id, name, color, client_id, client_name, budget_hours, archived)
+      VALUES (${p.id}, 'xul-ws-1', ${p.name}, ${p.color || '#7C4DFF'},
+              ${p.client_id || null}, ${p.clients?.name || null},
+              ${p.budget_hours || null}, ${p.archived || false})
+      ON CONFLICT (id) DO UPDATE SET
+        name         = EXCLUDED.name,
+        color        = EXCLUDED.color,
+        client_id    = EXCLUDED.client_id,
+        client_name  = EXCLUDED.client_name,
+        budget_hours = EXCLUDED.budget_hours,
+        archived     = EXCLUDED.archived
+    `
+  }
+}
+
+export async function dbUpsertClients(clients) {
+  const db = sql()
+  for (const c of clients) {
+    await db`
+      INSERT INTO clients (id, workspace_id, name, email)
+      VALUES (${c.id}, 'xul-ws-1', ${c.name}, ${c.email || null})
+      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
+    `
+  }
 }
 
 export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId }) {

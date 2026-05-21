@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 import { loadClockifyCache } from '../lib/clockify'
+import { initDB, dbGetProjects, dbGetClients } from '../lib/db'
 
 const WorkspaceContext = createContext(null)
 
@@ -28,7 +29,23 @@ export function WorkspaceProvider({ children }) {
   const [members, setMembers] = useState(init.members)
 
   useEffect(() => {
-    if (!user || isDemo) return
+    if (!user) return
+    if (isDemo) {
+      // Load projects & clients from Neon (available to all users after import)
+      initDB()
+        .then(() => Promise.all([dbGetProjects(), dbGetClients()]))
+        .then(([neonProjects, neonClients]) => {
+          if (neonProjects?.length) {
+            setProjects(neonProjects.map(p => ({
+              ...p,
+              clients: p.client_name ? { name: p.client_name } : null,
+            })))
+          }
+          if (neonClients?.length) setClients(neonClients)
+        })
+        .catch(console.error)
+      return
+    }
     loadWorkspace()
   }, [user])
 

@@ -6,7 +6,7 @@ import { User, HelpCircle, Play, Download, CheckCircle, RefreshCw, Trash2, Lock,
 import toast from 'react-hot-toast'
 import { useTour } from '../components/tour/AppTour'
 import { importFromClockify, loadClockifyCache, clearClockifyCache } from '../lib/clockify'
-import { initDB, dbUpsertEntries, dbUpsertMember, dbChangePassword } from '../lib/db'
+import { initDB, dbUpsertEntries, dbUpsertMember, dbUpsertProjects, dbUpsertClients, dbChangePassword } from '../lib/db'
 
 function ClockifyImportCard({ onImported }) {
   const [status, setStatus] = useState('')
@@ -24,8 +24,14 @@ function ClockifyImportCard({ onImported }) {
         setProgress(pct)
       })
 
-      // 2. Save all users to Neon (so they can log in to MyTrack)
+      // 2. Save projects & clients to Neon (shared for all users)
       await initDB()
+      setStatus('Guardando proyectos y clientes…')
+      setProgress(88)
+      if (result.projects?.length) await dbUpsertProjects(result.projects)
+      if (result.clients?.length)  await dbUpsertClients(result.clients)
+
+      // 3. Save all users to Neon (so they can log in to MyTrack)
       setStatus('Registrando usuarios en MyTrack…')
       setProgress(91)
       for (const member of result.members || []) {

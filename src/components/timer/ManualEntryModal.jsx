@@ -128,8 +128,8 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
 
   const inputStyle = {
     background: 'var(--c-input-bg)',
-    border: '1px solid var(--c-border)',
-    color: '#1C1C28',
+    border: '1px solid var(--c-input-border)',
+    color: 'var(--c-text-1)',
     borderRadius: 10,
   }
   const focusStyle = { borderColor: '#7C4DFF', background: 'var(--c-bg-surface)' }
@@ -139,11 +139,11 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
       <div className="w-full max-w-md rounded-lg overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--c-border-light)' }}>
-          <h2 className="font-bold text-base" style={{ color: '#1C1C28' }}>Añadir tiempo manual</h2>
+          <h2 className="font-bold text-base" style={{ color: 'var(--c-text-1)' }}>Añadir tiempo manual</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg transition-all"
-            style={{ color: '#9095B0' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#F7F8FA'; e.currentTarget.style.color = '#3D4060' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9095B0' }}
+            style={{ color: 'var(--c-text-3)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--c-bg-muted)'; e.currentTarget.style.color = 'var(--c-text-1)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--c-text-3)' }}
           >
             <X size={18} />
           </button>
@@ -151,7 +151,7 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
 
         <div className="px-5 py-4 space-y-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#7A7F9A' }}>Descripción</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-text-3)' }}>Descripción</label>
             <input type="text" value={desc} onChange={e => setDesc(e.target.value)}
               placeholder="¿En qué trabajaste?"
               className="w-full px-3.5 py-2.5 text-sm outline-none transition-all"
@@ -161,7 +161,7 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#7A7F9A' }}>Proyecto</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-text-3)' }}>Proyecto</label>
             <select value={projectId} onChange={e => handleProjectChange(e.target.value)}
               className="w-full px-3.5 py-2.5 text-sm outline-none transition-all"
               style={inputStyle}>
@@ -170,7 +170,7 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#7A7F9A' }}>Tarea</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-text-3)' }}>Tarea</label>
             <select
               value={taskId}
               onChange={e => setTaskId(e.target.value)}
@@ -190,7 +190,7 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#7A7F9A' }}>Fecha</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-text-3)' }}>Fecha</label>
             <input type="date" value={date} onChange={e => setDate(e.target.value)}
               className="w-full px-3.5 py-2.5 text-sm outline-none transition-all"
               style={inputStyle}
@@ -201,7 +201,7 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
           <div className="grid grid-cols-2 gap-3">
             {[['Inicio', startTime, setStartTime], ['Fin', endTime, setEndTime]].map(([label, val, setter]) => (
               <div key={label}>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#7A7F9A' }}>{label}</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-text-3)' }}>{label}</label>
                 <input type="time" value={val} onChange={e => setter(e.target.value)}
                   className="w-full px-3.5 py-2.5 text-sm outline-none transition-all"
                   style={inputStyle}
@@ -215,7 +215,7 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
 
         <div className="flex gap-3 px-5 pb-5">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all"
-            style={{ background: 'var(--c-input-bg)', color: '#3D4060', border: '1px solid var(--c-border)' }}
+            style={{ background: 'var(--c-input-bg)', color: 'var(--c-text-2)', border: '1px solid var(--c-input-border)' }}
             onMouseEnter={e => e.currentTarget.style.background = '#EBEBF5'}
             onMouseLeave={e => e.currentTarget.style.background = '#F7F8FA'}
           >

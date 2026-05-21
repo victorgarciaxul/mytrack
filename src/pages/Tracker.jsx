@@ -278,7 +278,7 @@ export default function Tracker() {
           <Card data-tour="timer-bar" color="var(--c-card-a)">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: timer.isRunning ? '#22C55E' : '#E2E8F0', display: 'inline-block' }} />
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: timer.isRunning ? '#22C55E' : 'var(--c-text-4)', display: 'inline-block' }} />
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: timer.isRunning ? '#22C55E' : '#94A3B8' }}>
                   {timer.isRunning ? 'Tarea activa' : 'Iniciar temporizador'}
                 </span>
@@ -318,7 +318,7 @@ export default function Tracker() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{
                 fontSize: 40, fontWeight: 800, letterSpacing: '-1px',
-                color: timer.isRunning ? 'var(--c-text-1)' : 'var(--c-border)',
+                color: timer.isRunning ? 'var(--c-text-1)' : 'var(--c-text-4)',
                 fontVariantNumeric: 'tabular-nums',
                 transition: 'color 0.3s',
               }}>
@@ -473,9 +473,9 @@ export default function Tracker() {
                   <button
                     onClick={() => reactivateEntry(e)}
                     title="Reactivar"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-border)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6 }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6 }}
                     onMouseEnter={ev => { ev.currentTarget.style.background = '#7C4DFF15'; ev.currentTarget.style.color = '#7C4DFF' }}
-                    onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--c-border)' }}
+                    onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--c-text-3)' }}
                   >
                     <Play size={13} fill="currentColor" />
                   </button>
@@ -483,9 +483,9 @@ export default function Tracker() {
                   <button
                     onClick={() => deleteEntry(e.id)}
                     title="Eliminar"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-border)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6 }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6 }}
                     onMouseEnter={ev => { ev.currentTarget.style.background = '#EF444415'; ev.currentTarget.style.color = '#EF4444' }}
-                    onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--c-border)' }}
+                    onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--c-text-3)' }}
                   >
                     <MoreHorizontal size={14} />
                   </button>
@@ -554,7 +554,7 @@ export default function Tracker() {
                       {timer.format(p.secs)}
                     </span>
                   </div>
-                  <div style={{ height: 5, borderRadius: 3, background: 'var(--c-border)' }}>
+                  <div style={{ height: 5, borderRadius: 3, background: 'var(--c-bg-muted)' }}>
                     <div style={{
                       height: '100%', borderRadius: 3,
                       background: p.color,
@@ -705,7 +705,7 @@ function ActivityGrid({ entries, formatTime }) {
             flex: 1,
             height: secs > 0 ? `${Math.max(8, (secs / max) * 60)}px` : 6,
             borderRadius: 3,
-            background: secs > 0 ? 'linear-gradient(180deg,#7C4DFF,#E040FB)' : 'var(--c-border)',
+            background: secs > 0 ? 'linear-gradient(180deg,#7C4DFF,#E040FB)' : 'var(--c-text-4)',
             transition: 'height 0.3s',
             cursor: secs > 0 ? 'pointer' : 'default',
           }} />

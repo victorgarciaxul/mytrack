@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
-import { Settings as SettingsIcon, User, Building, HelpCircle, Play, Download, CheckCircle, RefreshCw, Trash2 } from 'lucide-react'
+import { User, HelpCircle, Play, Download, CheckCircle, RefreshCw, Trash2, Lock, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useTour } from '../components/tour/AppTour'
 import { importFromClockify, loadClockifyCache, clearClockifyCache } from '../lib/clockify'
-import { initDB, dbUpsertEntries, dbUpsertMember } from '../lib/db'
+import { initDB, dbUpsertEntries, dbUpsertMember, dbChangePassword } from '../lib/db'
 
 function ClockifyImportCard({ onImported }) {
   const [status, setStatus] = useState('')
@@ -163,6 +163,77 @@ function ClockifyImportCard({ onImported }) {
   )
 }
 
+function ChangePasswordCard({ user }) {
+  const [current, setCurrent]     = useState('')
+  const [next, setNext]           = useState('')
+  const [confirm, setConfirm]     = useState('')
+  const [showPwd, setShowPwd]     = useState(false)
+  const [saving, setSaving]       = useState(false)
+
+  async function handleChange() {
+    if (!current) { toast.error('Introduce tu contraseña actual'); return }
+    if (next.length < 6) { toast.error('La nueva contraseña debe tener al menos 6 caracteres'); return }
+    if (next !== confirm) { toast.error('Las contraseñas no coinciden'); return }
+    setSaving(true)
+    try {
+      // Verify current password
+      const { dbSignIn } = await import('../lib/db')
+      const ok = await dbSignIn(user.email, current)
+      if (!ok) { toast.error('Contraseña actual incorrecta'); setSaving(false); return }
+      await dbChangePassword(user.email, next)
+      toast.success('✅ Contraseña actualizada')
+      setCurrent(''); setNext(''); setConfirm('')
+    } catch (err) {
+      toast.error('Error: ' + err.message)
+    }
+    setSaving(false)
+  }
+
+  const inputStyle = {
+    width: '100%', padding: '9px 36px 9px 12px', borderRadius: 8, fontSize: 13,
+    border: '1px solid var(--c-border)', background: 'var(--c-bg-muted)',
+    color: 'var(--c-text-1)', outline: 'none', boxSizing: 'border-box',
+  }
+
+  return (
+    <div style={{ borderRadius: 14, padding: 20, marginBottom: 16, background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        <Lock size={15} style={{ color: '#7C4DFF' }} />
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text-1)' }}>Cambiar contraseña</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {[
+          ['Contraseña actual', current, setCurrent],
+          ['Nueva contraseña', next, setNext],
+          ['Confirmar nueva contraseña', confirm, setConfirm],
+        ].map(([label, val, setter]) => (
+          <div key={label}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>{label}</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPwd ? 'text' : 'password'}
+                value={val}
+                onChange={e => setter(e.target.value)}
+                style={inputStyle}
+              />
+              <button onClick={() => setShowPwd(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-4)', padding: 0 }}>
+                {showPwd ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
+          </div>
+        ))}
+        <button
+          onClick={handleChange}
+          disabled={saving}
+          style={{ marginTop: 4, padding: '9px 18px', borderRadius: 9, border: 'none', background: '#7C4DFF', color: '#fff', fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
+        >
+          {saving ? 'Guardando…' : 'Actualizar contraseña'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Settings() {
   const { user } = useAuth()
   const { workspace } = useWorkspace()
@@ -176,6 +247,9 @@ export default function Settings() {
 
       {/* Clockify import */}
       <ClockifyImportCard onImported={() => forceUpdate(n => n + 1)} />
+
+      {/* Cambiar contraseña */}
+      <ChangePasswordCard user={user} />
 
       {/* Cuenta */}
       <div style={{

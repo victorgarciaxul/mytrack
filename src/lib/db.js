@@ -192,6 +192,15 @@ export async function dbDeleteEntry(id) {
 
 // ── Members ───────────────────────────────────────────────────
 
+export async function dbChangePassword(userEmail, newPassword) {
+  const db = sql()
+  await db`
+    UPDATE workspace_members
+    SET password = ${newPassword}
+    WHERE workspace_id = 'xul-ws-1' AND user_email = ${userEmail}
+  `
+}
+
 export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId }) {
   const db = sql()
   await db`

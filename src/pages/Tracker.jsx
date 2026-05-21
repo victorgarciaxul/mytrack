@@ -210,6 +210,40 @@ export default function Tracker() {
     }
   }
 
+  async function reactivateEntry(e) {
+    if (timer.isRunning) {
+      toast.error('Para el timer actual antes de reactivar')
+      return
+    }
+    // Restore description, project and task from the entry
+    setDescription(e.description || '')
+    const proj = e.projects?.name
+      ? projects.find(p => p.name === e.projects.name) || { name: e.projects.name, color: e.projects.color, id: e.project_id }
+      : null
+    setSelectedProject(proj || null)
+    setSelectedTask(e.tasks?.name ? { name: e.tasks.name, id: e.task_id } : null)
+    // Start timer
+    if (syncEnabled) {
+      setSyncing(true)
+      try {
+        await clockifyStartTimer({
+          description: e.description || '',
+          projectId: e.project_id || null,
+          taskId: e.task_id || null,
+        })
+        timer.start()
+        toast.success('⏱ Timer reactivado en Clockify')
+      } catch (err) {
+        toast.error('Error al reactivar: ' + err.message)
+      } finally {
+        setSyncing(false)
+      }
+    } else {
+      timer.start()
+      toast.success('⏱ Timer reactivado')
+    }
+  }
+
   function handleManualSave(entry) {
     setEntries(prev => [entry, ...prev].sort((a, b) =>
       new Date(b.start_time) - new Date(a.start_time)
@@ -435,11 +469,23 @@ export default function Tracker() {
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', minWidth: 52, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {timer.format(e.duration || 0)}
                   </span>
+                  {/* Reactivate button */}
+                  <button
+                    onClick={() => reactivateEntry(e)}
+                    title="Reactivar"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-border)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6 }}
+                    onMouseEnter={ev => { ev.currentTarget.style.background = '#7C4DFF15'; ev.currentTarget.style.color = '#7C4DFF' }}
+                    onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--c-border)' }}
+                  >
+                    <Play size={13} fill="currentColor" />
+                  </button>
+                  {/* Delete button */}
                   <button
                     onClick={() => deleteEntry(e.id)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-border)', flexShrink: 0 }}
-                    onMouseEnter={ev => ev.currentTarget.style.color = '#EF4444'}
-                    onMouseLeave={ev => ev.currentTarget.style.color = '#CBD5E1'}
+                    title="Eliminar"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-border)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6 }}
+                    onMouseEnter={ev => { ev.currentTarget.style.background = '#EF444415'; ev.currentTarget.style.color = '#EF4444' }}
+                    onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--c-border)' }}
                   >
                     <MoreHorizontal size={14} />
                   </button>

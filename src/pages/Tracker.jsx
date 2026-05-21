@@ -123,10 +123,8 @@ export default function Tracker() {
         const duration = saved.timeInterval?.duration
           ? Math.round(saved.timeInterval.duration / 1000)
           : secs
-        setEntries(prev => [{
+        const entry = {
           id: saved.id,
-          workspace_id: workspace?.id,
-          user_id: userId,
           description: saved.description || description || '(sin descripción)',
           start_time: saved.timeInterval?.start,
           end_time: saved.timeInterval?.end,
@@ -135,7 +133,25 @@ export default function Tracker() {
             ? { name: selectedProject.name, color: selectedProject.color, clients: selectedProject.clients }
             : null,
           tasks: selectedTask ? { name: selectedTask.name } : null,
-        }, ...prev])
+        }
+        setEntries(prev => [entry, ...prev])
+        // Also save to Neon for centralised storage
+        initDB().then(() => dbInsertEntry({
+          id: saved.id,
+          userEmail: user.email,
+          workspaceId: 'xul-ws-1',
+          projectId: selectedProject?.id || null,
+          projectName: selectedProject?.name || null,
+          projectColor: selectedProject?.color || null,
+          clientName: selectedProject?.clients?.name || null,
+          taskId: selectedTask?.id || null,
+          taskName: selectedTask?.name || null,
+          description: entry.description,
+          startTime: entry.start_time,
+          endTime: entry.end_time,
+          duration,
+          billable: true,
+        })).catch(err => console.warn('Neon save error:', err.message))
         toast.success('✅ Guardado en Clockify')
       } catch (err) {
         toast.error('No se pudo sincronizar con Clockify: ' + err.message)

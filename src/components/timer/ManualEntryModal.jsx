@@ -65,6 +65,23 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
           tasks: task ? { name: task.name } : null,
         }
         onDemoSave?.(entry)
+        // Also save to Neon
+        initDB().then(() => dbInsertEntry({
+          id: saved.id,
+          userEmail: user?.email,
+          workspaceId: 'xul-ws-1',
+          projectId: projectId || null,
+          projectName: project?.name || null,
+          projectColor: project?.color || null,
+          clientName: project?.clients?.name || null,
+          taskId: taskId || null,
+          taskName: task?.name || null,
+          description: entry.description,
+          startTime: entry.start_time,
+          endTime: entry.end_time,
+          duration,
+          billable: true,
+        })).catch(err => console.warn('Neon save error:', err.message))
         toast.success('✅ Guardado en Clockify')
       } catch (err) {
         toast.error('Error Clockify: ' + err.message)

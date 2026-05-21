@@ -17,9 +17,28 @@ export default function Tracker() {
   const { workspace, projects, getTasksForProject } = useWorkspace()
   const timer = useTimer()
 
-  const [description, setDescription] = useState('')
-  const [selectedProject, setSelectedProject] = useState(null)
-  const [selectedTask, setSelectedTask] = useState(null)
+  const ACTIVE_KEY = 'mytrack-active-entry'
+
+  const [description, setDescription] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ACTIVE_KEY))?.description || '' } catch { return '' }
+  })
+  const [selectedProject, setSelectedProject] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ACTIVE_KEY))?.project || null } catch { return null }
+  })
+  const [selectedTask, setSelectedTask] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ACTIVE_KEY))?.task || null } catch { return null }
+  })
+
+  // Persist active entry state to localStorage whenever it changes
+  useEffect(() => {
+    if (timer.isRunning || description || selectedProject) {
+      localStorage.setItem(ACTIVE_KEY, JSON.stringify({
+        description, project: selectedProject, task: selectedTask,
+      }))
+    } else {
+      localStorage.removeItem(ACTIVE_KEY)
+    }
+  }, [description, selectedProject, selectedTask, timer.isRunning])
   const [entries, setEntries] = useState(() => {
     if (!isDemo) return []
     const cache = loadClockifyCache()
@@ -157,16 +176,17 @@ export default function Tracker() {
       }
     }
 
-    timer.reset(); setDescription(''); setSelectedProject(null); setSelectedTask(null)
+    timer.reset()
+    setDescription('')
+    setSelectedProject(null)
+    setSelectedTask(null)
+    localStorage.removeItem(ACTIVE_KEY)
   }
 
   async function deleteEntry(id) {
     try {
-      if (syncEnabled) {
-        await clockifyDeleteEntry(id)
-      } else {
-        await dbDeleteEntry(id)
-      }
+      // Never delete from Clockify — only remove locally / from Neon
+      if (!syncEnabled) await dbDeleteEntry(id)
       setEntries(e => e.filter(x => x.id !== id))
       toast.success('Entrada eliminada')
     } catch (err) {

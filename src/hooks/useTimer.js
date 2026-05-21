@@ -1,16 +1,45 @@
 import { useEffect, useRef, useState } from 'react'
 
+const TIMER_KEY = 'mytrack-timer-state'
+
+function loadTimerState() {
+  try {
+    const raw = localStorage.getItem(TIMER_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
+function saveTimerState(state) {
+  try {
+    localStorage.setItem(TIMER_KEY, JSON.stringify(state))
+  } catch {}
+}
+
+function clearTimerState() {
+  localStorage.removeItem(TIMER_KEY)
+}
+
 export function useTimer() {
-  const [isRunning, setIsRunning] = useState(false)
-  const [elapsed, setElapsed] = useState(0)
-  const startRef = useRef(null)
+  const saved = loadTimerState()
+
+  const [isRunning, setIsRunning] = useState(() => !!saved?.startedAt)
+  const [elapsed, setElapsed] = useState(() => {
+    if (saved?.startedAt) {
+      return Math.floor((Date.now() - saved.startedAt) / 1000)
+    }
+    return 0
+  })
+
+  const startedAtRef = useRef(saved?.startedAt || null)
   const intervalRef = useRef(null)
 
   useEffect(() => {
     if (isRunning) {
-      startRef.current = Date.now() - elapsed * 1000
+      if (!startedAtRef.current) {
+        startedAtRef.current = Date.now() - elapsed * 1000
+      }
       intervalRef.current = setInterval(() => {
-        setElapsed(Math.floor((Date.now() - startRef.current) / 1000))
+        setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000))
       }, 1000)
     } else {
       clearInterval(intervalRef.current)
@@ -18,9 +47,27 @@ export function useTimer() {
     return () => clearInterval(intervalRef.current)
   }, [isRunning])
 
-  const start = () => setIsRunning(true)
-  const stop = () => { setIsRunning(false); return elapsed }
-  const reset = () => { setIsRunning(false); setElapsed(0) }
+  const start = () => {
+    const now = Date.now()
+    startedAtRef.current = now
+    saveTimerState({ startedAt: now })
+    setIsRunning(true)
+    setElapsed(0)
+  }
+
+  const stop = () => {
+    setIsRunning(false)
+    clearTimerState()
+    startedAtRef.current = null
+    return elapsed
+  }
+
+  const reset = () => {
+    setIsRunning(false)
+    setElapsed(0)
+    clearTimerState()
+    startedAtRef.current = null
+  }
 
   const format = (secs) => {
     const h = String(Math.floor(secs / 3600)).padStart(2, '0')

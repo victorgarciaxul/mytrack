@@ -82,6 +82,18 @@ export async function initDB() {
     )
   `
   await db`
+    CREATE TABLE IF NOT EXISTS tasks (
+      id           TEXT PRIMARY KEY,
+      workspace_id TEXT DEFAULT 'xul-ws-1',
+      project_id   TEXT NOT NULL,
+      name         TEXT NOT NULL,
+      status       TEXT DEFAULT 'ACTIVE',
+      estimate     INTEGER,
+      archived     BOOLEAN DEFAULT false,
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    )
+  `
+  await db`
     CREATE TABLE IF NOT EXISTS tags (
       id           TEXT PRIMARY KEY,
       workspace_id TEXT DEFAULT 'xul-ws-1',
@@ -311,6 +323,63 @@ export async function dbGetProjectsWithHours() {
 export async function dbGetClients() {
   const db = sql()
   return db`SELECT * FROM clients WHERE workspace_id = 'xul-ws-1' ORDER BY name`
+}
+
+// ── Tasks ──────────────────────────────────────────────────────
+
+export async function dbGetTasksForProject(projectId) {
+  const db = sql()
+  return db`
+    SELECT * FROM tasks
+    WHERE project_id = ${projectId} AND archived = false
+    ORDER BY created_at ASC
+  `
+}
+
+export async function dbGetAllTasks() {
+  const db = sql()
+  return db`
+    SELECT * FROM tasks
+    WHERE workspace_id = 'xul-ws-1' AND archived = false
+    ORDER BY project_id, created_at ASC
+  `
+}
+
+export async function dbUpsertTasks(tasks) {
+  const db = sql()
+  for (const t of tasks) {
+    await db`
+      INSERT INTO tasks (id, workspace_id, project_id, name, status, estimate, archived)
+      VALUES (${t.id}, 'xul-ws-1', ${t.project_id}, ${t.name},
+              ${t.status || 'ACTIVE'}, ${t.estimate || null}, ${t.archived || false})
+      ON CONFLICT (id) DO UPDATE SET
+        name     = EXCLUDED.name,
+        status   = EXCLUDED.status,
+        estimate = EXCLUDED.estimate,
+        archived = EXCLUDED.archived
+    `
+  }
+}
+
+export async function dbCreateTask({ projectId, name, estimate }) {
+  const db = sql()
+  const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const rows = await db`
+    INSERT INTO tasks (id, workspace_id, project_id, name, status, estimate)
+    VALUES (${id}, 'xul-ws-1', ${projectId}, ${name}, 'ACTIVE', ${estimate || null})
+    RETURNING *
+  `
+  return rows[0]
+}
+
+export async function dbDeleteTask(id) {
+  const db = sql()
+  await db`DELETE FROM tasks WHERE id = ${id}`
+}
+
+export async function dbToggleTaskStatus(id, status) {
+  const db = sql()
+  await db`UPDATE tasks SET status = ${status} WHERE id = ${id}`
 }
 
 export async function dbCreateProject({ name, color, clientId, clientName, budgetHours }) {

@@ -13,9 +13,6 @@ import Team from './pages/Team'
 import Settings from './pages/Settings'
 import ManagerDashboard from './pages/ManagerDashboard'
 import Notifications from './pages/Notifications'
-import EcoFin from './pages/EcoFin'
-import EcoFinProyecto from './pages/EcoFinProyecto'
-import EcoFinNuevo from './pages/EcoFinNuevo'
 import Tags from './pages/Tags'
 import TimeOff from './pages/TimeOff'
 import Clients from './pages/Clients'
@@ -54,9 +51,6 @@ function App() {
             <Route path="team" element={<Team />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="settings" element={<Settings />} />
-            <Route path="ecofin" element={<EcoFin />} />
-            <Route path="ecofin/nuevo" element={<EcoFinNuevo />} />
-            <Route path="ecofin/:id" element={<EcoFinProyecto />} />
             <Route path="tags" element={<Tags />} />
             <Route path="time-off" element={<TimeOff />} />
             <Route path="clients" element={<Clients />} />

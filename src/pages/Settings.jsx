@@ -5,8 +5,8 @@ import { useWorkspace } from '../context/WorkspaceContext'
 import { User, HelpCircle, Play, Download, CheckCircle, RefreshCw, Trash2, Lock, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useTour } from '../components/tour/AppTour'
-import { importFromClockify, loadClockifyCache, clearClockifyCache, clockifyGetTags, clockifyGetTimeOffPolicies, clockifyGetTimeOffRequests } from '../lib/clockify'
-import { initDB, dbUpsertEntries, dbUpsertMember, dbUpsertProjects, dbUpsertClients, dbChangePassword, dbUpsertTags, dbUpsertTimeOffPolicies, dbUpsertTimeOffRequests } from '../lib/db'
+import { importFromClockify, loadClockifyCache, clearClockifyCache, clockifyGetTags, clockifyGetTimeOffPolicies, clockifyGetTimeOffRequests, clockifyGetAllTasks } from '../lib/clockify'
+import { initDB, dbUpsertEntries, dbUpsertMember, dbUpsertProjects, dbUpsertClients, dbChangePassword, dbUpsertTags, dbUpsertTimeOffPolicies, dbUpsertTimeOffRequests, dbUpsertTasks } from '../lib/db'
 
 function ClockifyImportCard({ onImported }) {
   const [status, setStatus] = useState('')
@@ -63,7 +63,7 @@ function ClockifyImportCard({ onImported }) {
 
       // 6. Time off
       setStatus('Importando bajas y vacaciones…')
-      setProgress(98)
+      setProgress(97)
       const rawUsers = result.members?.map(m => ({ id: m.user_id || m.id, email: m.profiles?.email || '', name: m.profiles?.full_name || '' })) || []
       const [policies, requests] = await Promise.all([
         clockifyGetTimeOffPolicies(),
@@ -72,10 +72,16 @@ function ClockifyImportCard({ onImported }) {
       if (policies.length) await dbUpsertTimeOffPolicies(policies)
       if (requests.length) await dbUpsertTimeOffRequests(requests)
 
+      // 7. Tasks (all projects)
+      setStatus('Importando tareas de proyectos…')
+      setProgress(99)
+      const tasks = await clockifyGetAllTasks(result.projects || [])
+      if (tasks.length) await dbUpsertTasks(tasks)
+
       if (result.isIncremental) {
-        toast.success(`✅ ${result.newCount} entradas · ${tags.length} etiquetas · ${requests.length} bajas`)
+        toast.success(`✅ ${result.newCount} entradas · ${tags.length} etiquetas · ${tasks.length} tareas`)
       } else {
-        toast.success(`✅ ${result.members?.length} usuarios · ${result.projects?.length} proyectos · ${result.allEntriesForNeon?.length} entradas · ${tags.length} etiquetas`)
+        toast.success(`✅ ${result.members?.length} usuarios · ${result.projects?.length} proyectos · ${tasks.length} tareas · ${result.allEntriesForNeon?.length} entradas`)
       }
       setTimeout(() => window.location.reload(), 1500)
     } catch (err) {

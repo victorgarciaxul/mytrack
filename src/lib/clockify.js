@@ -276,6 +276,30 @@ export async function clockifyGetProjectTasks(projectId) {
   }
 }
 
+/** Fetch ALL tasks across ALL projects in the workspace */
+export async function clockifyGetAllTasks(projects) {
+  const all = []
+  for (const p of (projects || [])) {
+    try {
+      const active   = await fetchAll(`/workspaces/${WORKSPACE_ID}/projects/${p.id}/tasks?status=ACTIVE`, 100)
+      const done     = await fetchAll(`/workspaces/${WORKSPACE_ID}/projects/${p.id}/tasks?status=DONE`, 100)
+      const combined = [...active, ...done]
+      for (const t of combined) {
+        all.push({
+          id:         t.id,
+          project_id: p.id,
+          name:       t.name,
+          status:     t.status === 'DONE' ? 'DONE' : 'ACTIVE',
+          estimate:   t.estimate ? Math.round(t.estimate / 3600) : null,
+          archived:   t.archived || false,
+        })
+      }
+      await new Promise(r => setTimeout(r, 60)) // rate-limit buffer
+    } catch { /* skip failed projects */ }
+  }
+  return all
+}
+
 /** Start a running timer in Clockify. Returns the new entry object. */
 export async function clockifyStartTimer({ description, projectId, taskId }) {
   const body = {

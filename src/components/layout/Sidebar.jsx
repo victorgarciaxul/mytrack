@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   Clock, BarChart2, Briefcase, Users, Settings,
-  HelpCircle, ChevronDown, Plus, CalendarDays, TrendingUp,
+  HelpCircle, ChevronDown, Plus, CalendarDays,
   Bell, LogOut, Smile, Tag, CalendarOff, Building2,
 } from 'lucide-react'
 import Picker from '@emoji-mart/react'
@@ -82,7 +82,6 @@ export default function Sidebar({ onStartTour }) {
     { to: '/tags', icon: Tag, label: 'Etiquetas', color: '#E040FB' },
     { to: '/time-off', icon: CalendarOff, label: 'Bajas', color: '#F59E0B' },
     ...(isManager ? [{ to: '/team', icon: Users, label: 'Equipo', color: '#6366F1' }] : []),
-    ...(isManager ? [{ to: '/ecofin', icon: TrendingUp, label: 'Control EcoFin', color: '#F59E0B' }] : []),
   ]
 
   return (

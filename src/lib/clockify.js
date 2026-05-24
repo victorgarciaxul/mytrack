@@ -54,6 +54,7 @@ function mapProject(p) {
       ? Math.round(p.timeEstimate.estimate / 3600)
       : null,
     archived: p.archived || false,
+    access: p.public ? 'PUBLIC' : 'PRIVATE',
     clients: p.clientName ? { name: p.clientName } : null,
   }
 }
@@ -141,11 +142,22 @@ export async function importFromClockify(onStatus, since = null) {
 
   onStatus('Importando miembros…', 25)
   const rawUsers = await fetchAll(`/workspaces/${WORKSPACE_ID}/users?page-size=200`, 200)
+
+  // Fetch user groups to show which team/department each member belongs to
+  let userGroupMap = {}
+  try {
+    const rawGroups = await fetchAll(`/workspaces/${WORKSPACE_ID}/user-groups`, 100)
+    rawGroups.forEach(g => {
+      ;(g.userIds || []).forEach(uid => { userGroupMap[uid] = g.name })
+    })
+  } catch { /* groups optional */ }
+
   const members = rawUsers.map(u => ({
     id: u.id,
     workspace_id: WORKSPACE_ID,
     user_id: u.id,
     role: u.roles?.[0]?.role === 'WORKSPACE_ADMIN' ? 'admin' : 'employee',
+    group_name: userGroupMap[u.id] || null,
     profiles: {
       full_name: u.name || '',
       email: u.email || '',

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { CalendarOff, Clock, CheckCircle, XCircle, AlertCircle, ChevronDown } from 'lucide-react'
+import { CalendarOff, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { initDB, dbGetTimeOffRequests, dbGetTimeOffPolicies } from '../lib/db'
-import { format, parseISO, differenceInBusinessDays } from 'date-fns'
+import { format, parseISO, differenceInCalendarDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 const STATUS_CONFIG = {
@@ -9,6 +9,20 @@ const STATUS_CONFIG = {
   PENDING:   { label: 'Pendiente', color: '#F59E0B', bg: '#F59E0B18', Icon: AlertCircle },
   REJECTED:  { label: 'Rechazada', color: '#EF4444', bg: '#EF444418', Icon: XCircle },
   WITHDRAWN: { label: 'Retirada',  color: '#94A3B8', bg: '#94A3B818', Icon: XCircle },
+}
+
+const TABS = ['Solicitudes', 'Políticas']
+
+const AVATAR_COLORS = ['#7C4DFF','#03A9F4','#10B981','#F59E0B','#EF4444','#E040FB','#6366F1','#FF6D00']
+
+function initials(name) {
+  if (!name) return '?'
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+}
+
+function avatarColor(name) {
+  let n = 0; for (const c of (name || '')) n += c.charCodeAt(0)
+  return AVATAR_COLORS[n % AVATAR_COLORS.length]
 }
 
 function StatusBadge({ status }) {
@@ -22,10 +36,24 @@ function StatusBadge({ status }) {
   )
 }
 
+function fmtDate(str) {
+  if (!str) return '—'
+  try { return format(parseISO(str), "d MMM yyyy", { locale: es }) } catch { return str }
+}
+
+function daysBetween(start, end) {
+  if (!start || !end) return null
+  try {
+    const d = differenceInCalendarDays(parseISO(end), parseISO(start)) + 1
+    return d > 0 ? d : null
+  } catch { return null }
+}
+
 export default function TimeOff() {
   const [requests, setRequests] = useState([])
   const [policies, setPolicies] = useState([])
   const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState('Solicitudes')
   const [filterStatus, setFilterStatus] = useState('ALL')
   const [filterUser, setFilterUser] = useState('ALL')
 
@@ -48,18 +76,17 @@ export default function TimeOff() {
     return true
   })
 
-  // Stats
   const approved = requests.filter(r => r.status === 'APPROVED').length
   const pending  = requests.filter(r => r.status === 'PENDING').length
 
   const selectStyle = {
-    background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',
+    background: 'var(--c-bg-muted)', border: '1px solid var(--c-border-light)',
     borderRadius: 8, padding: '6px 12px', fontSize: 12, color: 'var(--c-text-1)',
     outline: 'none', cursor: 'pointer',
   }
 
   return (
-    <div style={{ padding: '28px 32px', fontFamily: 'Inter, system-ui, sans-serif', maxWidth: 1000 }}>
+    <div style={{ padding: '28px 32px', fontFamily: 'Inter, system-ui, sans-serif', maxWidth: 1100 }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--c-text-1)', margin: 0 }}>Bajas y Vacaciones</h1>
@@ -72,88 +99,155 @@ export default function TimeOff() {
         <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
           <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid #7C4DFF', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
         </div>
-      ) : requests.length === 0 ? (
+      ) : requests.length === 0 && policies.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px 0', gap: 12 }}>
           <CalendarOff size={40} style={{ color: 'var(--c-text-4)' }} />
-          <p style={{ fontSize: 14, color: 'var(--c-text-3)', margin: 0 }}>Sin solicitudes de baja</p>
+          <p style={{ fontSize: 14, color: 'var(--c-text-3)', margin: 0 }}>Sin datos de bajas</p>
           <p style={{ fontSize: 12, color: 'var(--c-text-4)', margin: 0 }}>Importa datos desde Clockify en Ajustes</p>
         </div>
       ) : (
         <>
-          {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-            {[
-              { label: 'Total solicitudes', value: requests.length, color: '#7C4DFF' },
-              { label: 'Aprobadas', value: approved, color: '#10B981' },
-              { label: 'Pendientes', value: pending, color: '#F59E0B' },
-            ].map(s => (
-              <div key={s.label} style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 12, padding: '16px 20px' }}>
-                <p style={{ fontSize: 11, color: 'var(--c-text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 6px' }}>{s.label}</p>
-                <p style={{ fontSize: 28, fontWeight: 800, color: s.color, margin: 0 }}>{s.value}</p>
-              </div>
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: 2, marginBottom: 24, borderBottom: '1px solid var(--c-border-light)' }}>
+            {TABS.map(t => (
+              <button key={t} onClick={() => setTab(t)} style={{
+                padding: '9px 18px', fontSize: 13, fontWeight: tab === t ? 700 : 500,
+                color: tab === t ? '#7C4DFF' : 'var(--c-text-3)',
+                background: 'none', border: 'none', cursor: 'pointer',
+                borderBottom: tab === t ? '2px solid #7C4DFF' : '2px solid transparent',
+                marginBottom: -1, transition: 'all 0.15s',
+              }}>{t}</button>
             ))}
           </div>
 
-          {/* Policies */}
-          {policies.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Políticas</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {policies.map(p => (
-                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 10, background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)' }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: p.color || '#7C4DFF', flexShrink: 0 }} />
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)' }}>{p.name}</span>
-                    {p.days_per_year && <span style={{ fontSize: 11, color: 'var(--c-text-3)' }}>{p.days_per_year} días/año</span>}
+          {tab === 'Solicitudes' && (
+            <>
+              {/* Stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+                {[
+                  { label: 'Total solicitudes', value: requests.length, color: '#7C4DFF' },
+                  { label: 'Aprobadas', value: approved, color: '#10B981' },
+                  { label: 'Pendientes', value: pending, color: '#F59E0B' },
+                ].map(s => (
+                  <div key={s.label} style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 12, padding: '16px 20px' }}>
+                    <p style={{ fontSize: 11, color: 'var(--c-text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 6px' }}>{s.label}</p>
+                    <p style={{ fontSize: 28, fontWeight: 800, color: s.color, margin: 0 }}>{s.value}</p>
                   </div>
                 ))}
               </div>
-            </div>
+
+              {/* Filters */}
+              <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={selectStyle}>
+                  <option value="ALL">Todos los estados</option>
+                  <option value="APPROVED">Aprobadas</option>
+                  <option value="PENDING">Pendientes</option>
+                  <option value="REJECTED">Rechazadas</option>
+                  <option value="WITHDRAWN">Retiradas</option>
+                </select>
+                <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={selectStyle}>
+                  <option value="ALL">Todos los empleados</option>
+                  {users.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+                <span style={{ fontSize: 12, color: 'var(--c-text-3)', alignSelf: 'center', marginLeft: 4 }}>
+                  {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              {/* Table */}
+              <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
+                {/* Header */}
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 90px 1.5fr', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+                  {['Empleado', 'Período', 'Días', 'Estado'].map(h => (
+                    <span key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-4)' }}>{h}</span>
+                  ))}
+                </div>
+
+                {filtered.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: 'var(--c-text-3)', fontSize: 13, padding: '24px 0' }}>Sin resultados</p>
+                ) : filtered.map(r => {
+                  const color = avatarColor(r.user_name)
+                  const days = daysBetween(r.start_date, r.end_date)
+                  return (
+                    <div key={r.id}
+                      style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 90px 1.5fr', padding: '14px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      {/* Employee with avatar */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: color + '20', border: `2px solid ${color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color }}>{initials(r.user_name)}</span>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)', margin: 0 }}>{r.user_name || r.user_email || '—'}</p>
+                          {r.policy_name && (
+                            <p style={{ fontSize: 11, color: 'var(--c-text-3)', margin: 0 }}>{r.policy_name}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Period */}
+                      <div>
+                        <p style={{ fontSize: 13, color: 'var(--c-text-1)', margin: 0 }}>
+                          {r.start_date && r.end_date
+                            ? `${fmtDate(r.start_date)} – ${fmtDate(r.end_date)}`
+                            : fmtDate(r.start_date || r.end_date)}
+                        </p>
+                        {r.created_at && (
+                          <p style={{ fontSize: 11, color: 'var(--c-text-4)', margin: 0 }}>
+                            Solicitado el {fmtDate(r.created_at?.split('T')[0])}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Days */}
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)' }}>
+                        {days !== null ? `${days}d` : '—'}
+                      </span>
+
+                      {/* Status */}
+                      <StatusBadge status={r.status} />
+                    </div>
+                  )
+                })}
+              </div>
+            </>
           )}
 
-          {/* Filters */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={selectStyle}>
-              <option value="ALL">Todos los estados</option>
-              <option value="APPROVED">Aprobadas</option>
-              <option value="PENDING">Pendientes</option>
-              <option value="REJECTED">Rechazadas</option>
-              <option value="WITHDRAWN">Retiradas</option>
-            </select>
-            <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={selectStyle}>
-              <option value="ALL">Todos los usuarios</option>
-              {users.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
-            <span style={{ fontSize: 12, color: 'var(--c-text-3)', alignSelf: 'center', marginLeft: 4 }}>
-              {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-
-          {/* Table */}
-          <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 12, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', padding: '10px 16px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
-              {['Empleado', 'Política', 'Inicio', 'Fin', 'Estado'].map(h => (
-                <span key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-3)' }}>{h}</span>
-              ))}
+          {tab === 'Políticas' && (
+            <div>
+              {policies.length === 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 0', gap: 12 }}>
+                  <p style={{ fontSize: 14, color: 'var(--c-text-3)', margin: 0 }}>Sin políticas de bajas</p>
+                </div>
+              ) : (
+                <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+                    {['Política', 'Días / año', 'Color'].map(h => (
+                      <span key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-4)' }}>{h}</span>
+                    ))}
+                  </div>
+                  {policies.map(p => (
+                    <div key={p.id}
+                      style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '14px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: p.color || '#7C4DFF', flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)' }}>{p.name}</span>
+                      </div>
+                      <span style={{ fontSize: 13, color: 'var(--c-text-2)' }}>
+                        {p.days_per_year ? `${p.days_per_year} días` : '—'}
+                      </span>
+                      <div style={{ width: 20, height: 20, borderRadius: 5, background: p.color || '#7C4DFF' }} />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            {filtered.length === 0 ? (
-              <p style={{ textAlign: 'center', color: 'var(--c-text-3)', fontSize: 13, padding: '24px 0' }}>Sin resultados</p>
-            ) : filtered.map(r => (
-              <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', padding: '12px 16px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)' }}>{r.user_name || r.user_email || '—'}</span>
-                <span style={{ fontSize: 12, color: 'var(--c-text-2)' }}>{r.policy_name || '—'}</span>
-                <span style={{ fontSize: 12, color: 'var(--c-text-2)' }}>
-                  {r.start_date ? format(parseISO(r.start_date), 'd MMM yyyy', { locale: es }) : '—'}
-                </span>
-                <span style={{ fontSize: 12, color: 'var(--c-text-2)' }}>
-                  {r.end_date ? format(parseISO(r.end_date), 'd MMM yyyy', { locale: es }) : '—'}
-                </span>
-                <StatusBadge status={r.status} />
-              </div>
-            ))}
-          </div>
+          )}
         </>
       )}
     </div>

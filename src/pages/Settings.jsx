@@ -41,6 +41,7 @@ function ClockifyImportCard({ onImported }) {
           userName: member.profiles?.full_name || member.profiles?.email || '',
           role: member.role || 'employee',
           clockifyUserId: member.user_id || member.id,
+          groupName: member.group_name || null,
         })
       }
 

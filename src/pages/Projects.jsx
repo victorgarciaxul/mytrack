@@ -1,304 +1,123 @@
-import { useState } from 'react'
-import { Plus, Briefcase, Trash2, ChevronDown, ChevronRight, Tag, Check } from 'lucide-react'
-import { supabase } from '../lib/supabase'
-import { useWorkspace } from '../context/WorkspaceContext'
-import { useAuth } from '../context/AuthContext'
-import toast from 'react-hot-toast'
+import { useState, useEffect } from 'react'
+import { Briefcase, Search, Globe, Lock } from 'lucide-react'
+import { initDB, dbGetProjectsWithHours } from '../lib/db'
 
-const COLORS = ['#7C4DFF','#6B3EED','#EC4899','#FF4757','#FF7F50','#FFC107','#4CAF50','#26C6DA','#42A5F5','#26A69A']
+function fmtHours(secs) {
+  const s = Number(secs) || 0
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  if (h === 0 && m === 0) return '—'
+  if (m === 0) return `${h}h`
+  return `${h}h ${m.toString().padStart(2, '0')}m`
+}
 
 export default function Projects() {
-  const { workspace, projects, clients, tasks, loadProjects, loadTasks } = useWorkspace()
-  const { isDemo } = useAuth()
-  const [showForm, setShowForm] = useState(false)
-  const [name, setName] = useState('')
-  const [clientId, setClientId] = useState('')
-  const [budgetHours, setBudgetHours] = useState('')
-  const [color, setColor] = useState(COLORS[0])
-  const [saving, setSaving] = useState(false)
-  const [expandedProject, setExpandedProject] = useState(null)
-  const [newTaskName, setNewTaskName] = useState('')
-  const [newTaskHours, setNewTaskHours] = useState('')
-  const [addingTaskFor, setAddingTaskFor] = useState(null)
+  const [projects, setProjects] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
 
-  async function handleCreate(e) {
-    e.preventDefault()
-    if (!name.trim()) return
-    setSaving(true)
-    if (isDemo) {
-      toast.success('Proyecto creado (demo)')
-      setName(''); setClientId(''); setBudgetHours(''); setColor(COLORS[0]); setShowForm(false)
-      setSaving(false)
-      return
-    }
-    const { error } = await supabase.from('projects').insert({
-      workspace_id: workspace.id,
-      name: name.trim(),
-      client_id: clientId || null,
-      color,
-      budget_hours: budgetHours ? parseFloat(budgetHours) : null,
-    })
-    setSaving(false)
-    if (error) { toast.error('Error'); return }
-    toast.success('Proyecto creado')
-    setName(''); setClientId(''); setBudgetHours(''); setColor(COLORS[0]); setShowForm(false)
-    loadProjects(workspace.id)
-  }
+  useEffect(() => {
+    initDB()
+      .then(() => dbGetProjectsWithHours())
+      .then(data => { setProjects(data || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
 
-  async function handleDelete(id) {
-    if (!confirm('¿Eliminar este proyecto?')) return
-    if (isDemo) { toast.success('Eliminado (demo)'); return }
-    await supabase.from('projects').delete().eq('id', id)
-    toast.success('Eliminado')
-    loadProjects(workspace.id)
-  }
-
-  async function handleAddTask(projectId) {
-    if (!newTaskName.trim()) return
-    if (isDemo) {
-      toast.success('Tarea creada (demo)')
-      setNewTaskName(''); setNewTaskHours(''); setAddingTaskFor(null)
-      return
-    }
-    const { error } = await supabase.from('tasks').insert({
-      project_id: projectId,
-      name: newTaskName.trim(),
-      estimated_hours: newTaskHours ? parseFloat(newTaskHours) : null,
-    })
-    if (error) { toast.error('Error al crear tarea'); return }
-    toast.success('Tarea creada')
-    setNewTaskName(''); setNewTaskHours(''); setAddingTaskFor(null)
-    loadTasks(projects.map(p => p.id))
-  }
-
-  async function handleDeleteTask(taskId) {
-    if (isDemo) { toast.success('Tarea eliminada (demo)'); return }
-    await supabase.from('tasks').delete().eq('id', taskId)
-    toast.success('Tarea eliminada')
-    loadTasks(projects.map(p => p.id))
-  }
-
-  const inputStyle = { background: 'var(--c-input-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text-1)', borderRadius: 10 }
+  const filtered = projects.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase()) ||
+    (p.client_name || '').toLowerCase().includes(search.toLowerCase())
+  )
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
-      <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: '1px solid var(--c-border)' }}>
-        <span className="text-xs" style={{ color: 'var(--c-text-3)' }}>{projects.length} proyectos activos</span>
-        <button onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold text-white transition-all"
-          style={{ background: '#7C4DFF' }}
-          onMouseEnter={e => e.currentTarget.style.background = '#6B3EED'}
-          onMouseLeave={e => e.currentTarget.style.background = '#7C4DFF'}
-        >
-          <Plus size={13} />Nuevo proyecto
-        </button>
+    <div style={{ padding: '28px 32px', fontFamily: 'Inter, system-ui, sans-serif', maxWidth: 1100 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--c-text-1)', margin: 0 }}>Proyectos</h1>
+          <p style={{ fontSize: 13, color: 'var(--c-text-3)', marginTop: 4 }}>
+            {loading ? 'Cargando…' : `${projects.length} proyectos importados de Clockify`}
+          </p>
+        </div>
+        {/* Search */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 10, background: 'var(--c-bg-muted)', border: '1px solid var(--c-border-light)', width: 220 }}>
+          <Search size={14} style={{ color: 'var(--c-text-4)', flexShrink: 0 }} />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar proyecto…"
+            style={{ background: 'none', border: 'none', outline: 'none', fontSize: 13, color: 'var(--c-text-1)', width: '100%' }}
+          />
+        </div>
       </div>
 
-      {showForm && (
-        <div className="mx-6 mb-5 rounded-lg p-5" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', boxShadow: '0 4px 20px rgba(107,78,255,0.08)' }}>
-          <h3 className="font-bold text-sm mb-4" style={{ color: 'var(--c-text-1)' }}>Nuevo proyecto</h3>
-          <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-1">
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-text-3)' }}>Nombre *</label>
-                <input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nombre del proyecto"
-                  className="w-full px-3.5 py-2.5 text-sm outline-none transition-all"
-                  style={inputStyle}
-                  onFocus={e => Object.assign(e.target.style, { borderColor: '#7C4DFF', background: 'var(--c-bg-surface)' })}
-                  onBlur={e => Object.assign(e.target.style, { borderColor: 'var(--c-border)', background: 'var(--c-input-bg)' })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-text-3)' }}>Cliente</label>
-                <select value={clientId} onChange={e => setClientId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm outline-none"
-                  style={inputStyle}>
-                  <option value="">Sin cliente</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-text-3)' }}>Presupuesto (h)</label>
-                <input type="number" min="0" value={budgetHours} onChange={e => setBudgetHours(e.target.value)} placeholder="120"
-                  className="w-full px-3.5 py-2.5 text-sm outline-none transition-all"
-                  style={inputStyle}
-                  onFocus={e => Object.assign(e.target.style, { borderColor: '#7C4DFF', background: 'var(--c-bg-surface)' })}
-                  onBlur={e => Object.assign(e.target.style, { borderColor: 'var(--c-border)', background: 'var(--c-input-bg)' })}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--c-text-3)' }}>Color</label>
-              <div className="flex gap-2">
-                {COLORS.map(c => (
-                  <button key={c} type="button" onClick={() => setColor(c)}
-                    className="w-7 h-7 rounded-full transition-all flex items-center justify-center"
-                    style={{ background: c, transform: color === c ? 'scale(1.25)' : 'scale(1)', outline: color === c ? `3px solid ${c}50` : 'none', outlineOffset: 2 }}>
-                    {color === c && <Check size={12} color="white" />}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex gap-3 pt-1">
-              <button type="button" onClick={() => setShowForm(false)}
-                className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                style={{ background: 'var(--c-input-bg)', color: 'var(--c-text-2)', border: '1px solid var(--c-border)' }}>Cancelar</button>
-              <button type="submit" disabled={saving}
-                className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-                style={{ background: '#7C4DFF' }}>
-                {saving ? 'Guardando...' : 'Crear proyecto'}
-              </button>
-            </div>
-          </form>
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid #7C4DFF', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
         </div>
-      )}
-
-      <div className="px-6 pb-6 space-y-3">
-        {projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24">
-            <div className="w-16 h-16 rounded-lg flex items-center justify-center mb-4"
-              style={{ background: 'rgba(123,104,238,0.08)' }}>
-              <Briefcase size={28} style={{ color: '#C0C0E0' }} />
-            </div>
-            <p className="font-semibold" style={{ color: 'var(--c-text-2)' }}>Sin proyectos aún</p>
-            <p className="text-sm mt-1" style={{ color: 'var(--c-text-3)' }}>Crea tu primer proyecto para empezar</p>
+      ) : projects.length === 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px 0', gap: 12 }}>
+          <Briefcase size={40} style={{ color: 'var(--c-text-4)' }} />
+          <p style={{ fontSize: 14, color: 'var(--c-text-3)', margin: 0 }}>Sin proyectos</p>
+          <p style={{ fontSize: 12, color: 'var(--c-text-4)', margin: 0 }}>Importa datos desde Clockify en Ajustes</p>
+        </div>
+      ) : (
+        <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
+          {/* Table header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2.5fr 1.5fr 110px 90px', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+            {['Nombre', 'Cliente', 'Registrado', 'Acceso'].map(h => (
+              <span key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-4)' }}>{h}</span>
+            ))}
           </div>
-        ) : (
-          projects.map(project => {
-            const projectTasks = tasks.filter(t => t.project_id === project.id)
-            const isExpanded = expandedProject === project.id
-            const isAddingTask = addingTaskFor === project.id
 
-            return (
-              <div key={project.id} className="rounded-lg overflow-hidden"
-                style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
-                {/* Project header */}
-                <div className="flex items-center gap-4 px-5 py-4"
-                  style={{ borderBottom: isExpanded ? '1px solid var(--c-border-light)' : 'none' }}>
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${project.color}18` }}>
-                    <Briefcase size={16} style={{ color: project.color }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-sm" style={{ color: 'var(--c-text-1)' }}>{project.name}</h3>
-                      {project.clients && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--c-input-bg)', color: 'var(--c-text-3)' }}>{project.clients.name}</span>}
-                    </div>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-xs" style={{ color: 'var(--c-text-3)' }}>
-                        <span className="font-semibold" style={{ color: 'var(--c-text-2)' }}>{projectTasks.length}</span> tareas
-                      </span>
-                      {project.budget_hours && (
-                        <span className="text-xs" style={{ color: 'var(--c-text-3)' }}>
-                          Presupuesto: <span className="font-numeric font-semibold" style={{ color: 'var(--c-text-2)' }}>{project.budget_hours}h</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => { setAddingTaskFor(isAddingTask ? null : project.id); setExpandedProject(project.id); setNewTaskName(''); setNewTaskHours('') }}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                      style={{ background: 'rgba(123,104,238,0.08)', color: '#7C4DFF' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(123,104,238,0.15)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(123,104,238,0.08)'}
-                    >
-                      <Plus size={12} />Tarea
-                    </button>
-                    <button
-                      onClick={() => setExpandedProject(isExpanded ? null : project.id)}
-                      className="p-1.5 rounded-lg transition-all"
-                      style={{ color: 'var(--c-text-3)' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--c-input-bg)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-                    </button>
-                    <button onClick={() => handleDelete(project.id)}
-                      className="p-1.5 rounded-lg transition-all"
-                      style={{ color: 'var(--c-text-3)' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; e.currentTarget.style.color = '#FF4757' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--c-text-3)' }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
+          {filtered.length === 0 ? (
+            <p style={{ textAlign: 'center', color: 'var(--c-text-3)', fontSize: 13, padding: '24px 0' }}>Sin resultados</p>
+          ) : filtered.map(project => (
+            <div key={project.id}
+              style={{ display: 'grid', gridTemplateColumns: '2.5fr 1.5fr 110px 90px', padding: '13px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center', cursor: 'default' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              {/* Name + color dot */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: (project.color || '#7C4DFF') + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: project.color || '#7C4DFF' }} />
                 </div>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{project.name}</p>
+                  {project.member_count > 0 && (
+                    <p style={{ fontSize: 11, color: 'var(--c-text-4)', margin: 0 }}>{project.member_count} miembro{project.member_count !== 1 ? 's' : ''}</p>
+                  )}
+                </div>
+              </div>
 
-                {/* Tasks list */}
-                {isExpanded && (
-                  <div>
-                    {projectTasks.length === 0 && !isAddingTask && (
-                      <p className="px-5 py-4 text-sm text-center" style={{ color: 'var(--c-text-3)' }}>Sin tareas — añade la primera</p>
-                    )}
-                    {projectTasks.map((t, i) => (
-                      <div key={t.id} className="group flex items-center gap-3 px-5 py-3 transition-colors"
-                        style={{ borderBottom: i < projectTasks.length - 1 || isAddingTask ? '1px solid var(--c-border-light)' : 'none' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: project.color }} />
-                        <Tag size={12} style={{ color: 'var(--c-text-3)', flexShrink: 0 }} />
-                        <span className="flex-1 text-sm" style={{ color: 'var(--c-text-2)' }}>{t.name}</span>
-                        {t.estimated_hours && (
-                          <span className="font-numeric text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--c-input-bg)', color: 'var(--c-text-3)' }}>
-                            {t.estimated_hours}h est.
-                          </span>
-                        )}
-                        <button onClick={() => handleDeleteTask(t.id)}
-                          className="p-1 rounded opacity-0 group-hover:opacity-100 transition-all"
-                          style={{ color: 'var(--c-text-3)' }}
-                          onMouseEnter={e => { e.currentTarget.style.color = '#FF4757'; e.currentTarget.style.background = 'rgba(255,71,87,0.08)' }}
-                          onMouseLeave={e => { e.currentTarget.style.color = 'var(--c-text-3)'; e.currentTarget.style.background = 'transparent' }}
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ))}
+              {/* Client */}
+              <span style={{ fontSize: 13, color: project.client_name ? 'var(--c-text-2)' : 'var(--c-text-4)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                {project.client_name || '—'}
+              </span>
 
-                    {isAddingTask && (
-                      <div className="flex items-center gap-3 px-5 py-3" style={{ background: 'rgba(123,104,238,0.03)' }}>
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: project.color }} />
-                        <input
-                          autoFocus
-                          type="text"
-                          value={newTaskName}
-                          onChange={e => setNewTaskName(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') handleAddTask(project.id); if (e.key === 'Escape') setAddingTaskFor(null) }}
-                          placeholder="Nombre de la tarea"
-                          className="flex-1 text-sm px-2.5 py-1.5 rounded-lg outline-none"
-                          style={{ background: 'var(--c-input-bg)', border: '1px solid #7C4DFF', color: 'var(--c-text-1)' }}
-                        />
-                        <input
-                          type="number"
-                          min="0"
-                          value={newTaskHours}
-                          onChange={e => setNewTaskHours(e.target.value)}
-                          placeholder="h est."
-                          className="w-20 text-sm px-2.5 py-1.5 rounded-lg outline-none"
-                          style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text-1)' }}
-                        />
-                        <button onClick={() => handleAddTask(project.id)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all"
-                          style={{ background: '#7C4DFF' }}>
-                          Añadir
-                        </button>
-                        <button onClick={() => setAddingTaskFor(null)}
-                          className="p-1.5 rounded-lg transition-all"
-                          style={{ color: 'var(--c-text-3)' }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--c-input-bg)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <Plus size={13} style={{ transform: 'rotate(45deg)' }} />
-                        </button>
-                      </div>
-                    )}
+              {/* Hours */}
+              <span style={{ fontSize: 13, fontWeight: 600, color: Number(project.total_seconds) > 0 ? 'var(--c-text-1)' : 'var(--c-text-4)', fontVariantNumeric: 'tabular-nums' }}>
+                {fmtHours(project.total_seconds)}
+              </span>
+
+              {/* Access badge */}
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                {(project.access || 'PRIVATE') === 'PUBLIC' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 8, background: '#10B98118' }}>
+                    <Globe size={11} style={{ color: '#10B981' }} />
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#10B981' }}>Público</span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 8, background: 'var(--c-bg-muted)' }}>
+                    <Lock size={11} style={{ color: 'var(--c-text-4)' }} />
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-text-3)' }}>Privado</span>
                   </div>
                 )}
               </div>
-            )
-          })
-        )}
-      </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

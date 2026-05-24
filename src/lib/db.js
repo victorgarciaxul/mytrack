@@ -116,6 +116,10 @@ export async function initDB() {
     )
   `
 
+  // Migrate existing tables (safe to run repeatedly)
+  await db`ALTER TABLE workspace_members ADD COLUMN IF NOT EXISTS group_name TEXT`
+  await db`ALTER TABLE projects ADD COLUMN IF NOT EXISTS access TEXT DEFAULT 'PRIVATE'`
+
   // Seed workspace
   await db`
     INSERT INTO workspaces (id, name, slug, working_hours_per_day)
@@ -277,6 +281,20 @@ export async function dbGetProjects() {
   return db`SELECT * FROM projects WHERE workspace_id = 'xul-ws-1' AND archived = false ORDER BY name`
 }
 
+export async function dbGetProjectsWithHours() {
+  const db = sql()
+  return db`
+    SELECT p.*,
+           COALESCE(SUM(te.duration), 0)::bigint AS total_seconds,
+           COUNT(DISTINCT te.user_email)::int     AS member_count
+    FROM projects p
+    LEFT JOIN time_entries te ON te.project_id = p.id
+    WHERE p.workspace_id = 'xul-ws-1' AND p.archived = false
+    GROUP BY p.id
+    ORDER BY p.name
+  `
+}
+
 export async function dbGetClients() {
   const db = sql()
   return db`SELECT * FROM clients WHERE workspace_id = 'xul-ws-1' ORDER BY name`
@@ -286,17 +304,18 @@ export async function dbUpsertProjects(projects) {
   const db = sql()
   for (const p of projects) {
     await db`
-      INSERT INTO projects (id, workspace_id, name, color, client_id, client_name, budget_hours, archived)
+      INSERT INTO projects (id, workspace_id, name, color, client_id, client_name, budget_hours, archived, access)
       VALUES (${p.id}, 'xul-ws-1', ${p.name}, ${p.color || '#7C4DFF'},
               ${p.client_id || null}, ${p.clients?.name || null},
-              ${p.budget_hours || null}, ${p.archived || false})
+              ${p.budget_hours || null}, ${p.archived || false}, ${p.access || 'PRIVATE'})
       ON CONFLICT (id) DO UPDATE SET
         name         = EXCLUDED.name,
         color        = EXCLUDED.color,
         client_id    = EXCLUDED.client_id,
         client_name  = EXCLUDED.client_name,
         budget_hours = EXCLUDED.budget_hours,
-        archived     = EXCLUDED.archived
+        archived     = EXCLUDED.archived,
+        access       = EXCLUDED.access
     `
   }
 }
@@ -312,15 +331,16 @@ export async function dbUpsertClients(clients) {
   }
 }
 
-export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId }) {
+export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId, groupName }) {
   const db = sql()
   await db`
-    INSERT INTO workspace_members (workspace_id, user_email, user_name, role, password, clockify_user_id)
-    VALUES ('xul-ws-1', ${userEmail}, ${userName}, ${role || 'employee'}, 'Xul14$', ${clockifyUserId || null})
+    INSERT INTO workspace_members (workspace_id, user_email, user_name, role, password, clockify_user_id, group_name)
+    VALUES ('xul-ws-1', ${userEmail}, ${userName}, ${role || 'employee'}, 'Xul14$', ${clockifyUserId || null}, ${groupName || null})
     ON CONFLICT (workspace_id, user_email) DO UPDATE SET
       user_name        = EXCLUDED.user_name,
       role             = EXCLUDED.role,
-      clockify_user_id = EXCLUDED.clockify_user_id
+      clockify_user_id = EXCLUDED.clockify_user_id,
+      group_name       = EXCLUDED.group_name
   `
 }
 

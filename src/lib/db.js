@@ -313,6 +313,70 @@ export async function dbGetClients() {
   return db`SELECT * FROM clients WHERE workspace_id = 'xul-ws-1' ORDER BY name`
 }
 
+export async function dbCreateProject({ name, color, clientId, clientName, budgetHours }) {
+  const db = sql()
+  const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const rows = await db`
+    INSERT INTO projects (id, workspace_id, name, color, client_id, client_name, budget_hours, archived, access)
+    VALUES (${id}, 'xul-ws-1', ${name}, ${color || '#7C4DFF'},
+            ${clientId || null}, ${clientName || null}, ${budgetHours || null}, false, 'PRIVATE')
+    RETURNING *
+  `
+  return rows[0]
+}
+
+export async function dbDeleteProject(id) {
+  const db = sql()
+  await db`DELETE FROM projects WHERE id = ${id}`
+}
+
+export async function dbCreateClient({ name, email }) {
+  const db = sql()
+  const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const rows = await db`
+    INSERT INTO clients (id, workspace_id, name, email)
+    VALUES (${id}, 'xul-ws-1', ${name}, ${email || null})
+    RETURNING *
+  `
+  return rows[0]
+}
+
+export async function dbDeleteClient(id) {
+  const db = sql()
+  await db`DELETE FROM clients WHERE id = ${id}`
+}
+
+export async function dbCreateTag({ name }) {
+  const db = sql()
+  const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const rows = await db`
+    INSERT INTO tags (id, workspace_id, name, archived)
+    VALUES (${id}, 'xul-ws-1', ${name}, false)
+    RETURNING *
+  `
+  return rows[0]
+}
+
+export async function dbDeleteTag(id) {
+  const db = sql()
+  await db`DELETE FROM tags WHERE id = ${id}`
+}
+
+export async function dbCreateTimeOffRequest({ userEmail, userName, policyId, policyName, startDate, endDate, note }) {
+  const db = sql()
+  const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const rows = await db`
+    INSERT INTO time_off_requests
+      (id, workspace_id, user_email, user_name, policy_id, policy_name, status, start_date, end_date, note)
+    VALUES
+      (${id}, 'xul-ws-1', ${userEmail || null}, ${userName || null},
+       ${policyId || null}, ${policyName || null}, 'PENDING',
+       ${startDate}, ${endDate}, ${note || null})
+    RETURNING *
+  `
+  return rows[0]
+}
+
 export async function dbUpsertProjects(projects) {
   const db = sql()
   for (const p of projects) {

@@ -15,7 +15,8 @@ export function RoleProvider({ children }) {
     if (!user) return
     if (isDemo) {
       const me = demoMembers.find(m => m.user_id === user.id)
-      setRole(me?.role || 'employee')
+      // user.role comes from Neon login (AuthContext); demoMembers fallback for demo data
+      setRole(me?.role || user?.role || 'employee')
       setProfile(me?.profiles || null)
       setNotifications(demoNotifications.filter(n => n.user_id === user.id))
       return

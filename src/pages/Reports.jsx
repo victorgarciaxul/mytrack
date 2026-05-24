@@ -1,222 +1,415 @@
-import { useState, useEffect } from 'react'
-import { BarChart2 } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from 'recharts'
-import { useAuth } from '../context/AuthContext'
-import { useWorkspace } from '../context/WorkspaceContext'
-import { initDB, dbGetEntries } from '../lib/db'
-import { getSelectedYear } from '../components/layout/TopBar'
+import { initDB, dbGetEntriesForPeriod } from '../lib/db'
 import { loadClockifyCache } from '../lib/clockify'
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, subWeeks, subMonths, parseISO, isWithinInterval } from 'date-fns'
+import {
+  format, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
+  eachDayOfInterval, subWeeks, addWeeks, subMonths, addMonths,
+  parseISO, isWithinInterval,
+} from 'date-fns'
 import { es } from 'date-fns/locale'
 
-const RANGES = [
-  { label: 'Esta semana', value: 'week' },
-  { label: 'Sem. pasada', value: 'last_week' },
-  { label: 'Este mes', value: 'month' },
-  { label: 'Mes pasado', value: 'last_month' },
+// ── helpers ────────────────────────────────────────────────────
+function fmtDuration(secs) {
+  const s = Number(secs) || 0
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  return `${h}:${m.toString().padStart(2, '0')}`
+}
+function fmtH(secs) {
+  const s = Number(secs) || 0
+  return (s / 3600).toFixed(2) + 'h'
+}
+
+const RANGE_TYPES = [
+  { label: 'Semana', value: 'week' },
+  { label: 'Mes',    value: 'month' },
 ]
+const TABS = ['Resumido', 'Detallado']
 
-const statCard = (label, value, sub, color = '#7C4DFF') => (
-  <div key={label} className="p-4" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', borderRadius: 8 }}>
-    <p className="text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--c-text-3)' }}>{label}</p>
-    <p className="text-2xl font-bold font-numeric" style={{ color: 'var(--c-text-1)' }}>{value}</p>
-    {sub && <p className="text-xs mt-1" style={{ color }}>{sub}</p>}
-  </div>
-)
+function getRange(type, anchor) {
+  if (type === 'week') return { from: startOfWeek(anchor, { weekStartsOn: 1 }), to: endOfWeek(anchor, { weekStartsOn: 1 }) }
+  return { from: startOfMonth(anchor), to: endOfMonth(anchor) }
+}
+function shiftAnchor(type, anchor, dir) {
+  if (type === 'week') return dir > 0 ? addWeeks(anchor, 1) : subWeeks(anchor, 1)
+  return dir > 0 ? addMonths(anchor, 1) : subMonths(anchor, 1)
+}
+function rangeLabel(type, from, to) {
+  if (type === 'week') {
+    const s = format(from, 'd MMM', { locale: es })
+    const e = format(to, 'd MMM yyyy', { locale: es })
+    return `${s} – ${e}`
+  }
+  return format(from, 'MMMM yyyy', { locale: es })
+}
 
+const CustomTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{ background: 'var(--c-text-1)', color: '#fff', padding: '6px 12px', borderRadius: 10, fontSize: 12 }}>
+      <span style={{ fontWeight: 700 }}>{payload[0].value}h</span>
+    </div>
+  )
+}
+
+// ── main component ─────────────────────────────────────────────
 export default function Reports() {
-  const { user, isDemo } = useAuth()
-  const { workspace } = useWorkspace()
-  const [range, setRange] = useState('week')
+  const [tab, setTab] = useState('Resumido')
+  const [rangeType, setRangeType] = useState('week')
+  const [anchor, setAnchor] = useState(new Date())
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    if (workspace) loadReport()
-  }, [workspace, range, isDemo])
+  // Filter state
+  const [filterProject, setFilterProject] = useState('ALL')
+  const [filterClient, setFilterClient]   = useState('ALL')
+  const [filterBillable, setFilterBillable] = useState('ALL')
 
-  function getDateRange() {
-    const now = new Date()
-    switch (range) {
-      case 'week':      return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) }
-      case 'last_week': return { from: startOfWeek(subWeeks(now,1),{ weekStartsOn:1 }), to: endOfWeek(subWeeks(now,1),{ weekStartsOn:1 }) }
-      case 'month':     return { from: startOfMonth(now), to: endOfMonth(now) }
-      case 'last_month':return { from: startOfMonth(subMonths(now,1)), to: endOfMonth(subMonths(now,1)) }
-    }
-  }
+  const { from, to } = getRange(rangeType, anchor)
 
-  async function loadReport() {
+  useEffect(() => { loadData() }, [rangeType, anchor])
+
+  async function loadData() {
     setLoading(true)
-    const { from, to } = getDateRange()
     try {
-      // Load from Clockify cache (Victor) or Neon (everyone else)
-      const cache = loadClockifyCache()
-      let allEntries = []
-      if (cache?.entries?.length) {
-        allEntries = cache.entries
-      } else {
-        await initDB()
-        const year = getSelectedYear()
-        const rows = await dbGetEntries(user.email, year)
-        allEntries = rows.map(r => ({
+      // Try Neon first (has all users), fallback to cache
+      await initDB()
+      const rows = await dbGetEntriesForPeriod(from, to)
+      if (rows.length > 0) {
+        setEntries(rows.map(r => ({
           ...r,
           projects: r.project_id ? { name: r.project_name, color: r.project_color } : null,
+        })))
+        setLoading(false)
+        return
+      }
+      // Fallback: Clockify cache (Victor)
+      const cache = loadClockifyCache()
+      if (cache?.entries?.length) {
+        setEntries(cache.entries.filter(e => {
+          try { return isWithinInterval(parseISO(e.start_time), { start: from, end: to }) }
+          catch { return false }
         }))
       }
-      setEntries(allEntries.filter(e => {
-        try { return isWithinInterval(parseISO(e.start_time), { start: from, end: to }) }
-        catch { return false }
-      }))
     } catch (err) {
       console.error('Report load error:', err)
-      setEntries([])
     }
     setLoading(false)
   }
 
-  const totalSecs = entries.reduce((s, e) => s + (e.duration || 0), 0)
-  const { from, to } = getDateRange()
+  // ── derived ─────────────────────────────────────────────────
+  const filtered = useMemo(() => entries.filter(e => {
+    if (filterProject !== 'ALL' && (e.project_name || 'Sin proyecto') !== filterProject) return false
+    if (filterClient !== 'ALL' && (e.client_name || 'Sin cliente') !== filterClient) return false
+    if (filterBillable === 'YES' && !e.billable) return false
+    if (filterBillable === 'NO' && e.billable) return false
+    return true
+  }), [entries, filterProject, filterClient, filterBillable])
+
+  const projects  = [...new Set(entries.map(e => e.project_name || 'Sin proyecto'))].sort()
+  const clients   = [...new Set(entries.map(e => e.client_name  || 'Sin cliente'))].sort()
+
+  const totalSecs    = filtered.reduce((s, e) => s + (Number(e.duration) || 0), 0)
+  const billableSecs = filtered.filter(e => e.billable).reduce((s, e) => s + (Number(e.duration) || 0), 0)
+
+  // Bar chart by day
   const days = eachDayOfInterval({ start: from, end: to })
-
-  const byDayData = days.map(day => ({
-    name: format(day, 'EEE', { locale: es }),
-    horas: parseFloat((entries.filter(e => format(parseISO(e.start_time), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')).reduce((s,e)=>s+(e.duration||0),0)/3600).toFixed(2)),
-  }))
-
-  const byProject = {}
-  entries.forEach(e => {
-    const name = e.projects?.name || 'Sin proyecto'
-    const color = e.projects?.color || '#C0C0E0'
-    if (!byProject[name]) byProject[name] = { name, value: 0, color }
-    byProject[name].value += (e.duration || 0) / 3600
+  const byDayData = days.map(day => {
+    const key = format(day, 'yyyy-MM-dd')
+    const secs = filtered
+      .filter(e => { try { return format(parseISO(e.start_time), 'yyyy-MM-dd') === key } catch { return false } })
+      .reduce((s, e) => s + (Number(e.duration) || 0), 0)
+    return { name: format(day, rangeType === 'week' ? 'EEE' : 'd', { locale: es }), horas: parseFloat((secs / 3600).toFixed(2)) }
   })
-  const pieData = Object.values(byProject).map(p => ({ ...p, value: parseFloat(p.value.toFixed(2)) }))
 
-  const fmt = s => `${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m`
+  // Pie chart by project
+  const byProjectMap = {}
+  filtered.forEach(e => {
+    const name  = e.project_name  || 'Sin proyecto'
+    const color = e.project_color || '#C0C0E0'
+    if (!byProjectMap[name]) byProjectMap[name] = { name, value: 0, color }
+    byProjectMap[name].value += (Number(e.duration) || 0) / 3600
+  })
+  const pieData = Object.values(byProjectMap)
+    .map(p => ({ ...p, value: parseFloat(p.value.toFixed(2)) }))
+    .sort((a, b) => b.value - a.value)
 
-  const CustomTooltip = ({ active, payload }) => {
-    if (!active || !payload?.length) return null
-    return (
-      <div className="px-3 py-2 rounded-xl text-xs" style={{ background: 'var(--c-text-1)', color: '#fff', border: '1px solid var(--c-border)' }}>
-        <span className="font-bold">{payload[0].value}h</span>
-      </div>
-    )
+  // Resumido: group by project → client
+  const grouped = useMemo(() => {
+    const map = {}
+    filtered.forEach(e => {
+      const proj   = e.project_name  || 'Sin proyecto'
+      const client = e.client_name   || ''
+      const color  = e.project_color || '#C0C0E0'
+      if (!map[proj]) map[proj] = { name: proj, client, color, secs: 0, billable: 0, count: 0 }
+      map[proj].secs     += Number(e.duration) || 0
+      map[proj].billable += e.billable ? (Number(e.duration) || 0) : 0
+      map[proj].count    += 1
+    })
+    return Object.values(map).sort((a, b) => b.secs - a.secs)
+  }, [filtered])
+
+  const selectStyle = {
+    background: 'var(--c-bg-muted)', border: '1px solid var(--c-border-light)',
+    borderRadius: 8, padding: '6px 12px', fontSize: 12, color: 'var(--c-text-1)',
+    outline: 'none', cursor: 'pointer',
   }
 
   return (
-    <div>
-      <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: '1px solid var(--c-border)' }}>
-        <div className="flex gap-0.5 p-0.5 rounded-md" style={{ background: '#F3F4F8' }}>
-          {RANGES.map(r => (
-            <button key={r.value} onClick={() => setRange(r.value)}
-              className="px-3 py-1.5 rounded text-xs font-medium transition-all"
-              style={{
-                background: range === r.value ? '#fff' : 'transparent',
-                color: range === r.value ? 'var(--c-text-1)' : 'var(--c-text-3)',
-                boxShadow: range === r.value ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-              }}>
-              {r.label}
-            </button>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: 'Inter, system-ui, sans-serif' }}>
+
+      {/* ── Top bar ── */}
+      <div style={{ padding: '14px 28px', borderBottom: '1px solid var(--c-border-light)', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', flexShrink: 0 }}>
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 2 }}>
+          {TABS.map(t => (
+            <button key={t} onClick={() => setTab(t)} style={{
+              padding: '6px 16px', fontSize: 13, fontWeight: tab === t ? 700 : 500,
+              color: tab === t ? '#fff' : 'var(--c-text-3)',
+              background: tab === t ? '#7C4DFF' : 'transparent',
+              border: 'none', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s',
+            }}>{t}</button>
           ))}
+        </div>
+
+        <div style={{ width: 1, height: 24, background: 'var(--c-border-light)' }} />
+
+        {/* Range type */}
+        {RANGE_TYPES.map(r => (
+          <button key={r.value} onClick={() => setRangeType(r.value)} style={{
+            padding: '5px 12px', fontSize: 12, fontWeight: rangeType === r.value ? 700 : 500,
+            color: rangeType === r.value ? '#7C4DFF' : 'var(--c-text-3)',
+            background: rangeType === r.value ? '#7C4DFF18' : 'transparent',
+            border: '1px solid ' + (rangeType === r.value ? '#7C4DFF40' : 'transparent'),
+            borderRadius: 7, cursor: 'pointer',
+          }}>{r.label}</button>
+        ))}
+
+        {/* Period navigator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 4 }}>
+          <button onClick={() => setAnchor(a => shiftAnchor(rangeType, a, -1))}
+            style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid var(--c-border-light)', background: 'var(--c-bg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ChevronLeft size={14} style={{ color: 'var(--c-text-3)' }} />
+          </button>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)', minWidth: 150, textAlign: 'center' }}>
+            {rangeLabel(rangeType, from, to)}
+          </span>
+          <button onClick={() => setAnchor(a => shiftAnchor(rangeType, a, 1))}
+            style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid var(--c-border-light)', background: 'var(--c-bg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ChevronRight size={14} style={{ color: 'var(--c-text-3)' }} />
+          </button>
+        </div>
+
+        <div style={{ flex: 1 }} />
+
+        {/* Filters */}
+        <select value={filterProject} onChange={e => setFilterProject(e.target.value)} style={selectStyle}>
+          <option value="ALL">Todos los proyectos</option>
+          {projects.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <select value={filterClient} onChange={e => setFilterClient(e.target.value)} style={selectStyle}>
+          <option value="ALL">Todos los clientes</option>
+          {clients.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select value={filterBillable} onChange={e => setFilterBillable(e.target.value)} style={selectStyle}>
+          <option value="ALL">Facturable / No</option>
+          <option value="YES">Solo facturable</option>
+          <option value="NO">No facturable</option>
+        </select>
+      </div>
+
+      {/* ── Stats bar ── */}
+      <div style={{ padding: '12px 28px', borderBottom: '1px solid var(--c-border-light)', display: 'flex', alignItems: 'center', gap: 28, flexShrink: 0, background: 'var(--c-bg-muted)' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          <span style={{ fontSize: 11, color: 'var(--c-text-3)', fontWeight: 600 }}>TOTAL</span>
+          <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--c-text-1)', fontVariantNumeric: 'tabular-nums' }}>{fmtDuration(totalSecs)}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          <span style={{ fontSize: 11, color: 'var(--c-text-3)', fontWeight: 600 }}>FACTURABLE</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color: '#10B981', fontVariantNumeric: 'tabular-nums' }}>{fmtDuration(billableSecs)}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          <span style={{ fontSize: 11, color: 'var(--c-text-3)', fontWeight: 600 }}>ENTRADAS</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color: '#7C4DFF' }}>{filtered.length}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          <span style={{ fontSize: 11, color: 'var(--c-text-3)', fontWeight: 600 }}>PROYECTOS</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color: '#03A9F4' }}>{pieData.length}</span>
         </div>
       </div>
 
-      <div className="px-6 py-5 space-y-4">
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
-          {statCard('Total horas', `${(totalSecs/3600).toFixed(1)}h`, `${entries.length} entradas`)}
-          {statCard('Entradas', entries.length, 'registros totales', '#EC4899')}
-          {statCard('Media diaria', `${days.length > 0 ? (totalSecs/3600/days.length).toFixed(1) : 0}h`, 'por día laborable', '#4FC3F7')}
-        </div>
-
-        {/* Charts */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2 p-4" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', borderRadius: 8 }}>
-            <h3 className="font-bold text-sm mb-5" style={{ color: 'var(--c-text-1)' }}>Horas por día</h3>
-            {loading ? (
-              <div className="h-48 flex items-center justify-center text-sm" style={{ color: 'var(--c-text-3)' }}>Cargando...</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={byDayData} barSize={24}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F8" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--c-text-3)' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: 'var(--c-text-3)' }} axisLine={false} tickLine={false} unit="h" />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(123,104,238,0.06)', radius: 6 }} />
-                  <Bar dataKey="horas" radius={[6, 6, 0, 0]}>
-                    {byDayData.map((entry, i) => (
-                      <Cell key={i} fill={entry.horas > 0 ? 'url(#barGrad)' : 'var(--c-border-light)'} />
-                    ))}
-                  </Bar>
-                  <defs>
-                    <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#7C4DFF" />
-                      <stop offset="100%" stopColor="#6B3EED" />
-                    </linearGradient>
-                  </defs>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+      {/* ── Body ── */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px' }}>
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid #7C4DFF', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
           </div>
+        ) : (
+          <>
+            {/* Charts row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16, marginBottom: 20 }}>
+              {/* Bar chart */}
+              <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, padding: '18px 20px' }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 16px' }}>Horas por día</p>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={byDayData} barSize={rangeType === 'week' ? 28 : 14}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--c-border-light)" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--c-text-3)' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: 'var(--c-text-3)' }} axisLine={false} tickLine={false} unit="h" />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(123,104,238,0.06)', radius: 6 }} />
+                    <Bar dataKey="horas" radius={[6, 6, 0, 0]}>
+                      {byDayData.map((entry, i) => (
+                        <Cell key={i} fill={entry.horas > 0 ? 'url(#barGrad)' : 'var(--c-border-light)'} />
+                      ))}
+                    </Bar>
+                    <defs>
+                      <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#7C4DFF" />
+                        <stop offset="100%" stopColor="#6B3EED" />
+                      </linearGradient>
+                    </defs>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
 
-          <div className="p-4" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', borderRadius: 8 }}>
-            <h3 className="font-bold text-sm mb-4" style={{ color: 'var(--c-text-1)' }}>Por proyecto</h3>
-            {pieData.length === 0 ? (
-              <div className="h-32 flex items-center justify-center text-sm" style={{ color: 'var(--c-text-3)' }}>Sin datos</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={140}>
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={42} outerRadius={65} paddingAngle={3} dataKey="value">
-                    {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                  </Pie>
-                  <Tooltip formatter={v => [`${v}h`]} contentStyle={{ borderRadius: 10, border: '1px solid var(--c-border)', fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-            <div className="space-y-2 mt-2">
-              {pieData.map((p, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs">
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
-                  <span className="flex-1 truncate" style={{ color: 'var(--c-text-2)' }}>{p.name}</span>
-                  <span className="font-bold" style={{ color: 'var(--c-text-1)' }}>{p.value}h</span>
+              {/* Pie chart */}
+              <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, padding: '18px 20px' }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 8px' }}>Por proyecto</p>
+                {pieData.length === 0 ? (
+                  <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: 'var(--c-text-4)' }}>Sin datos</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={120}>
+                    <PieChart>
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={36} outerRadius={55} paddingAngle={3} dataKey="value">
+                        {pieData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                      </Pie>
+                      <Tooltip formatter={v => [`${v}h`]} contentStyle={{ borderRadius: 10, fontSize: 12 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 6, maxHeight: 100, overflowY: 'auto' }}>
+                  {pieData.slice(0, 6).map((p, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+                      <span style={{ flex: 1, fontSize: 11, color: 'var(--c-text-2)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-1)' }}>{p.value}h</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Table */}
-        <div className="overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', borderRadius: 8 }}>
-          <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid var(--c-border-light)', background: 'var(--c-bg-muted)' }}>
-            <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--c-text-3)' }}>Entradas detalladas</h3>
-            <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: 'rgba(123,104,238,0.1)', color: '#7C4DFF' }}>
-              {entries.length} registros
-            </span>
-          </div>
-          <div className="divide-y max-h-72 overflow-y-auto" style={{ '--tw-divide-opacity': 1 }}>
-            {entries.length === 0 ? (
-              <p className="text-center py-10 text-sm" style={{ color: 'var(--c-text-3)' }}>Sin entradas en este período</p>
-            ) : (
-              entries.map(e => (
-                <div key={e.id} className="flex items-center gap-4 px-5 py-3 text-sm transition-colors"
-                  style={{ borderBottom: '1px solid var(--c-border-light)' }}
-                  onMouseEnter={ev => ev.currentTarget.style.background = 'var(--c-bg-muted)'}
-                  onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}
-                >
-                  <span className="w-1.5 h-6 rounded-full flex-shrink-0" style={{ background: e.projects?.color || '#E0E0F0' }} />
-                  <span className="flex-1 font-medium truncate" style={{ color: 'var(--c-text-1)' }}>{e.description}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: `${e.projects?.color || '#E0E0F0'}18`, color: e.projects?.color || 'var(--c-text-3)' }}>
-                    {e.projects?.name || 'Sin proyecto'}
-                  </span>
-                  <span className="text-xs" style={{ color: 'var(--c-text-3)' }}>{format(parseISO(e.start_time), 'dd/MM HH:mm')}</span>
-                  <span className="font-numeric font-bold text-xs w-16 text-right" style={{ color: 'var(--c-text-2)' }}>{fmt(e.duration||0)}</span>
+            {/* ── RESUMIDO: grouped by project ── */}
+            {tab === 'Resumido' && (
+              <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
+                {/* Header */}
+                <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+                  {['#', 'Proyecto / Cliente', 'Entradas', 'Duración'].map(h => (
+                    <span key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-4)' }}>{h}</span>
+                  ))}
                 </div>
-              ))
+
+                {grouped.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: 'var(--c-text-3)', fontSize: 13, padding: '32px 0' }}>Sin entradas en este período</p>
+                ) : grouped.map((g, i) => (
+                  <div key={g.name}
+                    style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px', padding: '13px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    {/* # */}
+                    <span style={{ fontSize: 12, color: 'var(--c-text-4)', fontWeight: 600 }}>{i + 1}</span>
+
+                    {/* Project + client */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: g.color, flexShrink: 0 }} />
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{g.name}</p>
+                        {g.client && <p style={{ fontSize: 11, color: 'var(--c-text-3)', margin: 0 }}>{g.client}</p>}
+                      </div>
+                    </div>
+
+                    {/* Count */}
+                    <span style={{ fontSize: 13, color: 'var(--c-text-2)' }}>{g.count}</span>
+
+                    {/* Duration */}
+                    <div>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--c-text-1)', fontVariantNumeric: 'tabular-nums' }}>{fmtDuration(g.secs)}</span>
+                      {g.billable > 0 && (
+                        <p style={{ fontSize: 10, color: '#10B981', margin: 0 }}>Fact. {fmtDuration(g.billable)}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Total row */}
+                {grouped.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px', padding: '12px 20px', background: 'var(--c-bg-muted)', borderTop: '1px solid var(--c-border-light)' }}>
+                    <span />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-2)' }}>{filtered.length}</span>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: '#7C4DFF', fontVariantNumeric: 'tabular-nums' }}>{fmtDuration(totalSecs)}</span>
+                  </div>
+                )}
+              </div>
             )}
-          </div>
-        </div>
+
+            {/* ── DETALLADO: individual entries ── */}
+            {tab === 'Detallado' && (
+              <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
+                {/* Header */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 140px 90px', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+                  {['Descripción', 'Proyecto', 'Fecha', 'Duración'].map(h => (
+                    <span key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-4)' }}>{h}</span>
+                  ))}
+                </div>
+
+                {filtered.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: 'var(--c-text-3)', fontSize: 13, padding: '32px 0' }}>Sin entradas en este período</p>
+                ) : filtered.map(e => (
+                  <div key={e.id}
+                    style={{ display: 'grid', gridTemplateColumns: '1fr 160px 140px 90px', padding: '11px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
+                    onMouseEnter={ev => ev.currentTarget.style.background = 'var(--c-bg-muted)'}
+                    onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}
+                  >
+                    {/* Description */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                      <span style={{ width: 3, height: 24, borderRadius: 2, background: e.project_color || '#E0E0F0', flexShrink: 0 }} />
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--c-text-1)', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                          {e.description || <span style={{ color: 'var(--c-text-4)', fontStyle: 'italic' }}>Sin descripción</span>}
+                        </p>
+                        {e.user_name && <p style={{ fontSize: 11, color: 'var(--c-text-4)', margin: 0 }}>{e.user_email}</p>}
+                      </div>
+                    </div>
+
+                    {/* Project */}
+                    <div style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                      <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 6, background: (e.project_color || '#E0E0F0') + '18', color: e.project_color || 'var(--c-text-3)', fontWeight: 500 }}>
+                        {e.project_name || 'Sin proyecto'}
+                      </span>
+                    </div>
+
+                    {/* Date */}
+                    <span style={{ fontSize: 12, color: 'var(--c-text-3)' }}>
+                      {e.start_time ? format(parseISO(e.start_time), 'dd/MM/yyyy HH:mm') : '—'}
+                    </span>
+
+                    {/* Duration */}
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtDuration(e.duration)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   )

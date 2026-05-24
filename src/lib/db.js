@@ -178,6 +178,19 @@ export async function dbGetEntries(userEmail, year) {
   `
 }
 
+/** All workspace entries in a date range (for Reports page) */
+export async function dbGetEntriesForPeriod(from, to) {
+  const db = sql()
+  return db`
+    SELECT * FROM time_entries
+    WHERE workspace_id = 'xul-ws-1'
+      AND end_time IS NOT NULL
+      AND start_time >= ${from.toISOString()}
+      AND start_time <= ${to.toISOString()}
+    ORDER BY start_time DESC
+  `
+}
+
 export async function dbInsertEntry({
   id, userEmail, workspaceId,
   projectId, projectName, projectColor, clientName,

@@ -1,135 +1,95 @@
-import { useState } from 'react'
-import { Plus, Trash2, Building2 } from 'lucide-react'
-import { supabase } from '../lib/supabase'
-import { useWorkspace } from '../context/WorkspaceContext'
-import toast from 'react-hot-toast'
+import { useState, useEffect } from 'react'
+import { Building2, Mail, Briefcase } from 'lucide-react'
+import { initDB, dbGetClients, dbGetProjects } from '../lib/db'
 
 export default function Clients() {
-  const { workspace, clients, projects, loadClients } = useWorkspace()
-  const [showForm, setShowForm] = useState(false)
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [clients, setClients] = useState([])
+  const [projects, setProjects] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  async function handleCreate(e) {
-    e.preventDefault()
-    if (!name.trim()) return
-    setSaving(true)
-    const { error } = await supabase.from('clients').insert({ workspace_id: workspace.id, name: name.trim(), email: email || null })
-    setSaving(false)
-    if (error) { toast.error('Error'); return }
-    toast.success('Cliente creado')
-    setName(''); setEmail(''); setShowForm(false)
-    loadClients(workspace.id)
+  useEffect(() => {
+    initDB()
+      .then(() => Promise.all([dbGetClients(), dbGetProjects()]))
+      .then(([c, p]) => { setClients(c || []); setProjects(p || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  function projectsForClient(clientId) {
+    return projects.filter(p => p.client_id === clientId)
   }
-
-  async function handleDelete(id) {
-    if (!confirm('¿Eliminar este cliente?')) return
-    await supabase.from('clients').delete().eq('id', id)
-    toast.success('Cliente eliminado')
-    loadClients(workspace.id)
-  }
-
-  const inputStyle = { background: 'var(--c-input-bg)', border: '1px solid var(--c-border)', color: '#1C1C28', borderRadius: 10 }
 
   return (
-    <div>
-      <div className="px-6 py-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-lg font-bold" style={{ color: '#1C1C28' }}>Clientes</h1>
-          <p className="text-xs mt-0.5" style={{ color: '#7A7F9A' }}>{clients.length} clientes</p>
-        </div>
-        <button onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white"
-          style={{ background: '#7C4DFF',  }}>
-          <Plus size={15} />Nuevo cliente
-        </button>
+    <div style={{ padding: '28px 32px', fontFamily: 'Inter, system-ui, sans-serif', maxWidth: 900 }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--c-text-1)', margin: 0 }}>Clientes</h1>
+        <p style={{ fontSize: 13, color: 'var(--c-text-3)', marginTop: 4 }}>
+          {loading ? 'Cargando…' : `${clients.length} clientes importados de Clockify`}
+        </p>
       </div>
 
-      {showForm && (
-        <div className="mx-6 mb-5 rounded-lg p-5" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', boxShadow: '0 4px 20px rgba(107,78,255,0.08)' }}>
-          <h3 className="font-bold text-sm mb-4" style={{ color: '#1C1C28' }}>Nuevo cliente</h3>
-          <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#7A7F9A' }}>Nombre *</label>
-                <input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nombre del cliente"
-                  className="w-full px-3.5 py-2.5 text-sm outline-none" style={inputStyle}
-                  onFocus={e => Object.assign(e.target.style, { borderColor: '#7C4DFF', background: 'var(--c-bg-surface)' })}
-                  onBlur={e => Object.assign(e.target.style, { borderColor: 'var(--c-input-border)', background: 'var(--c-input-bg)' })}
-                />
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid #7C4DFF', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+        </div>
+      ) : clients.length === 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px 0', gap: 12 }}>
+          <Building2 size={40} style={{ color: 'var(--c-text-4)' }} />
+          <p style={{ fontSize: 14, color: 'var(--c-text-3)', margin: 0 }}>Sin clientes</p>
+          <p style={{ fontSize: 12, color: 'var(--c-text-4)', margin: 0 }}>Importa datos desde Clockify en Ajustes</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+          {clients.map(client => {
+            const clientProjects = projectsForClient(client.id)
+            return (
+              <div key={client.id} style={{
+                background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)',
+                borderRadius: 14, padding: '16px 18px',
+                transition: 'box-shadow 0.15s',
+              }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+              >
+                {/* Icon + name */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, background: '#03A9F418', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Building2 size={18} style={{ color: '#03A9F4' }} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--c-text-1)', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{client.name}</p>
+                    {client.email && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                        <Mail size={10} style={{ color: 'var(--c-text-4)', flexShrink: 0 }} />
+                        <p style={{ fontSize: 11, color: 'var(--c-text-3)', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{client.email}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Projects */}
+                {clientProjects.length > 0 && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--c-border-light)' }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                      {clientProjects.length} proyecto{clientProjects.length !== 1 ? 's' : ''}
+                    </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                      {clientProjects.slice(0, 4).map(p => (
+                        <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 6, background: (p.color || '#7C4DFF') + '18' }}>
+                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: p.color || '#7C4DFF', flexShrink: 0 }} />
+                          <span style={{ fontSize: 11, color: 'var(--c-text-2)', fontWeight: 500 }}>{p.name}</span>
+                        </div>
+                      ))}
+                      {clientProjects.length > 4 && (
+                        <span style={{ fontSize: 11, color: 'var(--c-text-3)', padding: '3px 6px' }}>+{clientProjects.length - 4} más</span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#7A7F9A' }}>Email</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="cliente@empresa.com"
-                  className="w-full px-3.5 py-2.5 text-sm outline-none" style={inputStyle}
-                  onFocus={e => Object.assign(e.target.style, { borderColor: '#7C4DFF', background: 'var(--c-bg-surface)' })}
-                  onBlur={e => Object.assign(e.target.style, { borderColor: 'var(--c-input-border)', background: 'var(--c-input-bg)' })}
-                />
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button type="button" onClick={() => setShowForm(false)}
-                className="px-4 py-2.5 rounded-xl text-sm font-semibold"
-                style={{ background: 'var(--c-input-bg)', color: '#3D4060', border: '1px solid var(--c-border)' }}>Cancelar</button>
-              <button type="submit" disabled={saving}
-                className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
-                style={{ background: '#7C4DFF' }}>
-                {saving ? 'Guardando...' : 'Crear cliente'}
-              </button>
-            </div>
-          </form>
+            )
+          })}
         </div>
       )}
-
-      <div className="px-6 pb-6">
-        {clients.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24">
-            <div className="w-16 h-16 rounded-lg flex items-center justify-center mb-4" style={{ background: 'rgba(123,104,238,0.08)' }}>
-              <Building2 size={28} style={{ color: '#C0C0E0' }} />
-            </div>
-            <p className="font-semibold" style={{ color: '#3D4060' }}>Sin clientes aún</p>
-          </div>
-        ) : (
-          <div className="rounded-lg overflow-hidden" style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)' }}>
-            <div className="grid text-xs font-bold uppercase tracking-wider px-5 py-3" style={{
-              gridTemplateColumns: '1fr 1fr 1fr auto', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)', color: '#7A7F9A',
-            }}>
-              <span>Cliente</span><span>Email</span><span>Proyectos</span><span />
-            </div>
-            {clients.map(client => {
-              const cp = projects.filter(p => p.client_id === client.id)
-              return (
-                <div key={client.id} className="grid items-center px-5 py-4 group transition-colors" style={{ gridTemplateColumns: '1fr 1fr 1fr auto', borderBottom: '1px solid var(--c-border-light)' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(123,104,238,0.1)' }}>
-                      <Building2 size={15} style={{ color: '#7C4DFF' }} />
-                    </div>
-                    <span className="font-semibold text-sm" style={{ color: '#1C1C28' }}>{client.name}</span>
-                  </div>
-                  <span className="text-sm" style={{ color: '#7A7F9A' }}>{client.email || '—'}</span>
-                  <div className="flex gap-1 flex-wrap">
-                    {cp.slice(0,3).map(p => (
-                      <span key={p.id} className="px-2 py-0.5 rounded-full text-xs font-semibold text-white" style={{ background: p.color }}>{p.name}</span>
-                    ))}
-                    {cp.length > 3 && <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: '#F0F0F8', color: '#7A7F9A' }}>+{cp.length-3}</span>}
-                  </div>
-                  <button onClick={() => handleDelete(client.id)}
-                    className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all" style={{ color: '#A0A5C0' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; e.currentTarget.style.color = '#FF4757' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#A0A5C0' }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
     </div>
   )
 }

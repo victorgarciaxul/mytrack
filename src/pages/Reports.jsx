@@ -4,11 +4,12 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from 'recharts'
-import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
-import { demoEntries } from '../lib/demoData'
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, subWeeks, subMonths, parseISO } from 'date-fns'
+import { initDB, dbGetEntries } from '../lib/db'
+import { getSelectedYear } from '../components/layout/TopBar'
+import { loadClockifyCache } from '../lib/clockify'
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, subWeeks, subMonths, parseISO, isWithinInterval } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 const RANGES = [
@@ -50,18 +51,29 @@ export default function Reports() {
   async function loadReport() {
     setLoading(true)
     const { from, to } = getDateRange()
-    if (isDemo) {
-      setEntries(demoEntries.filter(e => { const d = new Date(e.start_time); return d >= from && d <= to }))
-      setLoading(false)
-      return
+    try {
+      // Load from Clockify cache (Victor) or Neon (everyone else)
+      const cache = loadClockifyCache()
+      let allEntries = []
+      if (cache?.entries?.length) {
+        allEntries = cache.entries
+      } else {
+        await initDB()
+        const year = getSelectedYear()
+        const rows = await dbGetEntries(user.email, year)
+        allEntries = rows.map(r => ({
+          ...r,
+          projects: r.project_id ? { name: r.project_name, color: r.project_color } : null,
+        }))
+      }
+      setEntries(allEntries.filter(e => {
+        try { return isWithinInterval(parseISO(e.start_time), { start: from, end: to }) }
+        catch { return false }
+      }))
+    } catch (err) {
+      console.error('Report load error:', err)
+      setEntries([])
     }
-    const { data } = await supabase
-      .from('time_entries').select('*, projects(name, color)')
-      .eq('workspace_id', workspace.id)
-      .gte('start_time', from.toISOString())
-      .lte('start_time', to.toISOString())
-      .order('start_time')
-    setEntries(data || [])
     setLoading(false)
   }
 

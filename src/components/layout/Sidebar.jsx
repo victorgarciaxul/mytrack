@@ -3,37 +3,15 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   Clock, BarChart2, Briefcase, Users, Settings,
   HelpCircle, ChevronDown, Plus, CalendarDays, TrendingUp,
-  Bell, LogOut, Smile,
+  Bell, LogOut, Smile, Tag, CalendarOff, Building2,
 } from 'lucide-react'
+import Picker from '@emoji-mart/react'
+import data from '@emoji-mart/data'
 import { useAuth } from '../../context/AuthContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import { useRole } from '../../context/RoleContext'
 import { useTour } from '../tour/AppTour'
 import { useTheme } from '../../context/ThemeContext'
-
-// Universal emoji collection (Unicode ≤ 13.0, works on all platforms)
-const FACE_EMOJIS = [
-  // Felices y expresivos
-  '😀','😄','😁','😊','🙂','😇','🥰','😍','🤩','🥳',
-  // Guiños y caras
-  '😉','😌','😋','😜','🤪','😎','🤓','🧐','🤗','🤭',
-  // Neutros y pensativos
-  '🤔','🤨','😏','🙄','😬','🤫','😶','😐','😑','😒',
-  // Sorprendidos
-  '😲','😳','🥺','😱','🤯','😵','🥴','😤','😠','🤬',
-  // Divertidos y especiales
-  '🤠','🥸','👻','🤖','👾','🤑','😈','💀','🙈','🙉',
-  // Animales
-  '🐶','🐱','🦊','🐼','🐨','🦁','🐯','🐸','🐙','🦋',
-  // Naturaleza
-  '🌈','⚡','🔥','❄️','🌊','🌸','🌺','🌻','🍄','🌵',
-  // Gestos
-  '👍','✌️','🤞','🤙','👌','🙌','👏','🤝','💪','🖖',
-  // Objetos
-  '👑','💎','🚀','🎯','🎮','🎸','🏆','🧩','🎲','🎭',
-  // Comida y extras
-  '🍕','☕','🍩','🎂','🍭','⚽','🎪','🦄','🧲','💡',
-]
 
 function getStoredEmoji(email) {
   try { return localStorage.getItem(`mytrack-emoji-${email}`) || null } catch { return null }
@@ -53,7 +31,9 @@ export default function Sidebar({ onStartTour }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false)
   const [selectedEmoji, setSelectedEmoji] = useState(() => getStoredEmoji(user?.email))
+  const [pickerPos, setPickerPos] = useState({ bottom: 80, left: 8 })
   const menuRef = useRef(null)
+  const userBtnRef = useRef(null)
 
   const wsName = workspace?.name || 'MyTrack'
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'
@@ -71,6 +51,17 @@ export default function Sidebar({ onStartTour }) {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
+  function openEmojiPicker() {
+    if (userBtnRef.current) {
+      const rect = userBtnRef.current.getBoundingClientRect()
+      setPickerPos({
+        bottom: window.innerHeight - rect.top + 8,
+        left: rect.left,
+      })
+    }
+    setEmojiPickerOpen(true)
+  }
+
   function handleEmojiSelect(emoji) {
     storeEmoji(user?.email, emoji)
     setSelectedEmoji(emoji)
@@ -87,6 +78,9 @@ export default function Sidebar({ onStartTour }) {
 
   const projectNav = [
     { to: '/projects', icon: Briefcase, label: 'Proyectos', color: '#10B981' },
+    { to: '/clients', icon: Building2, label: 'Clientes', color: '#03A9F4' },
+    { to: '/tags', icon: Tag, label: 'Etiquetas', color: '#E040FB' },
+    { to: '/time-off', icon: CalendarOff, label: 'Bajas', color: '#F59E0B' },
     ...(isManager ? [{ to: '/team', icon: Users, label: 'Equipo', color: '#6366F1' }] : []),
     ...(isManager ? [{ to: '/ecofin', icon: TrendingUp, label: 'Control EcoFin', color: '#F59E0B' }] : []),
   ]
@@ -97,8 +91,10 @@ export default function Sidebar({ onStartTour }) {
       background: 'var(--c-bg-surface)',
       borderRight: '1px solid var(--c-border-light)',
       display: 'flex', flexDirection: 'column',
-      height: '100vh', overflow: 'hidden',
+      height: '100vh',
+      overflowX: 'visible', overflowY: 'hidden',
       fontFamily: 'Inter, system-ui, sans-serif',
+      position: 'relative',
     }}>
 
       {/* Logo */}
@@ -175,6 +171,7 @@ export default function Sidebar({ onStartTour }) {
         {/* User button + dropdown */}
         <div ref={menuRef} style={{ position: 'relative' }}>
           <button
+            ref={userBtnRef}
             onClick={() => { setMenuOpen(p => !p); setEmojiPickerOpen(false) }}
             style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 10px', borderRadius: 10, background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)', cursor: 'pointer' }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-hover)'}
@@ -206,54 +203,33 @@ export default function Sidebar({ onStartTour }) {
               border: '1px solid var(--c-border)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
               overflow: 'hidden', zIndex: 100,
             }}>
-              <MenuItem icon={<Smile size={14} />} label="Cambiar emoji" onClick={() => setEmojiPickerOpen(true)} />
+              <MenuItem icon={<Smile size={14} />} label="Cambiar emoji" onClick={openEmojiPicker} />
               <div style={{ height: 1, background: 'var(--c-border-light)', margin: '2px 0' }} />
               <MenuItem icon={<LogOut size={14} />} label="Cerrar sesión" onClick={signOut} danger />
             </div>
           )}
 
-          {/* Emoji picker */}
+          {/* Emoji picker — fixed to viewport so sidebar overflow doesn't clip it */}
           {menuOpen && emojiPickerOpen && (
             <div style={{
-              position: 'absolute', bottom: 'calc(100% + 6px)', left: -10, right: -10,
-              background: 'var(--c-bg-surface)', borderRadius: 14,
-              border: '1px solid var(--c-border)',
-              boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
-              zIndex: 100, overflow: 'hidden',
+              position: 'fixed',
+              bottom: pickerPos.bottom,
+              left: pickerPos.left,
+              zIndex: 1000,
+              filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.22))',
             }}>
-              {/* Header */}
-              <div style={{ padding: '12px 14px 8px', borderBottom: '1px solid var(--c-border-light)' }}>
-                <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-1)', margin: 0 }}>Elige tu avatar</p>
-                <p style={{ fontSize: 11, color: 'var(--c-text-3)', margin: '2px 0 0' }}>Se guarda solo para ti</p>
-              </div>
-              {/* Grid — only vertical scroll */}
-              <div style={{
-                maxHeight: 220, overflowY: 'auto', overflowX: 'hidden',
-                padding: '8px 10px 10px',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(8, 1fr)',
-                gap: 4,
-              }}>
-                {FACE_EMOJIS.map(emoji => (
-                  <button
-                    key={emoji}
-                    onClick={() => handleEmojiSelect(emoji)}
-                    title={emoji}
-                    style={{
-                      background: selectedEmoji === emoji ? '#7C4DFF20' : 'transparent',
-                      border: selectedEmoji === emoji ? '2px solid #7C4DFF' : '2px solid transparent',
-                      borderRadius: 8, cursor: 'pointer',
-                      fontSize: 20, padding: '4px 0', lineHeight: 1,
-                      transition: 'transform 0.1s, background 0.1s',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#7C4DFF12'; e.currentTarget.style.transform = 'scale(1.25)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = selectedEmoji === emoji ? '#7C4DFF20' : 'transparent'; e.currentTarget.style.transform = 'scale(1)' }}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
+              <Picker
+                data={data}
+                onEmojiSelect={(e) => handleEmojiSelect(e.native)}
+                theme={isDark ? 'dark' : 'light'}
+                locale="es"
+                previewPosition="none"
+                searchPosition="none"
+                skinTonePosition="none"
+                perLine={9}
+                emojiSize={20}
+                emojiButtonSize={28}
+              />
             </div>
           )}
         </div>

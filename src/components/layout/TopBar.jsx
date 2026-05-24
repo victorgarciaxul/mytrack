@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Bell, Moon, Sun, MoreHorizontal, Calendar } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useRole } from '../../context/RoleContext'
 import { useTheme } from '../../context/ThemeContext'
 import { loadClockifyCache } from '../../lib/clockify'
+import { initDB, dbGetAvailableYears } from '../../lib/db'
 
 const YEAR_KEY = 'mytrack-selected-year'
 
@@ -19,20 +20,27 @@ export default function TopBar() {
   const { unreadCount } = useRole()
   const { isDark, toggle } = useTheme()
 
-  // Compute available years from Clockify cache entries
-  const availableYears = useMemo(() => {
+  // Years from Clockify cache (Victor) or Neon (everyone else)
+  const cacheYears = useMemo(() => {
     const cache = loadClockifyCache()
     if (cache?.entries?.length) {
-      const years = new Set(
-        cache.entries
-          .filter(e => e.start_time)
-          .map(e => new Date(e.start_time).getFullYear())
-      )
+      const years = new Set(cache.entries.filter(e => e.start_time).map(e => new Date(e.start_time).getFullYear()))
       return [...years].sort((a, b) => b - a)
     }
-    return [new Date().getFullYear()]
+    return null
   }, [])
 
+  const [neonYears, setNeonYears] = useState(null)
+
+  useEffect(() => {
+    if (cacheYears || !user?.email) return
+    initDB()
+      .then(() => dbGetAvailableYears(user.email))
+      .then(years => setNeonYears(years?.length ? years : [new Date().getFullYear()]))
+      .catch(() => setNeonYears([new Date().getFullYear()]))
+  }, [user?.email, cacheYears])
+
+  const availableYears = cacheYears || neonYears || [new Date().getFullYear()]
   const currentYear = getSelectedYear()
 
   function handleYearChange(e) {

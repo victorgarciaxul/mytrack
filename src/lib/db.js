@@ -81,6 +81,40 @@ export async function initDB() {
       created_at   TIMESTAMPTZ DEFAULT NOW()
     )
   `
+  await db`
+    CREATE TABLE IF NOT EXISTS tags (
+      id           TEXT PRIMARY KEY,
+      workspace_id TEXT DEFAULT 'xul-ws-1',
+      name         TEXT NOT NULL,
+      archived     BOOLEAN DEFAULT false,
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    )
+  `
+  await db`
+    CREATE TABLE IF NOT EXISTS time_off_policies (
+      id           TEXT PRIMARY KEY,
+      workspace_id TEXT DEFAULT 'xul-ws-1',
+      name         TEXT NOT NULL,
+      color        TEXT DEFAULT '#7C4DFF',
+      days_per_year NUMERIC,
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    )
+  `
+  await db`
+    CREATE TABLE IF NOT EXISTS time_off_requests (
+      id           TEXT PRIMARY KEY,
+      workspace_id TEXT DEFAULT 'xul-ws-1',
+      user_email   TEXT,
+      user_name    TEXT,
+      policy_id    TEXT,
+      policy_name  TEXT,
+      status       TEXT DEFAULT 'PENDING',
+      start_date   DATE,
+      end_date     DATE,
+      note         TEXT,
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    )
+  `
 
   // Seed workspace
   await db`
@@ -224,6 +258,18 @@ export async function dbChangePassword(userEmail, newPassword) {
   `
 }
 
+export async function dbGetAvailableYears(userEmail) {
+  const db = sql()
+  const rows = await db`
+    SELECT DISTINCT EXTRACT(YEAR FROM start_time)::int AS year
+    FROM time_entries
+    WHERE user_email = ${userEmail}
+      AND end_time IS NOT NULL
+    ORDER BY year DESC
+  `
+  return rows.map(r => r.year)
+}
+
 // ── Projects & Clients ────────────────────────────────────────
 
 export async function dbGetProjects() {
@@ -276,4 +322,74 @@ export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId
       role             = EXCLUDED.role,
       clockify_user_id = EXCLUDED.clockify_user_id
   `
+}
+
+// ── Tags ──────────────────────────────────────────────────────
+
+export async function dbGetTags() {
+  const db = sql()
+  return db`SELECT * FROM tags WHERE workspace_id = 'xul-ws-1' AND archived = false ORDER BY name`
+}
+
+export async function dbUpsertTags(tags) {
+  const db = sql()
+  for (const t of tags) {
+    await db`
+      INSERT INTO tags (id, workspace_id, name, archived)
+      VALUES (${t.id}, 'xul-ws-1', ${t.name}, ${t.archived || false})
+      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, archived = EXCLUDED.archived
+    `
+  }
+}
+
+// ── Time Off ──────────────────────────────────────────────────
+
+export async function dbGetTimeOffPolicies() {
+  const db = sql()
+  return db`SELECT * FROM time_off_policies WHERE workspace_id = 'xul-ws-1' ORDER BY name`
+}
+
+export async function dbUpsertTimeOffPolicies(policies) {
+  const db = sql()
+  for (const p of policies) {
+    await db`
+      INSERT INTO time_off_policies (id, workspace_id, name, color, days_per_year)
+      VALUES (${p.id}, 'xul-ws-1', ${p.name}, ${p.color || '#7C4DFF'}, ${p.daysPerYear || null})
+      ON CONFLICT (id) DO UPDATE SET
+        name         = EXCLUDED.name,
+        color        = EXCLUDED.color,
+        days_per_year = EXCLUDED.days_per_year
+    `
+  }
+}
+
+export async function dbGetTimeOffRequests() {
+  const db = sql()
+  return db`
+    SELECT * FROM time_off_requests
+    WHERE workspace_id = 'xul-ws-1'
+    ORDER BY start_date DESC
+  `
+}
+
+export async function dbUpsertTimeOffRequests(requests) {
+  const db = sql()
+  for (const r of requests) {
+    await db`
+      INSERT INTO time_off_requests
+        (id, workspace_id, user_email, user_name, policy_id, policy_name, status, start_date, end_date, note)
+      VALUES
+        (${r.id}, 'xul-ws-1', ${r.user_email || null}, ${r.user_name || null},
+         ${r.policy_id || null}, ${r.policy_name || null}, ${r.status || 'PENDING'},
+         ${r.start_date || null}, ${r.end_date || null}, ${r.note || null})
+      ON CONFLICT (id) DO UPDATE SET
+        status      = EXCLUDED.status,
+        user_email  = EXCLUDED.user_email,
+        user_name   = EXCLUDED.user_name,
+        policy_name = EXCLUDED.policy_name,
+        start_date  = EXCLUDED.start_date,
+        end_date    = EXCLUDED.end_date,
+        note        = EXCLUDED.note
+    `
+  }
 }

@@ -107,9 +107,18 @@ function mapEntry(e) {
 // ── Main import function ─────────────────────────────────────
 const CLOCKIFY_USER_ID = '69d4a7086590b46e76292934' // victorgarcia@xul.es
 
-export async function importFromClockify(onStatus) {
-  // Always start clean
-  localStorage.removeItem(CACHE_KEY)
+/**
+ * Import data from Clockify.
+ * @param {function} onStatus  - Progress callback (msg, pct)
+ * @param {string|null} since  - ISO date string; if provided, only fetches entries
+ *                               created after this date (incremental update).
+ *                               Pass null for a full re-import.
+ */
+export async function importFromClockify(onStatus, since = null) {
+  const isIncremental = !!since
+  const existingCache = isIncremental ? loadClockifyCache() : null
+
+  if (!isIncremental) localStorage.removeItem(CACHE_KEY)
 
   const ws = { id: WORKSPACE_ID, name: 'XUL', working_hours_per_day: 8, alert_threshold_days: 1 }
 
@@ -145,25 +154,44 @@ export async function importFromClockify(onStatus) {
     },
   }))
 
-  onStatus('Importando entradas de tiempo…', 35)
+  const sinceLabel = isIncremental
+    ? new Date(since).toLocaleDateString('es-ES')
+    : null
+  onStatus(
+    isIncremental
+      ? `Buscando entradas nuevas desde ${sinceLabel}…`
+      : 'Importando entradas de tiempo…',
+    35,
+  )
   const projectMap = Object.fromEntries(projects.map(p => [p.id, p]))
 
-  // Fetch entries for ALL workspace users
-  const allEntriesForNeon = []
-  const emailMap = Object.fromEntries(rawUsers.map(u => [u.id, u.email]))
+  // Fetch entries for ALL workspace users (filtered by since if incremental)
+  const newEntriesForNeon = []
+
+  // Build the date filter query param for incremental
+  // Clockify expects ISO8601: start=2024-01-01T00:00:00Z
+  // We subtract 1 minute from `since` as a safety buffer for clock skew
+  const sinceQuery = isIncremental
+    ? `?start=${new Date(new Date(since).getTime() - 60_000).toISOString()}`
+    : ''
 
   for (let i = 0; i < rawUsers.length; i++) {
     const u = rawUsers[i]
     const pct = Math.round(35 + ((i / rawUsers.length) * 45))
-    onStatus(`Importando entradas de ${u.name || u.email}… (${i + 1}/${rawUsers.length})`, pct)
+    onStatus(
+      isIncremental
+        ? `Actualizando ${u.name || u.email}… (${i + 1}/${rawUsers.length})`
+        : `Importando entradas de ${u.name || u.email}… (${i + 1}/${rawUsers.length})`,
+      pct,
+    )
     try {
       const userRaw = await fetchAll(
-        `/workspaces/${WORKSPACE_ID}/user/${u.id}/time-entries`, 50
+        `/workspaces/${WORKSPACE_ID}/user/${u.id}/time-entries${sinceQuery}`, 50
       )
       for (const e of userRaw) {
         const entry = mapEntry(e)
         const proj = entry.project_id ? projectMap[entry.project_id] : null
-        allEntriesForNeon.push({
+        newEntriesForNeon.push({
           ...entry,
           user_email: u.email,
           project_name: proj?.name || null,
@@ -176,8 +204,8 @@ export async function importFromClockify(onStatus) {
     }
   }
 
-  // Entries for the cache (Victor only, for backwards-compat local display)
-  const entries = allEntriesForNeon
+  // For cache: merge Victor's new entries with existing cached entries
+  const newVictorEntries = newEntriesForNeon
     .filter(e => e.user_email === CLOCKIFY_OWNER_EMAIL)
     .map(e => {
       const proj = e.project_id ? projectMap[e.project_id] : null
@@ -187,14 +215,27 @@ export async function importFromClockify(onStatus) {
       }
     })
 
+  let entries
+  if (isIncremental && existingCache?.entries?.length) {
+    // Merge: keep existing, upsert new ones (replace by id if already exists)
+    const newIds = new Set(newVictorEntries.map(e => e.id))
+    const kept = existingCache.entries.filter(e => !newIds.has(e.id))
+    entries = [...newVictorEntries, ...kept]
+      .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
+  } else {
+    entries = newVictorEntries
+  }
+
+  // allEntriesForNeon = only new/changed entries (Neon handles upserts)
+  const allEntriesForNeon = newEntriesForNeon
+
   onStatus('Guardando en caché…', 90)
   const cache = { ws, clients, projects, members, entries, importedAt: new Date().toISOString() }
 
-  // localStorage has ~5MB limit — try full save, fall back to without entries body
+  // localStorage has ~5MB limit — try full save, fall back to without descriptions
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
   } catch (e) {
-    // Too large: store metadata + entries without descriptions
     console.warn('localStorage full, storing compact version:', e)
     const compact = {
       ...cache,
@@ -204,7 +245,7 @@ export async function importFromClockify(onStatus) {
   }
 
   onStatus('¡Importación completada!', 100)
-  return { ...cache, allEntriesForNeon }
+  return { ...cache, allEntriesForNeon, isIncremental, newCount: newEntriesForNeon.length }
 }
 
 // ── Write API ────────────────────────────────────────────────
@@ -298,6 +339,49 @@ export function loadClockifyCache() {
 
 export function clearClockifyCache() {
   localStorage.removeItem(CACHE_KEY)
+}
+
+// ── Tags ─────────────────────────────────────────────────────
+export async function clockifyGetTags() {
+  try {
+    const data = await fetchAll(`/workspaces/${WORKSPACE_ID}/tags`, 100)
+    return data.map(t => ({ id: t.id, name: t.name, archived: t.archived || false }))
+  } catch (err) {
+    console.warn('Tags fetch error:', err.message)
+    return []
+  }
+}
+
+// ── Time Off ──────────────────────────────────────────────────
+export async function clockifyGetTimeOffPolicies() {
+  try {
+    const data = await get(`/workspaces/${WORKSPACE_ID}/time-off/policies`)
+    return Array.isArray(data) ? data : []
+  } catch (err) {
+    console.warn('Time off policies fetch error:', err.message)
+    return []
+  }
+}
+
+export async function clockifyGetTimeOffRequests(users) {
+  try {
+    const emailMap = Object.fromEntries((users || []).map(u => [u.id, { email: u.email, name: u.name }]))
+    const data = await fetchAll(`/workspaces/${WORKSPACE_ID}/time-off/requests?status=ALL`, 50)
+    return data.map(r => ({
+      id: r.id,
+      user_email: emailMap[r.userId]?.email || null,
+      user_name: emailMap[r.userId]?.name || null,
+      policy_id: r.timeOffPolicyId || null,
+      policy_name: r.policyName || null,
+      status: r.status || 'PENDING',
+      start_date: r.timeOffPeriod?.period?.start?.split('T')[0] || r.startDate || null,
+      end_date: r.timeOffPeriod?.period?.end?.split('T')[0] || r.endDate || null,
+      note: r.note || null,
+    }))
+  } catch (err) {
+    console.warn('Time off requests fetch error:', err.message)
+    return []
+  }
 }
 
 export { WORKSPACE_ID }

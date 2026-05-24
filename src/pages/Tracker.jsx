@@ -7,7 +7,7 @@ import { useWorkspace } from '../context/WorkspaceContext'
 import { loadClockifyCache, clockifyStartTimer, clockifyStopTimer, clockifyDeleteEntry, getClockifyUserId, isClockifyUser, clockifyGetProjectTasks } from '../lib/clockify'
 import { getSelectedYear } from '../components/layout/TopBar'
 import { initDB, dbGetEntries, dbInsertEntry, dbDeleteEntry } from '../lib/db'
-import { format, parseISO, isToday, isYesterday, subDays } from 'date-fns'
+import { format, parseISO, isToday, isYesterday, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import ManualEntryModal from '../components/timer/ManualEntryModal'
@@ -53,6 +53,7 @@ export default function Tracker() {
   const [showProjectPicker, setShowProjectPicker] = useState(false)
   const [showTaskPicker, setShowTaskPicker] = useState(false)
   const [showManual, setShowManual] = useState(false)
+  const [chartPeriod, setChartPeriod] = useState('Semana')
   const [syncing, setSyncing] = useState(false)
   const [projectTasks, setProjectTasks] = useState([])
   const [loadingTasks, setLoadingTasks] = useState(false)
@@ -250,12 +251,33 @@ export default function Tracker() {
     ))
   }
 
-  const todayEntries = entries.filter(e => isToday(parseISO(e.start_time)))
+  const todayEntries = entries.filter(e => { try { return isToday(parseISO(e.start_time)) } catch { return false } })
   const totalToday = todayEntries.reduce((s, e) => s + (e.duration || 0), 0)
-  const totalWeek = entries.reduce((s, e) => s + (e.duration || 0), 0)
+
+  const _now = new Date()
+  const _weekStart = startOfWeek(_now, { weekStartsOn: 1 })
+  const _weekEnd   = endOfWeek(_now,   { weekStartsOn: 1 })
+  const _monthStart = startOfMonth(_now)
+  const _monthEnd   = endOfMonth(_now)
+
+  const weekEntries = entries.filter(e => {
+    try { return isWithinInterval(parseISO(e.start_time), { start: _weekStart, end: _weekEnd }) }
+    catch { return false }
+  })
+  const monthEntries = entries.filter(e => {
+    try { return isWithinInterval(parseISO(e.start_time), { start: _monthStart, end: _monthEnd }) }
+    catch { return false }
+  })
+
+  const totalWeek = weekEntries.reduce((s, e) => s + (e.duration || 0), 0)
+
+  const chartEntries = chartPeriod === 'Hoy' ? todayEntries
+    : chartPeriod === 'Semana' ? weekEntries
+    : monthEntries
+
   const recentEntries = entries.slice(0, 8)
 
-  // Hours by project this week
+  // Hours by project (all entries)
   const byProject = {}
   entries.forEach(e => {
     const name = e.projects?.name || 'Sin proyecto'
@@ -264,6 +286,19 @@ export default function Tracker() {
     byProject[name].secs += e.duration || 0
   })
   const projectList = Object.values(byProject).sort((a, b) => b.secs - a.secs).slice(0, 5)
+
+  // Last 4 projects the user actually worked on (by most recent entry)
+  const recentProjects = []
+  const _seenProjects = new Set()
+  for (const e of entries) {
+    const name = e.projects?.name
+    const color = e.projects?.color || '#7C4DFF'
+    if (name && !_seenProjects.has(name)) {
+      _seenProjects.add(name)
+      recentProjects.push({ name, color })
+      if (recentProjects.length === 4) break
+    }
+  }
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -515,7 +550,7 @@ export default function Tracker() {
                 {timer.format(totalWeek)}
               </p>
               <p style={{ fontSize: 11, color: '#7C4DFF', fontWeight: 600, marginTop: 4 }}>
-                {entries.length} registros
+                {weekEntries.length} registros
               </p>
             </Card>
           </div>
@@ -525,16 +560,16 @@ export default function Tracker() {
             <CardHeader title="Report Analytics">
               <div style={{ display: 'flex', gap: 4 }}>
                 {['Hoy', 'Semana', 'Mes'].map(t => (
-                  <button key={t} style={{
+                  <button key={t} onClick={() => setChartPeriod(t)} style={{
                     padding: '3px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
                     fontSize: 11, fontWeight: 500,
-                    background: t === 'Semana' ? '#7C4DFF' : 'transparent',
-                    color: t === 'Semana' ? '#fff' : '#94A3B8',
+                    background: t === chartPeriod ? '#7C4DFF' : 'transparent',
+                    color: t === chartPeriod ? '#fff' : '#94A3B8',
                   }}>{t}</button>
                 ))}
               </div>
             </CardHeader>
-            <ActivityGrid entries={entries} formatTime={timer.format} />
+            <ActivityGrid entries={chartEntries} formatTime={timer.format} period={chartPeriod} />
           </Card>
 
           {/* Project time breakdown */}
@@ -605,14 +640,14 @@ export default function Tracker() {
 
           {/* Quick projects */}
           <Card color="var(--c-card-c)" style={{ overflow: 'hidden' }}>
-            <CardHeader title="Proyectos activos">
+            <CardHeader title="Proyectos recientes">
               <span style={{ fontSize: 11, color: '#7C4DFF', fontWeight: 600 }}>{projects.length} TOTAL</span>
             </CardHeader>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
-              {projects.slice(0, 4).map(p => (
-                <div key={p.id} style={{
+              {recentProjects.length > 0 ? recentProjects.map(p => (
+                <div key={p.name} style={{
                   padding: '10px', borderRadius: 10, minWidth: 0,
-                  background: p.color + '10', border: `1px solid ${p.color}20`,
+                  background: p.color + '18', border: `1px solid ${p.color}30`,
                   overflow: 'hidden',
                 }}>
                   <div style={{ width: 28, height: 28, borderRadius: 7, background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6, flexShrink: 0 }}>
@@ -623,7 +658,11 @@ export default function Tracker() {
                     {(byProject[p.name]?.secs || 0) > 0 ? timer.format(byProject[p.name].secs) : '0h registradas'}
                   </p>
                 </div>
-              ))}
+              )) : (
+                <p style={{ fontSize: 12, color: 'var(--c-text-3)', gridColumn: '1 / -1', textAlign: 'center', padding: '12px 0' }}>
+                  Sin entradas registradas aún
+                </p>
+              )}
             </div>
           </Card>
         </div>
@@ -688,32 +727,78 @@ function Opt({ children, onClick, muted }) {
   )
 }
 
-function ActivityGrid({ entries, formatTime }) {
-  const hours = Array.from({ length: 24 }, (_, h) => {
-    const secs = entries
-      .filter(e => e.start_time && new Date(e.start_time).getHours() === h)
-      .reduce((s, e) => s + (e.duration || 0), 0)
-    return { h, secs }
-  })
-  const max = Math.max(...hours.map(h => h.secs), 1)
+function ActivityGrid({ entries, formatTime, period }) {
+  // Build bars depending on period
+  let bars = []
+
+  if (period === 'Hoy') {
+    // 24 bars — one per hour
+    bars = Array.from({ length: 24 }, (_, h) => {
+      const secs = entries
+        .filter(e => e.start_time && new Date(e.start_time).getHours() === h)
+        .reduce((s, e) => s + (e.duration || 0), 0)
+      return { label: `${h}:00`, secs }
+    })
+  } else if (period === 'Semana') {
+    // 7 bars — Mon to Sun
+    const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    bars = Array.from({ length: 7 }, (_, i) => {
+      // date-fns startOfWeek uses 0=Sun, so Mon=1. We want Mon=0 → dayOfWeek (1-7 → 0-6)
+      const secs = entries
+        .filter(e => {
+          if (!e.start_time) return false
+          const d = new Date(e.start_time).getDay() // 0=Sun,1=Mon,...6=Sat
+          const idx = d === 0 ? 6 : d - 1         // convert to Mon=0…Sun=6
+          return idx === i
+        })
+        .reduce((s, e) => s + (e.duration || 0), 0)
+      return { label: DAY_NAMES[i], secs }
+    })
+  } else {
+    // Mes — one bar per day of the current month (1-31)
+    const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()
+    bars = Array.from({ length: daysInMonth }, (_, i) => {
+      const day = i + 1
+      const secs = entries
+        .filter(e => e.start_time && new Date(e.start_time).getDate() === day)
+        .reduce((s, e) => s + (e.duration || 0), 0)
+      return { label: String(day), secs }
+    })
+  }
+
+  const max = Math.max(...bars.map(b => b.secs), 1)
+
+  // Which labels to show on the x-axis (avoid crowding)
+  const showEvery = period === 'Hoy' ? 4 : period === 'Semana' ? 1 : 5
 
   return (
     <div style={{ marginTop: 16 }}>
-      <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 60 }}>
-        {hours.map(({ h, secs }) => (
-          <div key={h} title={`${h}:00 — ${formatTime(secs)}`} style={{
-            flex: 1,
-            height: secs > 0 ? `${Math.max(8, (secs / max) * 60)}px` : 6,
-            borderRadius: 3,
-            background: secs > 0 ? 'linear-gradient(180deg,#7C4DFF,#E040FB)' : 'var(--c-text-4)',
-            transition: 'height 0.3s',
-            cursor: secs > 0 ? 'pointer' : 'default',
-          }} />
+      <div style={{ display: 'flex', gap: period === 'Mes' ? 2 : 4, alignItems: 'flex-end', height: 70 }}>
+        {bars.map(({ label, secs }, i) => (
+          <div
+            key={i}
+            title={`${label} — ${formatTime(secs)}`}
+            style={{
+              flex: 1,
+              height: secs > 0 ? `${Math.max(6, (secs / max) * 70)}px` : 5,
+              borderRadius: 3,
+              background: secs > 0 ? 'linear-gradient(180deg,#7C4DFF,#E040FB)' : 'var(--c-bg-muted)',
+              transition: 'height 0.3s',
+              cursor: secs > 0 ? 'pointer' : 'default',
+              minWidth: 0,
+            }}
+          />
         ))}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-        {[1,5,9,13,17,21].map(h => (
-          <span key={h} style={{ fontSize: 10, color: 'var(--c-text-3)' }}>{h}</span>
+      <div style={{ display: 'flex', marginTop: 6 }}>
+        {bars.map(({ label }, i) => (
+          <div key={i} style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
+            {i % showEvery === 0 && (
+              <span style={{ fontSize: period === 'Semana' ? 10 : 9, color: 'var(--c-text-3)', display: 'block' }}>
+                {label}
+              </span>
+            )}
+          </div>
         ))}
       </div>
     </div>

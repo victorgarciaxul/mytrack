@@ -5,8 +5,8 @@ import { useWorkspace } from '../context/WorkspaceContext'
 import { User, HelpCircle, Play, Download, CheckCircle, RefreshCw, Trash2, Lock, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useTour } from '../components/tour/AppTour'
-import { importFromClockify, loadClockifyCache, clearClockifyCache } from '../lib/clockify'
-import { initDB, dbUpsertEntries, dbUpsertMember, dbUpsertProjects, dbUpsertClients, dbChangePassword } from '../lib/db'
+import { importFromClockify, loadClockifyCache, clearClockifyCache, clockifyGetTags, clockifyGetTimeOffPolicies, clockifyGetTimeOffRequests } from '../lib/clockify'
+import { initDB, dbUpsertEntries, dbUpsertMember, dbUpsertProjects, dbUpsertClients, dbChangePassword, dbUpsertTags, dbUpsertTimeOffPolicies, dbUpsertTimeOffRequests } from '../lib/db'
 
 function ClockifyImportCard({ onImported }) {
   const [status, setStatus] = useState('')
@@ -18,20 +18,21 @@ function ClockifyImportCard({ onImported }) {
     setLoading(true)
     setProgress(0)
     try {
-      // 1. Import from Clockify API
+      // 1. Import from Clockify API — incremental if we have a previous import
+      const since = cache?.importedAt || null
       const result = await importFromClockify((msg, pct) => {
         setStatus(msg)
         setProgress(pct)
-      })
+      }, since)
 
-      // 2. Save projects & clients to Neon (shared for all users)
+      // 2. Save projects & clients to Neon (always — they may have changed)
       await initDB()
       setStatus('Guardando proyectos y clientes…')
       setProgress(88)
       if (result.projects?.length) await dbUpsertProjects(result.projects)
       if (result.clients?.length)  await dbUpsertClients(result.clients)
 
-      // 3. Save all users to Neon (so they can log in to MyTrack)
+      // 3. Save all users to Neon (always — roles or names may have changed)
       setStatus('Registrando usuarios en MyTrack…')
       setProgress(91)
       for (const member of result.members || []) {
@@ -43,18 +44,38 @@ function ClockifyImportCard({ onImported }) {
         })
       }
 
-      // 3. Save all users' entries to Neon
+      // 4. Save only the new/changed entries to Neon (upserts are safe)
       if (result.allEntriesForNeon?.length) {
-        setStatus(`Guardando ${result.allEntriesForNeon.length} entradas en base de datos…`)
+        setStatus(`Guardando ${result.allEntriesForNeon.length} entradas nuevas…`)
         setProgress(92)
-        await initDB()
         await dbUpsertEntries(result.allEntriesForNeon, (done, total) => {
           setStatus(`Guardando en BD… ${done}/${total}`)
           setProgress(92 + Math.round((done / total) * 7))
         })
       }
 
-      toast.success(`✅ ${result.members?.length} usuarios · ${result.projects?.length} proyectos · ${result.allEntriesForNeon?.length} entradas importadas`)
+      // 5. Tags
+      setStatus('Importando etiquetas…')
+      setProgress(97)
+      const tags = await clockifyGetTags()
+      if (tags.length) await dbUpsertTags(tags)
+
+      // 6. Time off
+      setStatus('Importando bajas y vacaciones…')
+      setProgress(98)
+      const rawUsers = result.members?.map(m => ({ id: m.user_id || m.id, email: m.profiles?.email || '', name: m.profiles?.full_name || '' })) || []
+      const [policies, requests] = await Promise.all([
+        clockifyGetTimeOffPolicies(),
+        clockifyGetTimeOffRequests(rawUsers),
+      ])
+      if (policies.length) await dbUpsertTimeOffPolicies(policies)
+      if (requests.length) await dbUpsertTimeOffRequests(requests)
+
+      if (result.isIncremental) {
+        toast.success(`✅ ${result.newCount} entradas · ${tags.length} etiquetas · ${requests.length} bajas`)
+      } else {
+        toast.success(`✅ ${result.members?.length} usuarios · ${result.projects?.length} proyectos · ${result.allEntriesForNeon?.length} entradas · ${tags.length} etiquetas`)
+      }
       setTimeout(() => window.location.reload(), 1500)
     } catch (err) {
       console.error('Import error:', err)

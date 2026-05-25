@@ -284,10 +284,10 @@ export default function Settings() {
     <div style={{ padding: '24px 28px', maxWidth: 640, fontFamily: 'Inter, system-ui, sans-serif' }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--c-text-1)', marginBottom: 20 }}>Ajustes</h1>
 
-      {/* Clockify import — admin only */}
-      {user?.role === 'admin' || user?.email === 'victorgarcia@xul.es' ? (
+      {/* Clockify import — only the Clockify owner */}
+      {user?.email === 'victorgarcia@xul.es' && (
         <ClockifyImportCard onImported={() => forceUpdate(n => n + 1)} />
-      ) : null}
+      )}
 
       {/* Cambiar contraseña */}
       <ChangePasswordCard user={user} />

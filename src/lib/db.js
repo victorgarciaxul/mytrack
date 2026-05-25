@@ -170,11 +170,43 @@ export async function initDB() {
     ON CONFLICT (slug) DO NOTHING
   `
 
-  // Seed initial known users (in case Neon is queried before first import)
+  // Seed all workspace users so they can log in before the first Clockify import
   const seedUsers = [
-    { email: 'victorgarcia@xul.es', name: 'Víctor García',  role: 'admin' },
-    { email: 'josecastillo@xul.es', name: 'José Castillo',  role: 'employee' },
-    { email: 'carlagarcia@xul.es',  name: 'Carla García',   role: 'employee' },
+    { email: 'victorgarcia@xul.es',           name: 'Víctor García',                 role: 'admin'    },
+    { email: 'carlagarcia@xul.es',             name: 'Carla García',                  role: 'admin'    },
+    { email: 'josecastillo@xul.es',            name: 'José Castillo',                 role: 'admin'    },
+    { email: 'aidacisneros@xul.es',            name: 'Aida Cisneros',                 role: 'employee' },
+    { email: 'aitorrecalde@xul.es',            name: 'Aitor RV',                      role: 'employee' },
+    { email: 'alejandraperea@xul.es',          name: 'Alejandra Perea',               role: 'employee' },
+    { email: 'anarojas@fundacionxul.org',      name: 'Ana Rojas',                     role: 'employee' },
+    { email: 'andreabenitez@xul.es',           name: 'Andrea Benítez',                role: 'employee' },
+    { email: 'asuncionblanco@xul.es',          name: 'Asunción Blanco',               role: 'employee' },
+    { email: 'auximazuecos@xul.es',            name: 'Auxi Mazuecos',                 role: 'employee' },
+    { email: 'cristinafernandez@xul.es',       name: 'Cristina Fernández',            role: 'employee' },
+    { email: 'cristinareyes@fundacionxul.org', name: 'Cristina Reyes Baro',           role: 'employee' },
+    { email: 'elenarojo@xul.es',               name: 'Elena Rojo',                    role: 'employee' },
+    { email: 'inmaosuna@xul.es',               name: 'Inma Osuna',                    role: 'employee' },
+    { email: 'irenezurita@xul.es',             name: 'Irene Zurita',                  role: 'employee' },
+    { email: 'javier@xul.es',                  name: 'Javier Ramírez',                role: 'employee' },
+    { email: 'javierdura@xul.es',              name: 'Javier Durá',                   role: 'employee' },
+    { email: 'jorgemelo@xul.es',               name: 'Jorge Melo',                    role: 'employee' },
+    { email: 'joseluisacedo@xul.es',           name: 'José Luis Acedo',               role: 'employee' },
+    { email: 'josemitoribio@xul.es',           name: 'Josemi Toribio',                role: 'employee' },
+    { email: 'lolagravan@xul.es',              name: 'Lola Graván',                   role: 'employee' },
+    { email: 'mariohurtado@xul.es',            name: 'Mario Hurtado',                 role: 'employee' },
+    { email: 'mariopulido@xul.es',             name: 'Mario Pulido',                  role: 'employee' },
+    { email: 'martagarcia@xul.es',             name: 'Marta García',                  role: 'employee' },
+    { email: 'miguelperez@xul.es',             name: 'Miguel Pérez',                  role: 'employee' },
+    { email: 'olgaalba@xul.es',                name: 'Olga Alba Fernández',           role: 'employee' },
+    { email: 'pablohernandez@xul.es',          name: 'Pablo Hernández García Tapial', role: 'employee' },
+    { email: 'pepegomez@xul.es',               name: 'Pepe Gómez Palas',              role: 'employee' },
+    { email: 'pilarsalles@xul.es',             name: 'Pilar Sallés',                  role: 'employee' },
+    { email: 'rociohernandez@xul.es',          name: 'Rocío Hernández',               role: 'employee' },
+    { email: 'sandravinas@xul.es',             name: 'Sandra Viñas',                  role: 'employee' },
+    { email: 'saracliment@xul.es',             name: 'Sara Climent',                  role: 'employee' },
+    { email: 'saramoran@xul.es',               name: 'Sara Morán',                    role: 'employee' },
+    { email: 'sarasanchez@xul.es',             name: 'Sara Sánchez',                  role: 'employee' },
+    { email: 'silviamunoz@xul.es',             name: 'Silvia Muñoz',                  role: 'employee' },
   ]
   for (const u of seedUsers) {
     await db`

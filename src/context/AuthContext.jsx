@@ -4,11 +4,43 @@ import { initDB, dbSignIn } from '../lib/db'
 
 const DEMO_MODE = import.meta.env.VITE_SUPABASE_URL === 'https://placeholder.supabase.co'
 
-// Fallback users in case Neon isn't reachable yet (before first import)
+// Fallback users in case Neon isn't reachable yet (cold start / timeout)
 const FALLBACK_USERS = [
-  { email: 'victorgarcia@xul.es', password: 'Xul14$', name: 'Víctor García',  role: 'admin' },
-  { email: 'josecastillo@xul.es', password: 'Xul14$', name: 'José Castillo',  role: 'employee' },
-  { email: 'carlagarcia@xul.es',  password: 'Xul14$', name: 'Carla García',   role: 'employee' },
+  { email: 'victorgarcia@xul.es',           password: 'Xul14$', name: 'Víctor García',                 role: 'admin'    },
+  { email: 'carlagarcia@xul.es',             password: 'Xul14$', name: 'Carla García',                  role: 'admin'    },
+  { email: 'josecastillo@xul.es',            password: 'Xul14$', name: 'José Castillo',                 role: 'admin'    },
+  { email: 'aidacisneros@xul.es',            password: 'Xul14$', name: 'Aida Cisneros',                 role: 'employee' },
+  { email: 'aitorrecalde@xul.es',            password: 'Xul14$', name: 'Aitor RV',                      role: 'employee' },
+  { email: 'alejandraperea@xul.es',          password: 'Xul14$', name: 'Alejandra Perea',               role: 'employee' },
+  { email: 'anarojas@fundacionxul.org',      password: 'Xul14$', name: 'Ana Rojas',                     role: 'employee' },
+  { email: 'andreabenitez@xul.es',           password: 'Xul14$', name: 'Andrea Benítez',                role: 'employee' },
+  { email: 'asuncionblanco@xul.es',          password: 'Xul14$', name: 'Asunción Blanco',               role: 'employee' },
+  { email: 'auximazuecos@xul.es',            password: 'Xul14$', name: 'Auxi Mazuecos',                 role: 'employee' },
+  { email: 'cristinafernandez@xul.es',       password: 'Xul14$', name: 'Cristina Fernández',            role: 'employee' },
+  { email: 'cristinareyes@fundacionxul.org', password: 'Xul14$', name: 'Cristina Reyes Baro',           role: 'employee' },
+  { email: 'elenarojo@xul.es',               password: 'Xul14$', name: 'Elena Rojo',                    role: 'employee' },
+  { email: 'inmaosuna@xul.es',               password: 'Xul14$', name: 'Inma Osuna',                    role: 'employee' },
+  { email: 'irenezurita@xul.es',             password: 'Xul14$', name: 'Irene Zurita',                  role: 'employee' },
+  { email: 'javier@xul.es',                  password: 'Xul14$', name: 'Javier Ramírez',                role: 'employee' },
+  { email: 'javierdura@xul.es',              password: 'Xul14$', name: 'Javier Durá',                   role: 'employee' },
+  { email: 'jorgemelo@xul.es',               password: 'Xul14$', name: 'Jorge Melo',                    role: 'employee' },
+  { email: 'joseluisacedo@xul.es',           password: 'Xul14$', name: 'José Luis Acedo',               role: 'employee' },
+  { email: 'josemitoribio@xul.es',           password: 'Xul14$', name: 'Josemi Toribio',                role: 'employee' },
+  { email: 'lolagravan@xul.es',              password: 'Xul14$', name: 'Lola Graván',                   role: 'employee' },
+  { email: 'mariohurtado@xul.es',            password: 'Xul14$', name: 'Mario Hurtado',                 role: 'employee' },
+  { email: 'mariopulido@xul.es',             password: 'Xul14$', name: 'Mario Pulido',                  role: 'employee' },
+  { email: 'martagarcia@xul.es',             password: 'Xul14$', name: 'Marta García',                  role: 'employee' },
+  { email: 'miguelperez@xul.es',             password: 'Xul14$', name: 'Miguel Pérez',                  role: 'employee' },
+  { email: 'olgaalba@xul.es',                password: 'Xul14$', name: 'Olga Alba Fernández',           role: 'employee' },
+  { email: 'pablohernandez@xul.es',          password: 'Xul14$', name: 'Pablo Hernández García Tapial', role: 'employee' },
+  { email: 'pepegomez@xul.es',               password: 'Xul14$', name: 'Pepe Gómez Palas',              role: 'employee' },
+  { email: 'pilarsalles@xul.es',             password: 'Xul14$', name: 'Pilar Sallés',                  role: 'employee' },
+  { email: 'rociohernandez@xul.es',          password: 'Xul14$', name: 'Rocío Hernández',               role: 'employee' },
+  { email: 'sandravinas@xul.es',             password: 'Xul14$', name: 'Sandra Viñas',                  role: 'employee' },
+  { email: 'saracliment@xul.es',             password: 'Xul14$', name: 'Sara Climent',                  role: 'employee' },
+  { email: 'saramoran@xul.es',               password: 'Xul14$', name: 'Sara Morán',                    role: 'employee' },
+  { email: 'sarasanchez@xul.es',             password: 'Xul14$', name: 'Sara Sánchez',                  role: 'employee' },
+  { email: 'silviamunoz@xul.es',             password: 'Xul14$', name: 'Silvia Muñoz',                  role: 'employee' },
 ]
 
 const AuthContext = createContext(null)

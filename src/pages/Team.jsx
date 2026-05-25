@@ -132,7 +132,7 @@ function NewMemberModal({ onClose, onSaved }) {
   const [name, setName]         = useState('')
   const [email, setEmail]       = useState('')
   const [role, setRole]         = useState('employee')
-  const [password, setPassword] = useState('Xul14$')
+  const [password, setPassword] = useState('Mytrack14$')
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState('')
 
@@ -145,7 +145,7 @@ function NewMemberModal({ onClose, onSaved }) {
       await initDB()
       await dbUpsertMember({ userEmail: email.toLowerCase().trim(), userName: name.trim(), role })
       // Update password if changed from default
-      if (password && password !== 'Xul14$') {
+      if (password && password !== 'Mytrack14$') {
         await dbChangePassword(email.toLowerCase().trim(), password)
       }
       onSaved()
@@ -174,7 +174,7 @@ function NewMemberModal({ onClose, onSaved }) {
         </div>
       </Field>
       <Field label="Contraseña inicial">
-        <input value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} placeholder="Xul14$" />
+        <input value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} placeholder="Mytrack14$" />
         <p style={{ fontSize: 11, color: 'var(--c-text-4)', marginTop: 4 }}>El miembro podrá cambiarla desde Ajustes.</p>
       </Field>
       {error && <p style={{ fontSize: 12, color: '#EF4444', marginTop: -10 }}>{error}</p>}

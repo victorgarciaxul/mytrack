@@ -195,7 +195,7 @@ export default function Login() {
           <Field label="Usuario">
             <WhiteInput type="email" placeholder="tu@email.com" value={email} onChange={e => setEmail(e.target.value)} required />
           </Field>
-          <Field label="Contraseña" hint="Contraseña inicial: Xul14$">
+          <Field label="Contraseña" hint="Contraseña inicial: Mytrack14$">
             <WhiteInput type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
           </Field>
 

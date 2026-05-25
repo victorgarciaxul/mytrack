@@ -54,7 +54,7 @@ export async function initDB() {
       user_name       TEXT NOT NULL DEFAULT '',
       role            TEXT DEFAULT 'employee',
       hourly_rate     NUMERIC DEFAULT 0,
-      password        TEXT DEFAULT 'Xul14$',
+      password        TEXT DEFAULT 'Mytrack14$',
       clockify_user_id TEXT,
       created_at      TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(workspace_id, user_email)
@@ -211,7 +211,7 @@ export async function initDB() {
   for (const u of seedUsers) {
     await db`
       INSERT INTO workspace_members (workspace_id, user_email, user_name, role, password)
-      VALUES ('xul-ws-1', ${u.email}, ${u.name}, ${u.role}, 'Xul14$')
+      VALUES ('xul-ws-1', ${u.email}, ${u.name}, ${u.role}, 'Mytrack14$')
       ON CONFLICT (workspace_id, user_email) DO NOTHING
     `
   }
@@ -568,7 +568,7 @@ export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId
   const db = sql()
   await db`
     INSERT INTO workspace_members (workspace_id, user_email, user_name, role, password, clockify_user_id, group_name)
-    VALUES ('xul-ws-1', ${userEmail}, ${userName}, ${role || 'employee'}, 'Xul14$', ${clockifyUserId || null}, ${groupName || null})
+    VALUES ('xul-ws-1', ${userEmail}, ${userName}, ${role || 'employee'}, 'Mytrack14$', ${clockifyUserId || null}, ${groupName || null})
     ON CONFLICT (workspace_id, user_email) DO UPDATE SET
       user_name        = EXCLUDED.user_name,
       -- Protect manually-promoted admins: only upgrade role (employee→admin), never downgrade

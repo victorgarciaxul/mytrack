@@ -1,27 +1,30 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
-import { loadClockifyCache } from '../lib/clockify'
+import { loadClockifyCache, isClockifyUser } from '../lib/clockify'
 import { initDB, dbGetProjects, dbGetClients } from '../lib/db'
 
 const WorkspaceContext = createContext(null)
 
-function getInitialData(isDemo) {
+function getInitialData(isDemo, email) {
   if (!isDemo) return { ws: null, projects: [], clients: [], members: [], tasks: [] }
-  const cache = loadClockifyCache()
-  if (cache) return {
-    ws: cache.ws,
-    projects: cache.projects || [],
-    clients: cache.clients || [],
-    members: cache.members || [],
-    tasks: [],
+  // Only pre-populate from Clockify cache if this is the Clockify owner
+  if (isClockifyUser(email)) {
+    const cache = loadClockifyCache()
+    if (cache) return {
+      ws: cache.ws,
+      projects: cache.projects || [],
+      clients: cache.clients || [],
+      members: cache.members || [],
+      tasks: [],
+    }
   }
-  return { ws: { id: 'demo-ws-1', name: 'XUL', working_hours_per_day: 8, alert_threshold_days: 1 }, projects: [], clients: [], members: [], tasks: [] }
+  return { ws: { id: 'xul-ws-1', name: 'XUL', working_hours_per_day: 8, alert_threshold_days: 1 }, projects: [], clients: [], members: [], tasks: [] }
 }
 
 export function WorkspaceProvider({ children }) {
   const { user, isDemo } = useAuth()
-  const init = getInitialData(isDemo)
+  const init = getInitialData(isDemo, user?.email)
   const [workspace, setWorkspace] = useState(init.ws)
   const [projects, setProjects] = useState(init.projects)
   const [clients, setClients] = useState(init.clients)

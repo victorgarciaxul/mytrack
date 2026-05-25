@@ -1,5 +1,33 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Component } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext'
+
+// ── Error Boundary — catches render crashes and shows a helpful UI ─────────────
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null } }
+  static getDerivedStateFromError(err) { return { error: err } }
+  componentDidCatch(err, info) { console.error('App render error:', err, info) }
+  render() {
+    if (!this.state.error) return this.props.children
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#06060F', fontFamily: 'Inter, sans-serif' }}>
+        <div style={{ textAlign: 'center', maxWidth: 480, padding: 32 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+          <h2 style={{ color: '#fff', marginBottom: 8, fontSize: 20 }}>Algo salió mal</h2>
+          <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: 24, fontSize: 14, lineHeight: 1.6 }}>
+            {this.state.error?.message || 'Error inesperado'}
+          </p>
+          <button
+            onClick={() => { this.setState({ error: null }); window.location.href = '/tracker' }}
+            style={{ padding: '10px 24px', background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+          >
+            Volver al inicio
+          </button>
+        </div>
+      </div>
+    )
+  }
+}
 import { WorkspaceProvider } from './context/WorkspaceContext'
 import { RoleProvider } from './context/RoleContext'
 import { ThemeProvider } from './context/ThemeContext'
@@ -36,6 +64,7 @@ function ProtectedRoute({ children }) {
 
 function App() {
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <ThemeProvider>
       <AuthProvider>
@@ -60,6 +89,7 @@ function App() {
       </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>
+    </ErrorBoundary>
   )
 }
 

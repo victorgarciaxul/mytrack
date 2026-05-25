@@ -41,6 +41,8 @@ export default function Tracker() {
   }, [description, selectedProject, selectedTask, timer.isRunning])
   const [entries, setEntries] = useState(() => {
     if (!isDemo) return []
+    // Only load cached entries for the Clockify owner — other users load from Neon
+    if (!isClockifyUser(user?.email)) return []
     const cache = loadClockifyCache()
     if (cache?.entries?.length) {
       const selectedYear = getSelectedYear()

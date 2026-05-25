@@ -9,7 +9,7 @@ import { es } from 'date-fns/locale'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { demoEntries } from '../lib/demoData'
-import { loadClockifyCache } from '../lib/clockify'
+import { loadClockifyCache, isClockifyUser } from '../lib/clockify'
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
@@ -28,6 +28,8 @@ export default function Calendar() {
 
   const entries = (() => {
     if (!isDemo) return []
+    // Only load Clockify cache for the owner — other users load from Neon
+    if (!isClockifyUser(user?.email)) return []
     const cache = loadClockifyCache()
     return cache?.entries?.filter(e => e.end_time) || []
   })()

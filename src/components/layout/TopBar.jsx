@@ -4,7 +4,7 @@ import { Search, Bell, Moon, Sun, MoreHorizontal, Calendar } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useRole } from '../../context/RoleContext'
 import { useTheme } from '../../context/ThemeContext'
-import { loadClockifyCache } from '../../lib/clockify'
+import { loadClockifyCache, isClockifyUser } from '../../lib/clockify'
 import { initDB, dbGetAvailableYears } from '../../lib/db'
 
 const YEAR_KEY = 'mytrack-selected-year'
@@ -20,15 +20,16 @@ export default function TopBar() {
   const { unreadCount } = useRole()
   const { isDark, toggle } = useTheme()
 
-  // Years from Clockify cache (Victor) or Neon (everyone else)
+  // Years from Clockify cache (owner only) or Neon (everyone else)
   const cacheYears = useMemo(() => {
+    if (!isClockifyUser(user?.email)) return null
     const cache = loadClockifyCache()
     if (cache?.entries?.length) {
       const years = new Set(cache.entries.filter(e => e.start_time).map(e => new Date(e.start_time).getFullYear()))
       return [...years].sort((a, b) => b - a)
     }
     return null
-  }, [])
+  }, [user?.email])
 
   const [neonYears, setNeonYears] = useState(null)
 

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -7,9 +7,8 @@ import {
 } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../context/AuthContext'
-import { useWorkspace } from '../context/WorkspaceContext'
-import { demoEntries } from '../lib/demoData'
 import { loadClockifyCache, isClockifyUser } from '../lib/clockify'
+import { initDB, dbGetEntries } from '../lib/db'
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
@@ -22,17 +21,32 @@ function secsToHM(secs) {
 
 export default function Calendar() {
   const { user, isDemo } = useAuth()
-  const { projects } = useWorkspace()
   const [current, setCurrent] = useState(new Date())
   const [selected, setSelected] = useState(null)
+  const [entries, setEntries] = useState([])
+  const [loading, setLoading] = useState(false)
 
-  const entries = (() => {
-    if (!isDemo) return []
-    // Only load Clockify cache for the owner — other users load from Neon
-    if (!isClockifyUser(user?.email)) return []
-    const cache = loadClockifyCache()
-    return cache?.entries?.filter(e => e.end_time) || []
-  })()
+  // Load entries whenever the viewed year changes
+  useEffect(() => {
+    if (!user?.email) return
+    const year = current.getFullYear()
+
+    if (isClockifyUser(user.email)) {
+      // Clockify owner: read from localStorage cache
+      const cache = loadClockifyCache()
+      const all = cache?.entries?.filter(e => e.end_time) || []
+      setEntries(all.filter(e => new Date(e.start_time).getFullYear() === year))
+      return
+    }
+
+    // All other users: load from Neon
+    setLoading(true)
+    initDB()
+      .then(() => dbGetEntries(user.email, year))
+      .then(rows => setEntries(rows))
+      .catch(err => { console.error('Calendar Neon error:', err); setEntries([]) })
+      .finally(() => setLoading(false))
+  }, [user?.email, current.getFullYear()])
 
   // Build calendar grid: Mon–Sun weeks
   const monthStart = startOfMonth(current)
@@ -143,8 +157,21 @@ export default function Calendar() {
           {/* Grid */}
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
-            gap: 3, flex: 1,
+            gap: 3, flex: 1, position: 'relative',
           }}>
+            {loading && (
+              <div style={{
+                position: 'absolute', inset: 0, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                background: 'var(--c-bg-surface)88', borderRadius: 10, zIndex: 5,
+              }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  border: '3px solid #7C4DFF', borderTopColor: 'transparent',
+                  animation: 'spin 0.7s linear infinite',
+                }} />
+              </div>
+            )}
             {days.map(day => {
               const key = format(day, 'yyyy-MM-dd')
               const dayEntries = byDay[key] || []

@@ -21,7 +21,7 @@ function secsToHM(secs) {
 }
 
 export default function Calendar() {
-  const { isDemo } = useAuth()
+  const { user, isDemo } = useAuth()
   const { projects } = useWorkspace()
   const [current, setCurrent] = useState(new Date())
   const [selected, setSelected] = useState(null)

@@ -9,6 +9,27 @@ export function sql() {
   return _sql
 }
 
+/**
+ * Neon's HTTP driver returns TIMESTAMPTZ columns as JS Date objects.
+ * All our UI code (date-fns parseISO, format, etc.) expects ISO strings.
+ * This helper normalises any Date object to an ISO string; passes strings through.
+ */
+function toISO(v) {
+  if (!v) return null
+  if (v instanceof Date) return v.toISOString()
+  return String(v)
+}
+
+/** Normalise all timestamp fields in a time_entries row */
+function normEntry(r) {
+  return {
+    ...r,
+    start_time: toISO(r.start_time),
+    end_time:   toISO(r.end_time),
+    created_at: toISO(r.created_at),
+  }
+}
+
 // ── Bootstrap: create tables if they don't exist ─────────────
 let _initialized = false
 export async function initDB() {
@@ -191,19 +212,20 @@ export async function dbGetAllMembers() {
 
 export async function dbGetEntries(userEmail, year) {
   const db = sql()
-  return db`
+  const rows = await db`
     SELECT * FROM time_entries
     WHERE user_email = ${userEmail}
       AND end_time IS NOT NULL
       AND EXTRACT(YEAR FROM start_time) = ${year}
     ORDER BY start_time DESC
   `
+  return rows.map(normEntry)
 }
 
 /** All workspace entries in a date range (for Reports page) */
 export async function dbGetEntriesForPeriod(from, to) {
   const db = sql()
-  return db`
+  const rows = await db`
     SELECT * FROM time_entries
     WHERE workspace_id = 'xul-ws-1'
       AND end_time IS NOT NULL
@@ -211,6 +233,7 @@ export async function dbGetEntriesForPeriod(from, to) {
       AND start_time <= ${to.toISOString()}
     ORDER BY start_time DESC
   `
+  return rows.map(normEntry)
 }
 
 export async function dbInsertEntry({
@@ -243,7 +266,7 @@ export async function dbInsertEntry({
       duration      = EXCLUDED.duration
     RETURNING *
   `
-  return rows[0]
+  return rows[0] ? normEntry(rows[0]) : null
 }
 
 /** Bulk upsert — inserts entries in batches of 50 */

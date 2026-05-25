@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Play, Square, Plus, ChevronDown, MoreHorizontal, Clock, Zap, Briefcase } from 'lucide-react'
+import { Play, Square, Plus, ChevronDown, Clock, Zap, Briefcase, Pencil, Trash2 } from 'lucide-react'
 import { useTimer } from '../hooks/useTimer'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -11,6 +11,7 @@ import { format, parseISO, isToday, isYesterday, subDays, startOfWeek, endOfWeek
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import ManualEntryModal from '../components/timer/ManualEntryModal'
+import EditEntryModal from '../components/timer/EditEntryModal'
 
 export default function Tracker() {
   const { user, isDemo } = useAuth()
@@ -55,6 +56,8 @@ export default function Tracker() {
   const [showProjectPicker, setShowProjectPicker] = useState(false)
   const [showTaskPicker, setShowTaskPicker] = useState(false)
   const [showManual, setShowManual] = useState(false)
+  const [editingEntry, setEditingEntry] = useState(null)   // entry being edited
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null) // id pending delete confirm
   const [chartPeriod, setChartPeriod] = useState('Semana')
   const [syncing, setSyncing] = useState(false)
   const [projectTasks, setProjectTasks] = useState([])
@@ -204,13 +207,17 @@ export default function Tracker() {
 
   async function deleteEntry(id) {
     try {
-      // Never delete from Clockify — only remove locally / from Neon
       if (!syncEnabled) await dbDeleteEntry(id)
       setEntries(e => e.filter(x => x.id !== id))
+      setConfirmDeleteId(null)
       toast.success('Entrada eliminada')
     } catch (err) {
       toast.error('Error al eliminar: ' + err.message)
     }
+  }
+
+  function updateEntry(updated) {
+    setEntries(prev => prev.map(e => e.id === updated.id ? { ...e, ...updated } : e))
   }
 
   async function reactivateEntry(e) {
@@ -506,7 +513,7 @@ export default function Tracker() {
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', minWidth: 52, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {timer.format(e.duration || 0)}
                   </span>
-                  {/* Reactivate button */}
+                  {/* Reactivate */}
                   <button
                     onClick={() => reactivateEntry(e)}
                     title="Reactivar"
@@ -516,16 +523,42 @@ export default function Tracker() {
                   >
                     <Play size={13} fill="currentColor" />
                   </button>
-                  {/* Delete button */}
+
+                  {/* Edit */}
                   <button
-                    onClick={() => deleteEntry(e.id)}
-                    title="Eliminar"
+                    onClick={() => setEditingEntry(e)}
+                    title="Editar"
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6 }}
-                    onMouseEnter={ev => { ev.currentTarget.style.background = '#EF444415'; ev.currentTarget.style.color = '#EF4444' }}
+                    onMouseEnter={ev => { ev.currentTarget.style.background = '#7C4DFF15'; ev.currentTarget.style.color = '#7C4DFF' }}
                     onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--c-text-3)' }}
                   >
-                    <MoreHorizontal size={14} />
+                    <Pencil size={13} />
                   </button>
+
+                  {/* Delete — with inline confirm */}
+                  {confirmDeleteId === e.id ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                      <span style={{ fontSize: 11, color: '#EF4444', fontWeight: 600, whiteSpace: 'nowrap' }}>¿Eliminar?</span>
+                      <button
+                        onClick={() => deleteEntry(e.id)}
+                        style={{ padding: '2px 7px', borderRadius: 5, fontSize: 11, fontWeight: 700, background: '#EF4444', color: '#fff', border: 'none', cursor: 'pointer' }}
+                      >Sí</button>
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        style={{ padding: '2px 7px', borderRadius: 5, fontSize: 11, fontWeight: 600, background: 'var(--c-bg-muted)', color: 'var(--c-text-2)', border: '1px solid var(--c-border)', cursor: 'pointer' }}
+                      >No</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDeleteId(e.id)}
+                      title="Eliminar"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6 }}
+                      onMouseEnter={ev => { ev.currentTarget.style.background = '#EF444415'; ev.currentTarget.style.color = '#EF4444' }}
+                      onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--c-text-3)' }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -679,6 +712,15 @@ export default function Tracker() {
           user={user}
           isDemo={isDemo}
           onDemoSave={handleManualSave}
+        />
+      )}
+
+      {editingEntry && (
+        <EditEntryModal
+          entry={editingEntry}
+          user={user}
+          onClose={() => setEditingEntry(null)}
+          onSaved={updated => { updateEntry(updated); setEditingEntry(null) }}
         />
       )}
     </div>

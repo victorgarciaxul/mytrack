@@ -273,6 +273,89 @@ function ChangePasswordCard({ user }) {
   )
 }
 
+function AutoSyncCard() {
+  const [running, setRunning] = useState(false)
+  const [lastResult, setLastResult] = useState(null)
+
+  async function triggerSync() {
+    setRunning(true)
+    try {
+      const res = await fetch('/api/sync-clockify', { method: 'GET' })
+      const data = await res.json()
+      if (data.ok) {
+        toast.success(`✅ Sync completada · ${data.upserted} entradas actualizadas`)
+        setLastResult(data)
+      } else {
+        toast.error('Error en sync: ' + (data.error || 'desconocido'))
+      }
+    } catch (err) {
+      toast.error('Error al llamar al servidor: ' + err.message)
+    }
+    setRunning(false)
+  }
+
+  return (
+    <div style={{
+      borderRadius: 14, padding: 20, marginBottom: 16,
+      background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 10,
+          background: 'linear-gradient(135deg,#10B981,#059669)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <RefreshCw size={16} color="white" />
+        </div>
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--c-text-1)', margin: 0 }}>Sincronización automática</p>
+          <p style={{ fontSize: 11, color: 'var(--c-text-3)', margin: 0 }}>
+            Se ejecuta cada día a las 03:00h UTC · Últimos 7 días de todos los usuarios
+          </p>
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 8, background: '#10B98118' }}>
+          <CheckCircle size={12} style={{ color: '#10B981' }} />
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#10B981' }}>Activa</span>
+        </div>
+      </div>
+
+      <p style={{ fontSize: 12, color: 'var(--c-text-3)', margin: '0 0 14px', lineHeight: 1.6 }}>
+        Clockify → MyTrack se sincroniza automáticamente cada noche. También puedes ejecutarla ahora manualmente si acabas de registrar tiempo en Clockify.
+      </p>
+
+      {lastResult && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 14 }}>
+          {[
+            { label: 'Entradas',  value: lastResult.upserted, color: '#10B981' },
+            { label: 'Usuarios',  value: lastResult.users,    color: '#7C4DFF' },
+            { label: 'Tiempo',    value: `${(lastResult.durationMs / 1000).toFixed(1)}s`, color: '#F59E0B' },
+          ].map(s => (
+            <div key={s.label} style={{ background: 'var(--c-bg-muted)', borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
+              <p style={{ fontSize: 18, fontWeight: 700, color: s.color, margin: 0 }}>{s.value}</p>
+              <p style={{ fontSize: 11, color: 'var(--c-text-3)', margin: 0 }}>{s.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button
+        onClick={triggerSync}
+        disabled={running}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '8px 16px', borderRadius: 9, border: 'none',
+          background: running ? 'var(--c-bg-muted)' : 'linear-gradient(135deg,#10B981,#059669)',
+          color: running ? 'var(--c-text-3)' : '#fff',
+          fontSize: 13, fontWeight: 600, cursor: running ? 'not-allowed' : 'pointer',
+        }}
+      >
+        <RefreshCw size={13} style={{ animation: running ? 'spin 1s linear infinite' : 'none' }} />
+        {running ? 'Sincronizando…' : 'Ejecutar sync ahora'}
+      </button>
+    </div>
+  )
+}
+
 export default function Settings() {
   const { user } = useAuth()
   const { workspace } = useWorkspace()
@@ -284,9 +367,12 @@ export default function Settings() {
     <div style={{ padding: '24px 28px', maxWidth: 640, fontFamily: 'Inter, system-ui, sans-serif' }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--c-text-1)', marginBottom: 20 }}>Ajustes</h1>
 
-      {/* Clockify import — only the Clockify owner */}
+      {/* Clockify import + auto-sync — only the Clockify owner */}
       {user?.email === 'victorgarcia@xul.es' && (
-        <ClockifyImportCard onImported={() => forceUpdate(n => n + 1)} />
+        <>
+          <ClockifyImportCard onImported={() => forceUpdate(n => n + 1)} />
+          <AutoSyncCard />
+        </>
       )}
 
       {/* Cambiar contraseña */}

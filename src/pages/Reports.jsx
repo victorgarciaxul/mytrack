@@ -6,6 +6,8 @@ import {
 } from 'recharts'
 import { initDB, dbGetEntriesForPeriod } from '../lib/db'
 import { loadClockifyCache } from '../lib/clockify'
+import { useAuth } from '../context/AuthContext'
+import { useRole } from '../context/RoleContext'
 import {
   format, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
   eachDayOfInterval, subWeeks, addWeeks, subMonths, addMonths,
@@ -59,13 +61,15 @@ const CustomTooltip = ({ active, payload }) => {
 
 // ── main component ─────────────────────────────────────────────
 export default function Reports() {
+  const { user } = useAuth()
+  const { isAdmin } = useRole()
   const [tab, setTab] = useState('Resumido')
   const [rangeType, setRangeType] = useState('week')
   const [anchor, setAnchor] = useState(new Date())
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(false)
 
-  // Filter state
+  // Filter state — non-admins are locked to their own email
   const [filterProject,  setFilterProject]  = useState('ALL')
   const [filterClient,   setFilterClient]   = useState('ALL')
   const [filterBillable, setFilterBillable] = useState('ALL')
@@ -105,13 +109,15 @@ export default function Reports() {
 
   // ── derived ─────────────────────────────────────────────────
   const filtered = useMemo(() => entries.filter(e => {
+    // Non-admins only see their own entries regardless of filter
+    if (!isAdmin && e.user_email !== user?.email) return false
     if (filterProject  !== 'ALL' && (e.project_name || 'Sin proyecto') !== filterProject) return false
     if (filterClient   !== 'ALL' && (e.client_name  || 'Sin cliente')  !== filterClient)  return false
     if (filterUser     !== 'ALL' && e.user_email !== filterUser) return false
     if (filterBillable === 'YES' && !e.billable) return false
     if (filterBillable === 'NO'  &&  e.billable) return false
     return true
-  }), [entries, filterProject, filterClient, filterUser, filterBillable])
+  }), [entries, filterProject, filterClient, filterUser, filterBillable, isAdmin, user?.email])
 
   const projects  = [...new Set(entries.map(e => e.project_name || 'Sin proyecto'))].sort()
   const clients   = [...new Set(entries.map(e => e.client_name  || 'Sin cliente'))].sort()
@@ -211,10 +217,12 @@ export default function Reports() {
         <div style={{ flex: 1 }} />
 
         {/* Filters */}
-        <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={selectStyle}>
-          <option value="ALL">Todos los usuarios</option>
-          {users.map(u => <option key={u} value={u}>{u.split('@')[0]}</option>)}
-        </select>
+        {isAdmin && (
+          <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={selectStyle}>
+            <option value="ALL">Todos los usuarios</option>
+            {users.map(u => <option key={u} value={u}>{u.split('@')[0]}</option>)}
+          </select>
+        )}
         <select value={filterProject} onChange={e => setFilterProject(e.target.value)} style={selectStyle}>
           <option value="ALL">Todos los proyectos</option>
           {projects.map(p => <option key={p} value={p}>{p}</option>)}

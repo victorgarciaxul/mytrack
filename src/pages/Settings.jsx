@@ -6,7 +6,7 @@ import { User, HelpCircle, Play, Download, CheckCircle, RefreshCw, Trash2, Lock,
 import toast from 'react-hot-toast'
 import { useTour } from '../components/tour/AppTour'
 import { importFromClockify, loadClockifyCache, clearClockifyCache, clockifyGetTags, clockifyGetTimeOffPolicies, clockifyGetTimeOffRequests, clockifyGetAllTasks } from '../lib/clockify'
-import { initDB, dbUpsertEntries, dbUpsertMember, dbUpsertProjects, dbUpsertClients, dbChangePassword, dbUpsertTags, dbUpsertTimeOffPolicies, dbUpsertTimeOffRequests, dbUpsertTasks } from '../lib/db'
+import { initDB, dbUpsertEntries, dbUpsertMember, dbUpsertProjects, dbUpsertClients, dbChangePassword, dbUpsertTags, dbUpsertTimeOffPolicies, dbUpsertTimeOffRequests, dbUpsertTasks, dbUpsertGroups } from '../lib/db'
 
 function ClockifyImportCard({ onImported }) {
   const [status, setStatus] = useState('')
@@ -32,9 +32,9 @@ function ClockifyImportCard({ onImported }) {
       if (result.projects?.length) await dbUpsertProjects(result.projects)
       if (result.clients?.length)  await dbUpsertClients(result.clients)
 
-      // 3. Save all users to Neon (always — roles or names may have changed)
+      // 3. Save all users + groups to Neon
       setStatus('Registrando usuarios en MyTrack…')
-      setProgress(91)
+      setProgress(90)
       for (const member of result.members || []) {
         await dbUpsertMember({
           userEmail: member.profiles?.email || '',
@@ -43,6 +43,11 @@ function ClockifyImportCard({ onImported }) {
           clockifyUserId: member.user_id || member.id,
           groupName: member.group_name || null,
         })
+      }
+      if (result.groups?.length) {
+        setStatus('Guardando grupos…')
+        setProgress(91)
+        await dbUpsertGroups(result.groups)
       }
 
       // 4. Save only the new/changed entries to Neon (upserts are safe)

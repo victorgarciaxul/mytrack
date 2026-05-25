@@ -82,6 +82,16 @@ export async function initDB() {
     )
   `
   await db`
+    CREATE TABLE IF NOT EXISTS groups (
+      id           TEXT PRIMARY KEY,
+      workspace_id TEXT DEFAULT 'xul-ws-1',
+      name         TEXT NOT NULL,
+      user_ids     TEXT DEFAULT '[]',
+      manager_ids  TEXT DEFAULT '[]',
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    )
+  `
+  await db`
     CREATE TABLE IF NOT EXISTS tasks (
       id           TEXT PRIMARY KEY,
       workspace_id TEXT DEFAULT 'xul-ws-1',
@@ -323,6 +333,28 @@ export async function dbGetProjectsWithHours() {
 export async function dbGetClients() {
   const db = sql()
   return db`SELECT * FROM clients WHERE workspace_id = 'xul-ws-1' ORDER BY name`
+}
+
+// ── Groups ────────────────────────────────────────────────────
+
+export async function dbGetGroups() {
+  const db = sql()
+  return db`SELECT * FROM groups WHERE workspace_id = 'xul-ws-1' ORDER BY name`
+}
+
+export async function dbUpsertGroups(groups) {
+  const db = sql()
+  for (const g of groups) {
+    await db`
+      INSERT INTO groups (id, workspace_id, name, user_ids, manager_ids)
+      VALUES (${g.id}, 'xul-ws-1', ${g.name},
+              ${g.user_ids || '[]'}, ${g.manager_ids || '[]'})
+      ON CONFLICT (id) DO UPDATE SET
+        name        = EXCLUDED.name,
+        user_ids    = EXCLUDED.user_ids,
+        manager_ids = EXCLUDED.manager_ids
+    `
+  }
 }
 
 // ── Tasks ──────────────────────────────────────────────────────

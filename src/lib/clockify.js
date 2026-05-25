@@ -145,11 +145,18 @@ export async function importFromClockify(onStatus, since = null) {
 
   // Fetch user groups to show which team/department each member belongs to
   let userGroupMap = {}
+  let groups = []
   try {
     const rawGroups = await fetchAll(`/workspaces/${WORKSPACE_ID}/user-groups`, 100)
     rawGroups.forEach(g => {
       ;(g.userIds || []).forEach(uid => { userGroupMap[uid] = g.name })
     })
+    groups = rawGroups.map(g => ({
+      id:          g.id,
+      name:        g.name,
+      user_ids:    JSON.stringify(g.userIds || []),
+      manager_ids: JSON.stringify(g.managerIds || []),
+    }))
   } catch { /* groups optional */ }
 
   const members = rawUsers.map(u => ({
@@ -257,7 +264,7 @@ export async function importFromClockify(onStatus, since = null) {
   }
 
   onStatus('¡Importación completada!', 100)
-  return { ...cache, allEntriesForNeon, isIncremental, newCount: newEntriesForNeon.length }
+  return { ...cache, allEntriesForNeon, isIncremental, newCount: newEntriesForNeon.length, groups }
 }
 
 // ── Write API ────────────────────────────────────────────────

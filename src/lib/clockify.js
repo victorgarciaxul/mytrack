@@ -163,7 +163,7 @@ export async function importFromClockify(onStatus, since = null) {
     id: u.id,
     workspace_id: WORKSPACE_ID,
     user_id: u.id,
-    role: u.roles?.[0]?.role === 'WORKSPACE_ADMIN' ? 'admin' : 'employee',
+    role: ['WORKSPACE_ADMIN', 'OWNER'].includes(u.roles?.[0]?.role) ? 'admin' : 'employee',
     group_name: userGroupMap[u.id] || null,
     profiles: {
       full_name: u.name || '',

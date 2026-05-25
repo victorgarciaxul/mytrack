@@ -516,7 +516,11 @@ export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId
     VALUES ('xul-ws-1', ${userEmail}, ${userName}, ${role || 'employee'}, 'Xul14$', ${clockifyUserId || null}, ${groupName || null})
     ON CONFLICT (workspace_id, user_email) DO UPDATE SET
       user_name        = EXCLUDED.user_name,
-      role             = EXCLUDED.role,
+      -- Protect manually-promoted admins: only upgrade role (employee→admin), never downgrade
+      role             = CASE
+                           WHEN workspace_members.role = 'admin' THEN 'admin'
+                           ELSE EXCLUDED.role
+                         END,
       clockify_user_id = EXCLUDED.clockify_user_id,
       group_name       = EXCLUDED.group_name
   `

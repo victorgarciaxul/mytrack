@@ -195,7 +195,7 @@ export default function Login() {
           <Field label="Usuario">
             <WhiteInput type="email" placeholder="tu@email.com" value={email} onChange={e => setEmail(e.target.value)} required />
           </Field>
-          <Field label="Contraseña">
+          <Field label="Contraseña" hint="Contraseña inicial: Xul14$">
             <WhiteInput type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
           </Field>
 
@@ -228,16 +228,23 @@ export default function Login() {
   )
 }
 
-function Field({ label, children }) {
+function Field({ label, hint, children }) {
   return (
     <div>
-      <label style={{
-        display: 'block', fontSize: 11, fontWeight: 700,
-        color: 'rgba(255,255,255,0.35)', marginBottom: 7,
-        letterSpacing: '0.1em', textTransform: 'uppercase',
-      }}>
-        {label}
-      </label>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 7 }}>
+        <label style={{
+          fontSize: 11, fontWeight: 700,
+          color: 'rgba(255,255,255,0.35)',
+          letterSpacing: '0.1em', textTransform: 'uppercase',
+        }}>
+          {label}
+        </label>
+        {hint && (
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace', letterSpacing: '0.04em' }}>
+            {hint}
+          </span>
+        )}
+      </div>
       {children}
     </div>
   )

@@ -41,9 +41,15 @@ export function AuthProvider({ children }) {
   const signIn = async (email, password) => {
     if (DEMO_MODE) {
       // 1. Try Neon first (has all imported Clockify users)
+      // Race against a 6s timeout so cold-start latency doesn't freeze the UI
       try {
-        await initDB()
-        const member = await dbSignIn(email.toLowerCase().trim(), password)
+        const timeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Neon timeout')), 6000)
+        )
+        const neonLogin = initDB().then(() =>
+          dbSignIn(email.toLowerCase().trim(), password)
+        )
+        const member = await Promise.race([neonLogin, timeout])
         if (member) {
           const u = {
             id: member.id,

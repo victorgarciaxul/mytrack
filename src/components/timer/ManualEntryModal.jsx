@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
+import SearchableDropdown from '../ui/SearchableDropdown'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import { useAuth } from '../../context/AuthContext'
@@ -162,32 +163,24 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-text-3)' }}>Proyecto</label>
-            <select value={projectId} onChange={e => handleProjectChange(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm outline-none transition-all"
-              style={inputStyle}>
-              <option value="">Sin proyecto</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <SearchableDropdown
+              value={projectId || null}
+              onChange={opt => handleProjectChange(opt?.value || '')}
+              options={projects.map(p => ({ value: p.id, label: p.name, color: p.color }))}
+              placeholder="Sin proyecto"
+              clearLabel="Sin proyecto"
+            />
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-text-3)' }}>Tarea</label>
-            <select
-              value={taskId}
-              onChange={e => setTaskId(e.target.value)}
+            <SearchableDropdown
+              value={taskId || null}
+              onChange={opt => setTaskId(opt?.value || '')}
+              options={projectTasks.map(t => ({ value: t.id, label: t.name, color: '#7C4DFF' }))}
+              placeholder={!projectId ? 'Selecciona un proyecto primero' : loadingTasks ? 'Cargando…' : 'Sin tarea'}
+              clearLabel="Sin tarea"
               disabled={!projectId || loadingTasks}
-              className="w-full px-3.5 py-2.5 text-sm outline-none transition-all"
-              style={{ ...inputStyle, opacity: !projectId ? 0.5 : 1, cursor: !projectId ? 'not-allowed' : 'pointer' }}
-            >
-              {!projectId
-                ? <option value="">Selecciona un proyecto primero</option>
-                : loadingTasks
-                  ? <option value="">Cargando tareas…</option>
-                  : <>
-                      <option value="">Sin tarea</option>
-                      {projectTasks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </>
-              }
-            </select>
+            />
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-text-3)' }}>Fecha</label>

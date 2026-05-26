@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
+import SearchableDropdown from '../ui/SearchableDropdown'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import { isClockifyUser, clockifyGetProjectTasks } from '../../lib/clockify'
 import { initDB, dbInsertEntry } from '../../lib/db'
@@ -121,32 +122,27 @@ export default function EditEntryModal({ entry, onClose, onSaved, user }) {
           {/* Proyecto */}
           <div>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--c-text-3)', marginBottom: 6 }}>Proyecto</label>
-            <select
-              value={projectId} onChange={e => { setProjectId(e.target.value); setTaskId('') }}
-              style={{ ...inputStyle, width: '100%', padding: '9px 12px', fontSize: 13, outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
-            >
-              <option value="">Sin proyecto</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <SearchableDropdown
+              value={projectId || null}
+              onChange={opt => { setProjectId(opt?.value || ''); setTaskId('') }}
+              options={projects.map(p => ({ value: p.id, label: p.name, color: p.color }))}
+              placeholder="Sin proyecto"
+              clearLabel="Sin proyecto"
+            />
           </div>
 
           {/* Tarea */}
           {projectId && (
             <div>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--c-text-3)', marginBottom: 6 }}>Tarea</label>
-              <select
-                value={taskId} onChange={e => setTaskId(e.target.value)}
+              <SearchableDropdown
+                value={taskId || null}
+                onChange={opt => setTaskId(opt?.value || '')}
+                options={projectTasks.map(t => ({ value: t.id, label: t.name, color: '#7C4DFF' }))}
+                placeholder={loadingTasks ? 'Cargando tareas…' : 'Sin tarea'}
+                clearLabel="Sin tarea"
                 disabled={loadingTasks}
-                style={{ ...inputStyle, width: '100%', padding: '9px 12px', fontSize: 13, outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
-              >
-                {loadingTasks
-                  ? <option value="">Cargando tareas…</option>
-                  : <>
-                      <option value="">Sin tarea</option>
-                      {projectTasks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </>
-                }
-              </select>
+              />
             </div>
           )}
 

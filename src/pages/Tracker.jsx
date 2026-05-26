@@ -11,6 +11,7 @@ import { format, parseISO, isToday, isYesterday, subDays, startOfWeek, endOfWeek
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import ManualEntryModal from '../components/timer/ManualEntryModal'
+import SearchableDropdown from '../components/ui/SearchableDropdown'
 import EditEntryModal from '../components/timer/EditEntryModal'
 
 export default function Tracker() {
@@ -389,79 +390,38 @@ export default function Tracker() {
             </div>
 
             {/* Project / Task pickers */}
-            <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-              <div data-tour="project-picker" style={{ position: 'relative' }}>
-                <button
-                  onClick={() => setShowProjectPicker(p => !p)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    padding: '5px 10px', borderRadius: 7,
-                    background: selectedProject ? selectedProject.color + '12' : 'var(--c-bg-muted)',
-                    color: selectedProject ? selectedProject.color : '#94A3B8',
-                    border: `1px solid ${selectedProject ? selectedProject.color + '30' : 'var(--c-border)'}`,
-                    fontSize: 12, fontWeight: 500, cursor: 'pointer',
+            <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', minWidth: 0 }}>
+              <div data-tour="project-picker" style={{ minWidth: 160, maxWidth: 240 }}>
+                <SearchableDropdown
+                  value={selectedProject?.id || null}
+                  onChange={opt => {
+                    if (!opt) { setSelectedProject(null); setSelectedTask(null); return }
+                    const p = projects.find(x => x.id === opt.value)
+                    setSelectedProject(p || null)
+                    setSelectedTask(null)
                   }}
-                >
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: selectedProject?.color || '#CBD5E1' }} />
-                  {selectedProject?.name || 'Proyecto'}
-                  <ChevronDown size={11} />
-                </button>
-                {showProjectPicker && (
-                  <div style={{
-                    position: 'absolute', left: 0, top: 'calc(100% + 4px)',
-                    minWidth: 220, maxHeight: 280, overflowY: 'auto',
-                    background: 'var(--c-bg-surface)', borderRadius: 10,
-                    border: '1px solid var(--c-border)', boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-                    zIndex: 50, padding: '4px 0',
-                  }}>
-                    <Opt onClick={() => { setSelectedProject(null); setSelectedTask(null); setShowProjectPicker(false) }} muted>Sin proyecto</Opt>
-                    {projects.map(p => (
-                      <Opt key={p.id} onClick={() => { setSelectedProject(p); setSelectedTask(null); setShowProjectPicker(false) }}>
-                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color }} />
-                        {p.name}
-                      </Opt>
-                    ))}
-                  </div>
-                )}
+                  options={projects.map(p => ({ value: p.id, label: p.name, color: p.color }))}
+                  placeholder="Proyecto"
+                  clearLabel="Sin proyecto"
+                  style={{ fontSize: 12 }}
+                />
               </div>
 
               {selectedProject && (
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => setShowTaskPicker(p => !p)}
-                    disabled={loadingTasks}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      padding: '5px 10px', borderRadius: 7,
-                      background: selectedTask ? '#7C4DFF12' : 'var(--c-bg-muted)',
-                      color: selectedTask ? '#7C4DFF' : '#94A3B8',
-                      border: `1px solid ${selectedTask ? '#7C4DFF30' : 'var(--c-border)'}`,
-                      fontSize: 12, fontWeight: 500, cursor: loadingTasks ? 'wait' : 'pointer',
+                <div style={{ minWidth: 140, maxWidth: 200 }}>
+                  <SearchableDropdown
+                    value={selectedTask?.id || null}
+                    onChange={opt => {
+                      if (!opt) { setSelectedTask(null); return }
+                      const t = projectTasks.find(x => x.id === opt.value)
+                      setSelectedTask(t || null)
                     }}
-                  >
-                    {loadingTasks ? '…' : (selectedTask?.name || 'Tarea')}
-                    <ChevronDown size={11} />
-                  </button>
-                  {showTaskPicker && !loadingTasks && (
-                    <div style={{
-                      position: 'absolute', left: 0, top: 'calc(100% + 4px)',
-                      minWidth: 220, maxHeight: 220, overflowY: 'auto',
-                      background: 'var(--c-bg-surface)', borderRadius: 10,
-                      border: '1px solid var(--c-border)', boxShadow: '0 8px 30px rgba(0,0,0,0.1)',
-                      zIndex: 50, padding: '4px 0',
-                    }}>
-                      <Opt onClick={() => { setSelectedTask(null); setShowTaskPicker(false) }} muted>Sin tarea</Opt>
-                      {projectTasks.length === 0
-                        ? <Opt muted>No hay tareas en este proyecto</Opt>
-                        : projectTasks.map(t => (
-                          <Opt key={t.id} onClick={() => { setSelectedTask(t); setShowTaskPicker(false) }}>
-                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#7C4DFF', flexShrink: 0 }} />
-                            {t.name}
-                          </Opt>
-                        ))
-                      }
-                    </div>
-                  )}
+                    options={projectTasks.map(t => ({ value: t.id, label: t.name, color: '#7C4DFF' }))}
+                    placeholder={loadingTasks ? 'Cargando…' : 'Tarea'}
+                    clearLabel="Sin tarea"
+                    disabled={loadingTasks}
+                    style={{ fontSize: 12 }}
+                  />
                 </div>
               )}
             </div>

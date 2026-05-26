@@ -95,7 +95,8 @@ export default function SearchableDropdown({
       {/* Dropdown panel */}
       {open && (
         <div style={{
-          position: 'absolute', left: 0, right: 0, top: 'calc(100% + 4px)',
+          position: 'absolute', left: 0, top: 'calc(100% + 4px)',
+          minWidth: '100%', width: 'max-content', maxWidth: 320,
           zIndex: 200,
           background: 'var(--c-bg-surface)',
           border: '1px solid var(--c-border-light)',
@@ -184,7 +185,7 @@ function Option({ label, color, active, muted, onClick }) {
       onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
     >
       {color && <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />}
-      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span style={{ flex: 1, whiteSpace: 'nowrap' }}>
         {label}
       </span>
       {active && !muted && (

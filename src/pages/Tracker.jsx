@@ -391,7 +391,7 @@ export default function Tracker() {
 
             {/* Project / Task pickers */}
             <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', minWidth: 0 }}>
-              <div data-tour="project-picker" style={{ minWidth: 160, maxWidth: 240 }}>
+              <div data-tour="project-picker" style={{ minWidth: 180 }}>
                 <SearchableDropdown
                   value={selectedProject?.id || null}
                   onChange={opt => {
@@ -408,7 +408,7 @@ export default function Tracker() {
               </div>
 
               {selectedProject && (
-                <div style={{ minWidth: 140, maxWidth: 200 }}>
+                <div style={{ minWidth: 140 }}>
                   <SearchableDropdown
                     value={selectedTask?.id || null}
                     onChange={opt => {

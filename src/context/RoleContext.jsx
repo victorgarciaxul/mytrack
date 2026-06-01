@@ -16,7 +16,8 @@ export function RoleProvider({ children }) {
     if (!user) return
     if (isDemo) {
       const me = demoMembers.find(m => m.user_id === user.id)
-      setRole(me?.role || user?.role || 'employee')
+      // Neon-loaded role (from login) takes precedence over static demoMembers
+      setRole(user?.role || me?.role || 'employee')
       setProfile(me?.profiles || null)
       // Load from Neon instead of hardcoded demo data
       loadNotificationsNeon()

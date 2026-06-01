@@ -847,21 +847,21 @@ export default function Team() {
 
   return (
     <div className="page-container" style={{ padding: '28px 32px', fontFamily: 'Inter, system-ui, sans-serif' }}>
-      {/* Modals */}
-      {showNewMember && (
+      {/* Modals — all gated: only admins can reach these */}
+      {isAdmin && showNewMember && (
         <NewMemberModal
           onClose={() => setNewMem(false)}
           onSaved={() => { setLoading(true); reload().finally(() => setLoading(false)) }}
         />
       )}
-      {showNewGroup && (
+      {isAdmin && showNewGroup && (
         <NewGroupModal
           members={members}
           onClose={() => setNewGrp(false)}
           onSaved={() => { setLoading(true); reload().finally(() => setLoading(false)) }}
         />
       )}
-      {editingGroup && (
+      {isAdmin && editingGroup && (
         <EditGroupModal
           group={editingGroup}
           members={members}
@@ -869,7 +869,7 @@ export default function Team() {
           onSaved={() => { setEditGrp(null); setLoading(true); reload().finally(() => setLoading(false)) }}
         />
       )}
-      {editingMember && (
+      {isAdmin && editingMember && (
         <EditMemberModal
           member={editingMember}
           onClose={() => setEditMem(null)}
@@ -904,8 +904,8 @@ export default function Team() {
         </div>
       ) : (
         <>
-          {tab === 'Miembros'      && <MembersTab  members={members} isAdmin={isAdmin} onNewMember={() => setNewMem(true)} onEditMember={setEditMem} onReload={() => { setLoading(true); reload().finally(() => setLoading(false)) }} />}
-          {tab === 'Grupos'        && <GroupsTab   groups={groups} members={members} isAdmin={isAdmin} onNewGroup={() => setNewGrp(true)} onEditGroup={setEditGrp} />}
+          {tab === 'Miembros'      && <MembersTab  members={members} isAdmin={isAdmin} onNewMember={isAdmin ? () => setNewMem(true) : null} onEditMember={isAdmin ? setEditMem : null} onReload={() => { setLoading(true); reload().finally(() => setLoading(false)) }} />}
+          {tab === 'Grupos'        && <GroupsTab   groups={groups} members={members} isAdmin={isAdmin} onNewGroup={isAdmin ? () => setNewGrp(true) : null} onEditGroup={isAdmin ? setEditGrp : null} />}
           {tab === 'Recordatorios' && <RemindersTab />}
         </>
       )}

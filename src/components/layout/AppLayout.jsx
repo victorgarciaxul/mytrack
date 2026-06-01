@@ -7,6 +7,9 @@ import { useAuth } from '../../context/AuthContext'
 import AppTour, { useTour } from '../tour/AppTour'
 import { useTheme } from '../../context/ThemeContext'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
+import { X } from 'lucide-react'
+
+const BANNER_KEY = 'mytrack-banner-dismissed'
 
 export default function AppLayout() {
   const { isDemo } = useAuth()
@@ -15,6 +18,14 @@ export default function AppLayout() {
   const isMobile = useMediaQuery('(max-width: 768px)')
   const [tourRunning, setTourRunning] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [bannerVisible, setBannerVisible] = useState(() => {
+    try { return localStorage.getItem(BANNER_KEY) !== 'true' } catch { return true }
+  })
+
+  function dismissBanner() {
+    try { localStorage.setItem(BANNER_KEY, 'true') } catch {}
+    setBannerVisible(false)
+  }
 
   // Close sidebar when switching to desktop
   useEffect(() => { if (!isMobile) setSidebarOpen(false) }, [isMobile])
@@ -25,10 +36,49 @@ export default function AppLayout() {
   }, [])
 
   return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', fontFamily: 'Inter, system-ui, sans-serif' }}>
+
+      {/* ── Welcome banner ── */}
+      {bannerVisible && (
+        <div style={{
+          background: 'linear-gradient(90deg, #1D4ED8 0%, #2563EB 50%, #1E40AF 100%)',
+          color: '#fff',
+          padding: isMobile ? '8px 12px' : '9px 20px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: 12, flexShrink: 0, position: 'relative',
+          fontSize: isMobile ? 12 : 13,
+        }}>
+          <span style={{ fontWeight: 700, letterSpacing: '-0.1px' }}>👋 Bienvenido a MyTrack</span>
+          <span style={{ opacity: 0.75, display: isMobile ? 'none' : 'inline' }}>·</span>
+          <span style={{ opacity: 0.9 }}>
+            {isMobile ? '' : '¿Necesitas ayuda? '}
+            <a
+              href="mailto:tech@xul.es"
+              style={{ color: '#93C5FD', fontWeight: 600, textDecoration: 'none', borderBottom: '1px solid rgba(147,197,253,0.4)' }}
+              onMouseEnter={e => e.target.style.color = '#fff'}
+              onMouseLeave={e => e.target.style.color = '#93C5FD'}
+            >tech@xul.es</a>
+          </span>
+          <button
+            onClick={dismissBanner}
+            style={{
+              position: 'absolute', right: isMobile ? 8 : 16, top: '50%', transform: 'translateY(-50%)',
+              background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6,
+              width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: '#fff', padding: 0,
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+            title="Cerrar"
+          >
+            <X size={13} strokeWidth={2.5} />
+          </button>
+        </div>
+      )}
+
     <div className="app-wrapper" style={{
-      display: 'flex', height: '100vh', overflow: 'hidden',
+      display: 'flex', flex: 1, overflow: 'hidden',
       background: 'var(--c-bg-app)',
-      fontFamily: 'Inter, system-ui, sans-serif',
       padding: isMobile ? 0 : 12,
       gap: isMobile ? 0 : 12,
     }}>
@@ -81,6 +131,7 @@ export default function AppLayout() {
         }}
       />
       <AppTour run={tourRunning} onFinish={() => setTourRunning(false)} />
+    </div>
     </div>
   )
 }

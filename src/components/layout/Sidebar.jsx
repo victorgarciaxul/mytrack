@@ -6,7 +6,7 @@ import {
   Clock, BarChart2, Briefcase, Users, Settings,
   HelpCircle, ChevronDown, Plus, CalendarDays,
   Bell, LogOut, Tag, CalendarOff, Building2,
-  PanelLeftClose, X, Check, CircleDollarSign, AlarmClock,
+  ChevronsLeft, ChevronsRight, X, Check, CircleDollarSign, AlarmClock,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
@@ -332,7 +332,7 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
             boxShadow: '0 4px 12px rgba(124,77,255,0.3)',
             flexShrink: 0, cursor: 'pointer',
           }} onClick={toggleCollapsed} title="Expandir">
-            <Clock size={16} color="white" strokeWidth={2.5} />
+            <ChevronsRight size={16} color="white" strokeWidth={2.5} />
           </div>
         ) : (
           <>
@@ -351,10 +351,10 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
             {/* Collapse button — desktop only */}
             {!isMobile && (
               <button onClick={toggleCollapsed} title="Contraer"
-                style={{ width: 26, height: 26, borderRadius: 7, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--c-text-4)', flexShrink: 0 }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'var(--c-bg-muted)'; e.currentTarget.style.color = '#7C4DFF' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--c-text-4)' }}>
-                <PanelLeftClose size={15} />
+                style={{ width: 28, height: 28, borderRadius: 8, background: 'none', border: '1.5px solid transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--c-text-4)', flexShrink: 0, transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--c-bg-muted)'; e.currentTarget.style.borderColor = 'var(--c-border-light)'; e.currentTarget.style.color = '#7C4DFF' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.color = 'var(--c-text-4)' }}>
+                <ChevronsLeft size={15} strokeWidth={2} />
               </button>
             )}
           </>

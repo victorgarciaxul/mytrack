@@ -49,17 +49,30 @@ export default function Calendar() {
     if (!user?.email) return
     const year = current.getFullYear()
 
+    // For Clockify users: try localStorage cache first, fall back to Neon DB
+    // (cache only exists on the device where the import was done)
     if (isClockifyUser(user.email)) {
       const cache = loadClockifyCache()
       const all = cache?.entries?.filter(e => e.end_time) || []
-      setEntries(all.filter(e => new Date(e.start_time).getFullYear() === year))
-      return
+      const cached = all.filter(e => new Date(e.start_time).getFullYear() === year)
+      if (cached.length > 0) {
+        setEntries(cached)
+        return
+      }
+      // Cache empty on this device — fall through to Neon DB
     }
 
     setLoading(true)
     initDB()
       .then(() => dbGetEntries(user.email, year))
-      .then(rows => setEntries(rows))
+      .then(rows => setEntries(rows.map(r => ({
+        ...r,
+        // Neon stores flat fields; Calendar expects nested { projects: { id, name, color } }
+        projects: r.project_id
+          ? { id: r.project_id, name: r.project_name || '', color: r.project_color || '#7C4DFF' }
+          : null,
+        tasks: r.task_id ? { id: r.task_id, name: r.task_name || '' } : null,
+      }))))
       .catch(err => { console.error('Calendar Neon error:', err); setEntries([]) })
       .finally(() => setLoading(false))
   }, [user?.email, current.getFullYear()])

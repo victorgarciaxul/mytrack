@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { DollarSign, ChevronDown, ChevronUp, TrendingUp, Users, Briefcase, Filter } from 'lucide-react'
 import { useRole } from '../context/RoleContext'
 import { useNavigate } from 'react-router-dom'
-import { sql, initDB, getWsId } from '../lib/db'
+import { sql, getWsId } from '../lib/db'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -70,16 +70,26 @@ export default function Costs() {
     if (role !== null && !isAdmin) navigate('/tracker', { replace: true })
   }, [role, isAdmin])
 
-  // Load data
+  // Date range from preset (computed first so load() can use it)
+  const { from, to } = useMemo(() => PRESETS[preset].fn(), [preset])
+
+  // Load data — filtered by date range in SQL, refetch when preset changes
   useEffect(() => {
     async function load() {
       setLoading(true)
       try {
-        await initDB()
         const db = sql()
         const [mems, ents] = await Promise.all([
-          db`SELECT id, user_name, user_email, hourly_rate, group_name FROM workspace_members WHERE workspace_id = ${getWsId()} AND hourly_rate > 0 ORDER BY user_name`,
-          db`SELECT user_email, project_id, project_name, project_color, duration, start_time FROM time_entries WHERE workspace_id = ${getWsId()} AND duration > 0`,
+          db`SELECT id, user_name, user_email, hourly_rate, group_name
+             FROM workspace_members
+             WHERE workspace_id = ${getWsId()} AND hourly_rate > 0
+             ORDER BY user_name`,
+          db`SELECT user_email, project_id, project_name, project_color, duration, start_time
+             FROM time_entries
+             WHERE workspace_id = ${getWsId()}
+               AND duration > 0
+               AND start_time >= ${from.toISOString()}
+               AND start_time <= ${to.toISOString()}`,
         ])
         setMembers(mems)
         setEntries(ents)
@@ -90,18 +100,10 @@ export default function Costs() {
       }
     }
     load()
-  }, [])
+  }, [preset])
 
-  // Date range from preset
-  const { from, to } = useMemo(() => PRESETS[preset].fn(), [preset])
-
-  // Filter entries by date
-  const dateFiltered = useMemo(() =>
-    entries.filter(e => {
-      const d = new Date(e.start_time)
-      return d >= from && d <= to
-    }),
-  [entries, from, to])
+  // Date already filtered in SQL — no client-side date filter needed
+  const dateFiltered = entries
 
   // Build rate map: email -> hourly_rate
   const rateMap = useMemo(() => {

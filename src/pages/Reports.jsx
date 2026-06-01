@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from 'recharts'
-import { initDB, dbGetEntriesForPeriod, getWsId } from '../lib/db'
+import { dbGetEntriesForPeriod, getWsId } from '../lib/db'
 import { loadClockifyCache } from '../lib/clockify'
 import { useAuth } from '../context/AuthContext'
 import { useRole } from '../context/RoleContext'
@@ -84,8 +84,7 @@ export default function Reports() {
   async function loadData() {
     setLoading(true)
     try {
-      // Try Neon first (has all users), fallback to cache
-      await initDB()
+      // Fetch directly — DB is already initialised from login/Tracker
       const rows = await dbGetEntriesForPeriod(from, to)
       if (rows.length > 0) {
         setEntries(rows.map(r => ({

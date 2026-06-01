@@ -30,19 +30,19 @@ function fmtH(secs) {
 }
 
 // ── Stat card ───────────────────────────────────────────────────────────────
-function StatCard({ icon: Icon, label, value, color }) {
+function StatCard({ icon: Icon, label, value, color, isMobile }) {
   return (
     <div style={{
       background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)',
-      borderRadius: 14, padding: '16px 20px',
-      display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0,
+      borderRadius: 14, padding: isMobile ? '12px 14px' : '16px 20px',
+      display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 14,
     }}>
-      <div style={{ width: 40, height: 40, borderRadius: 12, background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <Icon size={18} color={color} />
+      <div style={{ width: isMobile ? 34 : 40, height: isMobile ? 34 : 40, borderRadius: 12, background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Icon size={isMobile ? 15 : 18} color={color} />
       </div>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 11, color: 'var(--c-text-4)', marginBottom: 3, whiteSpace: 'nowrap' }}>{label}</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--c-text-1)', whiteSpace: 'nowrap' }}>{value}</div>
+        <div style={{ fontSize: isMobile ? 10 : 11, color: 'var(--c-text-4)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
+        <div style={{ fontSize: isMobile ? 15 : 18, fontWeight: 700, color: 'var(--c-text-1)', whiteSpace: 'nowrap' }}>{value}</div>
       </div>
     </div>
   )
@@ -218,78 +218,97 @@ export default function Costs() {
     <div className="page-container" style={{ padding: isMobile ? '14px' : '24px 28px', overflowY: 'auto', height: '100%' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row', gap: 12, marginBottom: 20 }}>
-        <div>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
           <h1 style={{ margin: 0, fontSize: isMobile ? 18 : 22, fontWeight: 800, color: 'var(--c-text-1)', letterSpacing: '-0.5px' }}>
             Costes de equipo
           </h1>
-          <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--c-text-4)' }}>Solo visible para administradores</p>
         </div>
+        <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--c-text-4)' }}>Solo visible para administradores</p>
 
-        {/* Controls */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {/* Preset selector */}
-          <div style={{ display: 'flex', gap: 4 }}>
-            {PRESETS.map((p, i) => (
-              <button key={i} onClick={() => setPreset(i)} style={{
-                padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                background: preset === i ? '#7C4DFF' : 'var(--c-bg-muted)',
-                color: preset === i ? '#fff' : 'var(--c-text-3)',
-                border: preset === i ? '1.5px solid #7C4DFF' : '1.5px solid var(--c-border)',
-                transition: 'all 0.15s',
-              }}>{p.label}</button>
-            ))}
-          </div>
+        {/* Preset selector — full width scrollable row on mobile */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+          {PRESETS.map((p, i) => (
+            <button key={i} onClick={() => setPreset(i)} style={{
+              padding: isMobile ? '7px 14px' : '6px 12px',
+              borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              background: preset === i ? '#7C4DFF' : 'var(--c-bg-muted)',
+              color: preset === i ? '#fff' : 'var(--c-text-3)',
+              border: preset === i ? '1.5px solid #7C4DFF' : '1.5px solid var(--c-border)',
+              transition: 'all 0.15s', flex: isMobile ? '1 1 auto' : '0 0 auto',
+            }}>{p.label}</button>
+          ))}
         </div>
       </div>
 
-      {/* Stat cards */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        <StatCard icon={DollarSign}  label="Coste total"       value={fmtEUR(totalCost)}  color="#7C4DFF" />
-        <StatCard icon={TrendingUp}  label="Horas registradas" value={fmtH(totalSecs)}  color="#06B6D4" />
-        <StatCard icon={Users}       label="Perfiles activos"  value={totalPeople}       color="#10B981" />
-        <StatCard icon={Briefcase}   label="Proyectos"         value={byProject.length}  color="#F59E0B" />
+      {/* Stat cards — 2×2 on mobile, 1×4 on desktop */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+        gap: 10, marginBottom: 16,
+      }}>
+        <StatCard icon={DollarSign}  label="Coste total"       value={fmtEUR(totalCost)}  color="#7C4DFF" isMobile={isMobile} />
+        <StatCard icon={TrendingUp}  label="Horas registradas" value={fmtH(totalSecs)}    color="#06B6D4" isMobile={isMobile} />
+        <StatCard icon={Users}       label="Perfiles activos"  value={totalPeople}         color="#10B981" isMobile={isMobile} />
+        <StatCard icon={Briefcase}   label="Proyectos"         value={byProject.length}    color="#F59E0B" isMobile={isMobile} />
       </div>
 
       {/* Filters row */}
       <div style={{
         background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)',
-        borderRadius: 12, padding: '12px 16px', marginBottom: 16,
-        display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center',
+        borderRadius: 12, padding: '12px 14px', marginBottom: 14,
       }}>
-        <Filter size={14} color="var(--c-text-4)" style={{ flexShrink: 0 }} />
-
-        {/* View mode toggle */}
-        <div style={{ display: 'flex', gap: 4 }}>
-          {[['project', 'Por proyecto'], ['person', 'Por persona']].map(([v, l]) => (
-            <button key={v} onClick={() => { setViewMode(v); setExpandedRow(null) }} style={{
-              padding: '5px 11px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              background: viewMode === v ? '#7C4DFF22' : 'transparent',
-              color: viewMode === v ? '#7C4DFF' : 'var(--c-text-3)',
-              border: viewMode === v ? '1.5px solid #7C4DFF55' : '1.5px solid transparent',
-            }}>{l}</button>
-          ))}
+        {/* View toggle row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: isMobile ? 10 : 0 }}>
+          <Filter size={13} color="var(--c-text-4)" style={{ flexShrink: 0 }} />
+          <div style={{ display: 'flex', gap: 4 }}>
+            {[['project', 'Por proyecto'], ['person', 'Por persona']].map(([v, l]) => (
+              <button key={v} onClick={() => { setViewMode(v); setExpandedRow(null) }} style={{
+                padding: '5px 11px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                background: viewMode === v ? '#7C4DFF22' : 'transparent',
+                color: viewMode === v ? '#7C4DFF' : 'var(--c-text-3)',
+                border: viewMode === v ? '1.5px solid #7C4DFF55' : '1.5px solid transparent',
+              }}>{l}</button>
+            ))}
+          </div>
+          {!isMobile && <div style={{ width: 1, height: 20, background: 'var(--c-border-light)' }} />}
+          {/* Desktop: selects inline */}
+          {!isMobile && <>
+            <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={{
+              padding: '5px 10px', borderRadius: 8, border: '1.5px solid var(--c-border)', background: 'var(--c-bg-muted)',
+              color: 'var(--c-text-1)', fontSize: 12, cursor: 'pointer',
+            }}>
+              <option value="all">Todos los perfiles</option>
+              {allUsers.map(u => <option key={u.email} value={u.email}>{u.name} ({u.rate} €/h)</option>)}
+            </select>
+            <select value={filterProj} onChange={e => setFilterProj(e.target.value)} style={{
+              padding: '5px 10px', borderRadius: 8, border: '1.5px solid var(--c-border)', background: 'var(--c-bg-muted)',
+              color: 'var(--c-text-1)', fontSize: 12, cursor: 'pointer',
+            }}>
+              <option value="all">Todos los proyectos</option>
+              {allProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </>}
         </div>
-
-        <div style={{ width: 1, height: 20, background: 'var(--c-border-light)' }} />
-
-        {/* User filter */}
-        <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={{
-          padding: '5px 10px', borderRadius: 8, border: '1.5px solid var(--c-border)', background: 'var(--c-bg-muted)',
-          color: 'var(--c-text-1)', fontSize: 12, cursor: 'pointer',
-        }}>
-          <option value="all">Todos los perfiles</option>
-          {allUsers.map(u => <option key={u.email} value={u.email}>{u.name} ({u.rate} €/h)</option>)}
-        </select>
-
-        {/* Project filter */}
-        <select value={filterProj} onChange={e => setFilterProj(e.target.value)} style={{
-          padding: '5px 10px', borderRadius: 8, border: '1.5px solid var(--c-border)', background: 'var(--c-bg-muted)',
-          color: 'var(--c-text-1)', fontSize: 12, cursor: 'pointer',
-        }}>
-          <option value="all">Todos los proyectos</option>
-          {allProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        {/* Mobile: selects stacked */}
+        {isMobile && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={{
+              width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--c-border)', background: 'var(--c-bg-muted)',
+              color: 'var(--c-text-1)', fontSize: 13, cursor: 'pointer',
+            }}>
+              <option value="all">Todos los perfiles</option>
+              {allUsers.map(u => <option key={u.email} value={u.email}>{u.name} ({u.rate} €/h)</option>)}
+            </select>
+            <select value={filterProj} onChange={e => setFilterProj(e.target.value)} style={{
+              width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--c-border)', background: 'var(--c-bg-muted)',
+              color: 'var(--c-text-1)', fontSize: 13, cursor: 'pointer',
+            }}>
+              <option value="all">Todos los proyectos</option>
+              {allProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Table */}
@@ -298,10 +317,11 @@ export default function Costs() {
         {/* Table header */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr 72px 80px' : '1fr 120px 120px 100px',
-          padding: '10px 16px',
+          gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px',
+          padding: '10px 14px',
           borderBottom: '1px solid var(--c-border-light)',
           background: 'var(--c-bg-muted)',
+          gap: 8,
         }}>
           <button onClick={() => toggleSort('name')} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', padding: 0, textAlign: 'left' }}>
             {viewMode === 'project' ? 'Proyecto' : 'Persona'} <SortIcon col="name" />
@@ -311,10 +331,7 @@ export default function Costs() {
               Horas <SortIcon col="hours" />
             </button>
           )}
-          <button onClick={() => toggleSort('hours')} style={{ display: isMobile ? 'flex' : 'none', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', padding: 0 }}>
-            Horas <SortIcon col="hours" />
-          </button>
-          <button onClick={() => toggleSort('cost')} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', padding: 0 }}>
+          <button onClick={() => toggleSort('cost')} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', padding: 0, justifyContent: isMobile ? 'flex-end' : 'flex-start' }}>
             Coste <SortIcon col="cost" />
           </button>
           {!isMobile && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tarifa</span>}
@@ -355,14 +372,14 @@ export default function Costs() {
         {(byProject.length > 0 || byPerson.length > 0) && (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr 72px 80px' : '1fr 120px 120px 100px',
-            padding: '12px 16px',
+            gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px',
+            padding: '12px 14px',
             borderTop: '2px solid var(--c-border)',
             background: 'var(--c-bg-muted)',
           }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)' }}>TOTAL</span>
             {!isMobile && <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-2)' }}>{fmtH(totalSecs)}</span>}
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)' }}>{fmtEUR(totalCost)}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', textAlign: isMobile ? 'right' : 'left' }}>{fmtEUR(totalCost)}</span>
             {!isMobile && <span />}
           </div>
         )}
@@ -380,8 +397,8 @@ function ProjectRow({ proj, isMobile, expanded, onToggle }) {
         onClick={onToggle}
         style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr 72px 80px' : '1fr 120px 120px 100px',
-          padding: '12px 16px',
+          gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px',
+          padding: isMobile ? '11px 14px' : '12px 16px',
           borderBottom: '1px solid var(--c-border-light)',
           cursor: 'pointer',
           transition: 'background 0.1s',
@@ -406,7 +423,7 @@ function ProjectRow({ proj, isMobile, expanded, onToggle }) {
       {expanded && people.map(p => (
         <div key={p.email} style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr 72px 80px' : '1fr 120px 120px 100px',
+          gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px',
           padding: '8px 16px 8px 36px',
           borderBottom: '1px solid var(--c-border-light)',
           background: 'var(--c-bg-app)',
@@ -436,8 +453,8 @@ function PersonRow({ person, isMobile, expanded, onToggle }) {
         onClick={onToggle}
         style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr 72px 80px' : '1fr 120px 120px 100px',
-          padding: '12px 16px',
+          gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px',
+          padding: isMobile ? '11px 14px' : '12px 16px',
           borderBottom: '1px solid var(--c-border-light)',
           cursor: 'pointer',
           transition: 'background 0.1s',
@@ -466,7 +483,7 @@ function PersonRow({ person, isMobile, expanded, onToggle }) {
       {expanded && projs.map(p => (
         <div key={p.id} style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr 72px 80px' : '1fr 120px 120px 100px',
+          gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px',
           padding: '8px 16px 8px 52px',
           borderBottom: '1px solid var(--c-border-light)',
           background: 'var(--c-bg-app)',

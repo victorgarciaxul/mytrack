@@ -263,7 +263,7 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
     { to: '/tags',      icon: Tag,         label: 'Etiquetas' },
     { to: '/time-off',  icon: CalendarOff, label: 'Bajas'     },
     ...(isManager ? [{ to: '/team', icon: Users, label: 'Equipo' }] : []),
-    ...(isAdmin   ? [{ to: '/costs', icon: CircleDollarSign, label: 'Costes' }] : []),
+    ...(isAdmin && !isGuestViewing ? [{ to: '/costs', icon: CircleDollarSign, label: 'Costes' }] : []),
   ]
 
   const W = collapsed ? 56 : 240

@@ -133,7 +133,10 @@ export default function Reports() {
 
   const projects  = [...new Set(baseEntries.map(e => e.project_name || 'Sin proyecto'))].sort()
   const clients   = [...new Set(baseEntries.map(e => e.client_name  || 'Sin cliente'))].sort()
-  const users     = [...new Set(baseEntries.map(e => e.user_email).filter(Boolean))].sort()
+  // In Fundación always show both users, even if one has no entries in this period
+  const users = isFundacion
+    ? ['anarojas@fundacionxul.org', 'cristinareyes@fundacionxul.org']
+    : [...new Set(baseEntries.map(e => e.user_email).filter(Boolean))].sort()
 
   const totalSecs    = filtered.reduce((s, e) => s + (Number(e.duration) || 0), 0)
   const billableSecs = filtered.filter(e => e.billable).reduce((s, e) => s + (Number(e.duration) || 0), 0)

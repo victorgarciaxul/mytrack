@@ -159,9 +159,41 @@ export async function initDB() {
     )
   `
 
+  await db`
+    CREATE TABLE IF NOT EXISTS sticky_notes (
+      id           TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      workspace_id TEXT DEFAULT 'xul-ws-1',
+      author_email TEXT NOT NULL,
+      author_name  TEXT DEFAULT '',
+      slot         INTEGER NOT NULL DEFAULT 0,
+      content      TEXT DEFAULT '',
+      shared_with  TEXT DEFAULT '[]',
+      updated_at   TIMESTAMPTZ DEFAULT NOW(),
+      created_at   TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(author_email, slot)
+    )
+  `
+
+  await db`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id           TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      workspace_id TEXT DEFAULT 'xul-ws-1',
+      user_id      TEXT NOT NULL,
+      sender_email TEXT DEFAULT '',
+      sender_name  TEXT DEFAULT '',
+      type         TEXT DEFAULT 'default',
+      title        TEXT NOT NULL,
+      message      TEXT DEFAULT '',
+      read         BOOLEAN DEFAULT false,
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    )
+  `
+
   // Migrate existing tables (safe to run repeatedly)
   await db`ALTER TABLE workspace_members ADD COLUMN IF NOT EXISTS group_name TEXT`
   await db`ALTER TABLE projects ADD COLUMN IF NOT EXISTS access TEXT DEFAULT 'PRIVATE'`
+  await db`ALTER TABLE clients ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false`
+
 
   // Seed workspace
   await db`
@@ -229,6 +261,38 @@ export async function dbSignIn(email, password) {
     LIMIT 1
   `
   return rows[0] || null
+}
+
+// ── Notifications ─────────────────────────────────────────────
+export async function dbGetNotifications(userId) {
+  const db = sql()
+  return db`
+    SELECT * FROM notifications
+    WHERE user_id = ${userId} AND workspace_id = 'xul-ws-1'
+    ORDER BY created_at DESC
+    LIMIT 50
+  `
+}
+
+export async function dbSendNotification({ senderEmail, senderName, recipientIds, type, title, message }) {
+  const db = sql()
+  // Insert one row per recipient
+  for (const userId of recipientIds) {
+    await db`
+      INSERT INTO notifications (workspace_id, user_id, sender_email, sender_name, type, title, message)
+      VALUES ('xul-ws-1', ${userId}, ${senderEmail}, ${senderName}, ${type || 'default'}, ${title}, ${message || ''})
+    `
+  }
+}
+
+export async function dbMarkNotificationRead(id) {
+  const db = sql()
+  await db`UPDATE notifications SET read = true WHERE id = ${id}`
+}
+
+export async function dbMarkAllNotificationsRead(userId) {
+  const db = sql()
+  await db`UPDATE notifications SET read = true WHERE user_id = ${userId} AND workspace_id = 'xul-ws-1'`
 }
 
 export async function dbGetAllMembers() {
@@ -385,6 +449,20 @@ export async function dbGetProjectsWithHours() {
   `
 }
 
+export async function dbGetAllProjectsWithHours() {
+  const db = sql()
+  return db`
+    SELECT p.*,
+           COALESCE(SUM(te.duration), 0)::bigint AS total_seconds,
+           COUNT(DISTINCT te.user_email)::int     AS member_count
+    FROM projects p
+    LEFT JOIN time_entries te ON te.project_id = p.id
+    WHERE p.workspace_id = 'xul-ws-1'
+    GROUP BY p.id
+    ORDER BY p.archived ASC, p.name ASC
+  `
+}
+
 export async function dbGetClients() {
   const db = sql()
   return db`SELECT * FROM clients WHERE workspace_id = 'xul-ws-1' ORDER BY name`
@@ -486,6 +564,26 @@ export async function dbDeleteProject(id) {
   await db`DELETE FROM projects WHERE id = ${id}`
 }
 
+export async function dbUpdateProject({ id, name, color, clientId, clientName, budgetHours }) {
+  const db = sql()
+  const rows = await db`
+    UPDATE projects SET
+      name         = ${name},
+      color        = ${color || '#7C4DFF'},
+      client_id    = ${clientId || null},
+      client_name  = ${clientName || null},
+      budget_hours = ${budgetHours || null}
+    WHERE id = ${id}
+    RETURNING *
+  `
+  return rows[0]
+}
+
+export async function dbArchiveProject(id, archived) {
+  const db = sql()
+  await db`UPDATE projects SET archived = ${archived} WHERE id = ${id}`
+}
+
 export async function dbCreateClient({ name, email }) {
   const db = sql()
   const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -502,6 +600,21 @@ export async function dbDeleteClient(id) {
   await db`DELETE FROM clients WHERE id = ${id}`
 }
 
+export async function dbUpdateClient({ id, name, email }) {
+  const db = sql()
+  const rows = await db`
+    UPDATE clients SET name = ${name}, email = ${email || null}
+    WHERE id = ${id}
+    RETURNING *
+  `
+  return rows[0]
+}
+
+export async function dbArchiveClient(id, archived) {
+  const db = sql()
+  await db`UPDATE clients SET archived = ${archived} WHERE id = ${id}`
+}
+
 export async function dbCreateTag({ name }) {
   const db = sql()
   const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -516,6 +629,14 @@ export async function dbCreateTag({ name }) {
 export async function dbDeleteTag(id) {
   const db = sql()
   await db`DELETE FROM tags WHERE id = ${id}`
+}
+
+export async function dbUpdateTag(id, name) {
+  const db = sql()
+  const rows = await db`
+    UPDATE tags SET name = ${name} WHERE id = ${id} RETURNING *
+  `
+  return rows[0]
 }
 
 export async function dbCreateTimeOffRequest({ userEmail, userName, policyId, policyName, startDate, endDate, note }) {
@@ -551,6 +672,121 @@ export async function dbUpsertProjects(projects) {
         access       = EXCLUDED.access
     `
   }
+}
+
+// ── Sticky notes ──────────────────────────────────────────────
+
+export async function dbGetMyNotes(userEmail) {
+  const db = sql()
+  const rows = await db`
+    SELECT * FROM sticky_notes
+    WHERE author_email = ${userEmail}
+    ORDER BY slot ASC
+  `
+  // Always return 3 slots
+  const bySlot = {}
+  rows.forEach(r => { bySlot[r.slot] = r })
+  return [0, 1, 2].map(slot => bySlot[slot] || {
+    id: null, slot, content: '', shared_with: '[]',
+    author_email: userEmail, author_name: '',
+  })
+}
+
+export async function dbSaveNote({ userEmail, authorName, slot, content }) {
+  const db = sql()
+  // Try UPDATE first (works even if UNIQUE constraint is missing)
+  const updated = await db`
+    UPDATE sticky_notes
+    SET content = ${content}, author_name = ${authorName || ''}, updated_at = NOW()
+    WHERE author_email = ${userEmail} AND slot = ${slot}
+    RETURNING *
+  `
+  if (updated.length > 0) return updated[0]
+
+  // No existing row — insert new
+  const rows = await db`
+    INSERT INTO sticky_notes (workspace_id, author_email, author_name, slot, content, updated_at)
+    VALUES ('xul-ws-1', ${userEmail}, ${authorName || ''}, ${slot}, ${content}, NOW())
+    ON CONFLICT (author_email, slot) DO UPDATE SET
+      content     = EXCLUDED.content,
+      author_name = EXCLUDED.author_name,
+      updated_at  = NOW()
+    RETURNING *
+  `
+  return rows[0]
+}
+
+export async function dbShareNote(id, sharedWith) {
+  const db = sql()
+  await db`
+    UPDATE sticky_notes
+    SET shared_with = ${JSON.stringify(sharedWith)}, updated_at = NOW()
+    WHERE id = ${id}
+  `
+}
+
+export async function dbDeleteNote(noteId) {
+  const db = sql()
+  await db`DELETE FROM sticky_notes WHERE id = ${noteId}`
+}
+
+export async function dbGetSharedNotes(userEmail) {
+  const db = sql()
+  const rows = await db`
+    SELECT * FROM sticky_notes
+    WHERE author_email != ${userEmail}
+      AND workspace_id = 'xul-ws-1'
+      AND content != ''
+      AND (shared_with::text LIKE ${'%"all"%'}
+           OR shared_with::text LIKE ${'%' + userEmail + '%'})
+    ORDER BY updated_at DESC
+  `
+  return rows
+}
+
+export async function dbUpdateNoteContent(noteId, content) {
+  const db = sql()
+  const rows = await db`
+    UPDATE sticky_notes SET content = ${content}, updated_at = NOW()
+    WHERE id = ${noteId} RETURNING *
+  `
+  return rows[0]
+}
+
+export async function dbUnshareNote(noteId, userEmail) {
+  const db = sql()
+  const rows = await db`SELECT shared_with FROM sticky_notes WHERE id = ${noteId}`
+  if (!rows[0]) return
+  let sw = []
+  try { sw = JSON.parse(rows[0].shared_with || '[]') } catch {}
+  sw = sw.filter(e => e !== userEmail)
+  await db`UPDATE sticky_notes SET shared_with = ${JSON.stringify(sw)}, updated_at = NOW() WHERE id = ${noteId}`
+}
+
+export async function dbToggleReaction(noteId, userEmail, userName, emoji) {
+  const db = sql()
+  const rows = await db`SELECT reactions FROM sticky_notes WHERE id = ${noteId}`
+  if (!rows[0]) return []
+  let reactions = []
+  try { reactions = JSON.parse(rows[0].reactions || '[]') } catch {}
+  const exists = reactions.find(r => r.email === userEmail && r.emoji === emoji)
+  if (exists) {
+    reactions = reactions.filter(r => !(r.email === userEmail && r.emoji === emoji))
+  } else {
+    reactions.push({ email: userEmail, name: userName, emoji })
+  }
+  await db`UPDATE sticky_notes SET reactions = ${JSON.stringify(reactions)} WHERE id = ${noteId}`
+  return reactions
+}
+
+// Ensure reactions column exists (run once per session)
+let _reactionsReady = false
+export async function ensureReactionsColumn() {
+  if (_reactionsReady) return
+  _reactionsReady = true
+  try {
+    await sql()`ALTER TABLE sticky_notes ADD COLUMN IF NOT EXISTS reactions TEXT DEFAULT '[]'`
+  } catch {}
 }
 
 export async function dbUpsertClients(clients) {

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { Tag, Search, Plus, Trash2, X, Check } from 'lucide-react'
-import { initDB, dbGetTags, dbCreateTag, dbDeleteTag } from '../lib/db'
+import { useState, useEffect, useRef } from 'react'
+import { Tag, Search, Plus, Trash2, X, Check, Pencil } from 'lucide-react'
+import { initDB, dbGetTags, dbCreateTag, dbDeleteTag, dbUpdateTag } from '../lib/db'
 import { useRole } from '../context/RoleContext'
 import toast from 'react-hot-toast'
 
@@ -8,14 +8,20 @@ const COLORS = ['#7C4DFF','#03A9F4','#10B981','#F59E0B','#EF4444','#E040FB','#FF
 
 export default function Tags() {
   const { isAdmin, isManager } = useRole()
-  const [tags, setTags]       = useState([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch]   = useState('')
+  const [tags, setTags]         = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [search, setSearch]     = useState('')
   const [showForm, setShowForm] = useState(false)
 
-  // form
+  // create form
   const [newName, setNewName] = useState('')
   const [saving, setSaving]   = useState(false)
+
+  // inline edit
+  const [editingId, setEditingId]     = useState(null)
+  const [editingName, setEditingName] = useState('')
+  const [editSaving, setEditSaving]   = useState(false)
+  const editInputRef = useRef(null)
 
   useEffect(() => {
     initDB()
@@ -23,6 +29,10 @@ export default function Tags() {
       .then(data => { setTags(data || []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (editingId && editInputRef.current) editInputRef.current.focus()
+  }, [editingId])
 
   const filtered = tags.filter(t => t.name.toLowerCase().includes(search.toLowerCase()))
 
@@ -51,8 +61,36 @@ export default function Tags() {
     } catch { toast.error('Error al eliminar') }
   }
 
+  function startEdit(tag) {
+    setEditingId(tag.id)
+    setEditingName(tag.name)
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditingName('')
+  }
+
+  async function handleSaveEdit(e) {
+    e?.preventDefault()
+    if (!editingName.trim()) return
+    if (tags.some(t => t.id !== editingId && t.name.toLowerCase() === editingName.trim().toLowerCase())) {
+      toast.error('Ya existe una etiqueta con ese nombre'); return
+    }
+    setEditSaving(true)
+    try {
+      const updated = await dbUpdateTag(editingId, editingName.trim())
+      setTags(prev => prev.map(t => t.id === editingId ? { ...t, name: updated?.name ?? editingName.trim() } : t).sort((a, b) => a.name.localeCompare(b.name)))
+      toast.success('Etiqueta actualizada')
+      cancelEdit()
+    } catch { toast.error('Error al guardar') }
+    setEditSaving(false)
+  }
+
+  const canEdit = isAdmin || isManager
+
   return (
-    <div style={{ padding: '28px 32px', fontFamily: 'Inter, system-ui, sans-serif', maxWidth: 800 }}>
+    <div className="page-container" style={{ padding: '28px 32px', fontFamily: 'Inter, system-ui, sans-serif' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
@@ -67,8 +105,8 @@ export default function Tags() {
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar etiqueta…"
               style={{ background: 'none', border: 'none', outline: 'none', fontSize: 13, color: 'var(--c-text-1)', width: '100%' }} />
           </div>
-          {(isAdmin || isManager) && (
-            <button onClick={() => setShowForm(v => !v)}
+          {canEdit && (
+            <button onClick={() => { setShowForm(v => !v); cancelEdit() }}
               style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px', borderRadius: 10, background: '#E040FB', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
               <Plus size={15} /> Nueva etiqueta
             </button>
@@ -108,7 +146,8 @@ export default function Tags() {
         </div>
       ) : (
         <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 40px', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+          {/* Column headers */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 72px', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
             {['Nombre', 'Estado', ''].map((h, i) => (
               <span key={i} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-4)' }}>{h}</span>
             ))}
@@ -118,28 +157,67 @@ export default function Tags() {
             <p style={{ textAlign: 'center', color: 'var(--c-text-3)', fontSize: 13, padding: '24px 0' }}>Sin resultados</p>
           ) : filtered.map((tag, i) => {
             const color = COLORS[i % COLORS.length]
+            const isEditing = editingId === tag.id
+
             return (
               <div key={tag.id}
-                style={{ display: 'grid', gridTemplateColumns: '1fr 120px 40px', padding: '12px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
+                style={{ display: 'grid', gridTemplateColumns: '1fr 120px 72px', padding: '10px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
+                {/* Name / inline edit */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 28, height: 28, borderRadius: 7, background: color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Tag size={13} style={{ color }} />
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)' }}>{tag.name}</span>
+                  {isEditing ? (
+                    <form onSubmit={handleSaveEdit} style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
+                      <input
+                        ref={editInputRef}
+                        value={editingName}
+                        onChange={e => setEditingName(e.target.value)}
+                        onKeyDown={e => e.key === 'Escape' && cancelEdit()}
+                        style={{ flex: 1, background: 'var(--c-bg-muted)', border: '1px solid #E040FB80', borderRadius: 7, padding: '5px 10px', fontSize: 13, color: 'var(--c-text-1)', outline: 'none' }}
+                      />
+                      <button type="submit" disabled={editSaving || !editingName.trim()}
+                        style={{ width: 26, height: 26, borderRadius: 6, background: '#E040FB', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: !editingName.trim() ? 0.5 : 1 }}>
+                        <Check size={12} style={{ color: '#fff' }} />
+                      </button>
+                      <button type="button" onClick={cancelEdit}
+                        style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--c-bg-muted)', border: '1px solid var(--c-border-light)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <X size={12} style={{ color: 'var(--c-text-3)' }} />
+                      </button>
+                    </form>
+                  ) : (
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)' }}>{tag.name}</span>
+                  )}
                 </div>
+
+                {/* Status badge */}
                 <div style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 8, background: '#10B98118', width: 'fit-content' }}>
                   <span style={{ fontSize: 11, fontWeight: 600, color: '#10B981' }}>Activa</span>
                 </div>
-                {(isAdmin || isManager) ? (
-                  <button onClick={() => handleDelete(tag.id)}
-                    style={{ width: 28, height: 28, borderRadius: 7, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--c-text-4)' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#EF444418'; e.currentTarget.style.color = '#EF4444' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--c-text-4)' }}>
-                    <Trash2 size={13} />
-                  </button>
+
+                {/* Actions */}
+                {canEdit ? (
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    {!isEditing && (
+                      <button onClick={() => startEdit(tag)}
+                        style={{ width: 28, height: 28, borderRadius: 7, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--c-text-4)' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = '#E040FB18'; e.currentTarget.style.color = '#E040FB' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--c-text-4)' }}
+                        title="Editar">
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                    <button onClick={() => handleDelete(tag.id)}
+                      style={{ width: 28, height: 28, borderRadius: 7, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--c-text-4)' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#EF444418'; e.currentTarget.style.color = '#EF4444' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--c-text-4)' }}
+                      title="Eliminar">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 ) : <span />}
               </div>
             )

@@ -566,7 +566,7 @@ export default function Team() {
   }, [])
 
   return (
-    <div style={{ padding: '28px 32px', fontFamily: 'Inter, system-ui, sans-serif', maxWidth: 1100 }}>
+    <div className="page-container" style={{ padding: '28px 32px', fontFamily: 'Inter, system-ui, sans-serif' }}>
       {/* Modals */}
       {showNewMember && (
         <NewMemberModal

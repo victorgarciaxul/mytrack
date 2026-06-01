@@ -1,5 +1,10 @@
-import { useState, useMemo, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { useMediaQuery } from '../hooks/useMediaQuery'
+import { createPortal } from 'react-dom'
+import { ChevronLeft, ChevronRight, Clock, Pencil, Trash2, TrendingUp, CalendarDays, X } from 'lucide-react'
+import EditEntryModal from '../components/timer/EditEntryModal'
+import { initDB as _initDB, dbDeleteEntry } from '../lib/db'
+import toast from 'react-hot-toast'
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isToday, isSameDay,
@@ -10,7 +15,8 @@ import { useAuth } from '../context/AuthContext'
 import { loadClockifyCache, isClockifyUser } from '../lib/clockify'
 import { initDB, dbGetEntries } from '../lib/db'
 
-const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+const DAY_LABELS     = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+const DAY_LABELS_MOB = ['L',   'M',   'X',   'J',   'V',   'S',   'D']
 
 function secsToHM(secs) {
   if (!secs) return '0:00'
@@ -19,27 +25,37 @@ function secsToHM(secs) {
   return `${h}:${String(m).padStart(2, '0')}`
 }
 
+function secsToHMFull(secs) {
+  if (!secs) return '0h 0m'
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  if (h === 0) return `${m}m`
+  if (m === 0) return `${h}h`
+  return `${h}h ${m}m`
+}
+
 export default function Calendar() {
+  const isMobile = useMediaQuery('(max-width: 768px)')
   const { user, isDemo } = useAuth()
   const [current, setCurrent] = useState(new Date())
   const [selected, setSelected] = useState(null)
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(false)
+  const [editingEntry, setEditingEntry] = useState(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const [modalVisible, setModalVisible] = useState(false)
 
-  // Load entries whenever the viewed year changes
   useEffect(() => {
     if (!user?.email) return
     const year = current.getFullYear()
 
     if (isClockifyUser(user.email)) {
-      // Clockify owner: read from localStorage cache
       const cache = loadClockifyCache()
       const all = cache?.entries?.filter(e => e.end_time) || []
       setEntries(all.filter(e => new Date(e.start_time).getFullYear() === year))
       return
     }
 
-    // All other users: load from Neon
     setLoading(true)
     initDB()
       .then(() => dbGetEntries(user.email, year))
@@ -48,14 +64,12 @@ export default function Calendar() {
       .finally(() => setLoading(false))
   }, [user?.email, current.getFullYear()])
 
-  // Build calendar grid: Mon–Sun weeks
   const monthStart = startOfMonth(current)
   const monthEnd = endOfMonth(current)
   const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 })
   const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd })
 
-  // Group entries by day
   const byDay = useMemo(() => {
     const map = {}
     entries.forEach(e => {
@@ -66,88 +80,170 @@ export default function Calendar() {
     return map
   }, [entries])
 
-  // Total hours for the month
-  const monthTotal = useMemo(() => {
-    return entries
-      .filter(e => isSameMonth(parseISO(e.start_time), current))
-      .reduce((sum, e) => sum + (e.duration || 0), 0)
-  }, [entries, current])
+  // Max seconds in a single day (for heat bar scaling)
+  const maxDaySecs = useMemo(() => {
+    const vals = Object.values(byDay).map(arr => arr.reduce((s, e) => s + (e.duration || 0), 0))
+    return Math.max(...vals, 1)
+  }, [byDay])
+
+  const monthEntries = useMemo(() =>
+    entries.filter(e => isSameMonth(parseISO(e.start_time), current)), [entries, current])
+
+  const monthTotal = useMemo(() =>
+    monthEntries.reduce((sum, e) => sum + (e.duration || 0), 0), [monthEntries])
+
+  const activeDays = useMemo(() =>
+    new Set(monthEntries.map(e => format(parseISO(e.start_time), 'yyyy-MM-dd'))).size, [monthEntries])
 
   const selectedEntries = selected ? (byDay[format(selected, 'yyyy-MM-dd')] || []) : []
 
-  return (
-    <div style={{ padding: '24px 28px', fontFamily: 'Inter, system-ui, sans-serif', height: '100%', display: 'flex', flexDirection: 'column', gap: 20 }}>
+  function openModal(day) {
+    setSelected(day)
+    setConfirmDeleteId(null)
+    requestAnimationFrame(() => setModalVisible(true))
+  }
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--c-text-1)', margin: 0 }}>
-            Calendario
-          </h1>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            background: 'var(--c-card-a)', borderRadius: 8, padding: '4px 12px',
-          }}>
-            <Clock size={13} style={{ color: '#7C4DFF' }} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#7C4DFF' }}>
-              {secsToHM(monthTotal)} este mes
-            </span>
+  function closeModal() {
+    setModalVisible(false)
+    setTimeout(() => { setSelected(null); setConfirmDeleteId(null) }, 220)
+  }
+
+  async function handleDelete(id) {
+    try {
+      await _initDB()
+      await dbDeleteEntry(id)
+      setEntries(prev => prev.filter(e => e.id !== id))
+      setConfirmDeleteId(null)
+      toast.success('Entrada eliminada')
+    } catch (err) {
+      toast.error('Error al eliminar: ' + err.message)
+    }
+  }
+
+  function handleSaved(updated) {
+    setEntries(prev => prev.map(e => e.id === updated.id ? { ...e, ...updated } : e))
+    setEditingEntry(null)
+  }
+
+  return (
+    <>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes slideInUp {
+          from { opacity: 0; transform: translateY(20px) scale(0.97) }
+          to   { opacity: 1; transform: translateY(0) scale(1) }
+        }
+        @keyframes slideOutDown {
+          from { opacity: 1; transform: translateY(0) scale(1) }
+          to   { opacity: 0; transform: translateY(20px) scale(0.97) }
+        }
+        .cal-day:hover .cal-day-inner { border-color: #7C4DFF55 !important; background: var(--c-bg-hover) !important; }
+        .cal-day:hover .cal-heat { opacity: 0.9 !important; }
+        .cal-entry-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1) !important; }
+      `}</style>
+
+      <div style={{
+        padding: isMobile ? '14px' : '24px 28px',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: isMobile ? 12 : 20,
+        boxSizing: 'border-box',
+      }}>
+
+        {/* ── Header ── */}
+        <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', flexShrink: 0, flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 10 : 0 }}>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--c-text-1)', margin: '0 0 6px', letterSpacing: '-0.4px' }}>
+              Calendario
+            </h1>
+            {/* Stats row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Clock size={13} style={{ color: '#7C4DFF' }} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#7C4DFF' }}>
+                  {secsToHMFull(monthTotal)}
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--c-text-4)', fontWeight: 400 }}>este mes</span>
+              </div>
+              <span style={{ color: 'var(--c-border)', fontSize: 14 }}>·</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <CalendarDays size={13} style={{ color: 'var(--c-text-3)' }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-2)' }}>{activeDays}</span>
+                <span style={{ fontSize: 12, color: 'var(--c-text-4)' }}>días activos</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Month nav */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              onClick={() => setCurrent(subMonths(current, 1))}
+              style={{
+                width: 34, height: 34, borderRadius: 9,
+                border: '1px solid var(--c-border)', background: 'var(--c-bg-muted)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--c-text-2)', transition: 'all 0.12s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--c-bg-hover)'; e.currentTarget.style.borderColor = '#7C4DFF66' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'var(--c-bg-muted)'; e.currentTarget.style.borderColor = 'var(--c-border)' }}
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            <div style={{
+              padding: '6px 16px', borderRadius: 9,
+              border: '1px solid var(--c-border)', background: 'var(--c-bg-muted)',
+              minWidth: 148, textAlign: 'center',
+            }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--c-text-1)', textTransform: 'capitalize' }}>
+                {format(current, 'MMMM yyyy', { locale: es })}
+              </span>
+            </div>
+
+            <button
+              onClick={() => setCurrent(addMonths(current, 1))}
+              style={{
+                width: 34, height: 34, borderRadius: 9,
+                border: '1px solid var(--c-border)', background: 'var(--c-bg-muted)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--c-text-2)', transition: 'all 0.12s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--c-bg-hover)'; e.currentTarget.style.borderColor = '#7C4DFF66' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'var(--c-bg-muted)'; e.currentTarget.style.borderColor = 'var(--c-border)' }}
+            >
+              <ChevronRight size={16} />
+            </button>
+
+            <button
+              onClick={() => setCurrent(new Date())}
+              style={{
+                padding: '6px 14px', borderRadius: 9,
+                border: '1px solid #7C4DFF44', background: '#7C4DFF10',
+                cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                color: '#7C4DFF', transition: 'all 0.12s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#7C4DFF20' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#7C4DFF10' }}
+            >
+              Hoy
+            </button>
           </div>
         </div>
 
-        {/* Month navigation */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={() => setCurrent(subMonths(current, 1))}
-            style={{
-              width: 32, height: 32, borderRadius: 8, border: '1px solid var(--c-border)',
-              background: 'var(--c-bg-muted)', cursor: 'pointer', display: 'flex',
-              alignItems: 'center', justifyContent: 'center', color: 'var(--c-text-2)',
-            }}
-          >
-            <ChevronLeft size={15} />
-          </button>
-          <span style={{
-            fontSize: 15, fontWeight: 600, color: 'var(--c-text-1)',
-            minWidth: 140, textAlign: 'center', textTransform: 'capitalize',
-          }}>
-            {format(current, 'MMMM yyyy', { locale: es })}
-          </span>
-          <button
-            onClick={() => setCurrent(addMonths(current, 1))}
-            style={{
-              width: 32, height: 32, borderRadius: 8, border: '1px solid var(--c-border)',
-              background: 'var(--c-bg-muted)', cursor: 'pointer', display: 'flex',
-              alignItems: 'center', justifyContent: 'center', color: 'var(--c-text-2)',
-            }}
-          >
-            <ChevronRight size={15} />
-          </button>
-          <button
-            onClick={() => setCurrent(new Date())}
-            style={{
-              padding: '6px 14px', borderRadius: 8, border: '1px solid var(--c-border)',
-              background: 'var(--c-bg-muted)', cursor: 'pointer',
-              fontSize: 13, fontWeight: 500, color: 'var(--c-text-1)',
-            }}
-          >
-            Hoy
-          </button>
-        </div>
-      </div>
+        {/* ── Calendar grid ── */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
-      {/* Main: calendar + detail panel */}
-      <div style={{ display: 'flex', gap: 20, flex: 1, minHeight: 0 }}>
-
-        {/* Calendar grid */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           {/* Day labels */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 4 }}>
-            {DAY_LABELS.map(d => (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 6 }}>
+            {(isMobile ? DAY_LABELS_MOB : DAY_LABELS).map((d, i) => (
               <div key={d} style={{
-                textAlign: 'center', fontSize: 11, fontWeight: 700,
-                color: 'var(--c-text-4)', padding: '4px 0',
-                textTransform: 'uppercase', letterSpacing: '0.06em',
+                textAlign: 'center',
+                fontSize: 11, fontWeight: 700,
+                color: (i >= 5) ? '#E040FB88' : 'var(--c-text-4)',
+                padding: '4px 0',
+                textTransform: 'uppercase', letterSpacing: '0.08em',
               }}>
                 {d}
               </div>
@@ -157,21 +253,22 @@ export default function Calendar() {
           {/* Grid */}
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
-            gap: 3, flex: 1, position: 'relative',
+            gap: 4, flex: 1, position: 'relative',
           }}>
             {loading && (
               <div style={{
                 position: 'absolute', inset: 0, display: 'flex',
                 alignItems: 'center', justifyContent: 'center',
-                background: 'var(--c-bg-surface)88', borderRadius: 10, zIndex: 5,
+                background: 'var(--c-bg-surface)cc', borderRadius: 12, zIndex: 5,
               }}>
                 <div style={{
-                  width: 28, height: 28, borderRadius: '50%',
+                  width: 30, height: 30, borderRadius: '50%',
                   border: '3px solid #7C4DFF', borderTopColor: 'transparent',
                   animation: 'spin 0.7s linear infinite',
                 }} />
               </div>
             )}
+
             {days.map(day => {
               const key = format(day, 'yyyy-MM-dd')
               const dayEntries = byDay[key] || []
@@ -179,183 +276,413 @@ export default function Calendar() {
               const inMonth = isSameMonth(day, current)
               const isSelected = selected && isSameDay(day, selected)
               const today = isToday(day)
+              const isWeekend = day.getDay() === 0 || day.getDay() === 6
+              const hasEntries = dayEntries.length > 0
 
-              // Get unique projects for this day (up to 3)
-              const projectColors = [...new Set(dayEntries.map(e => e.projects?.color).filter(Boolean))].slice(0, 4)
+              // Unique project colors (up to 4)
+              const colors = [...new Map(dayEntries.map(e => [e.projects?.id, e.projects?.color]).filter(([, c]) => c)).values()].slice(0, 4)
+
+              // Heat bar height (0–20px range)
+              const heatPct = totalSecs / maxDaySecs
+              const heatH = Math.round(heatPct * 20)
 
               return (
                 <div
                   key={key}
-                  onClick={() => setSelected(isSameDay(day, selected) ? null : day)}
-                  style={{
-                    borderRadius: 10,
-                    border: isSelected
-                      ? '2px solid #7C4DFF'
-                      : today
-                        ? '2px solid #7C4DFF44'
-                        : '1.5px solid var(--c-border-light)',
-                    background: isSelected
-                      ? 'var(--c-card-a)'
-                      : today
-                        ? 'var(--c-bg-subtle)'
-                        : inMonth ? 'var(--c-bg-surface)' : 'var(--c-bg-muted)',
-                    padding: '8px 9px',
-                    cursor: 'pointer',
-                    opacity: inMonth ? 1 : 0.4,
-                    transition: 'all 0.1s',
-                    minHeight: 76,
-                    display: 'flex', flexDirection: 'column', gap: 4,
-                  }}
-                  onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = '#7C4DFF66' }}
-                  onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = today ? '#7C4DFF44' : 'var(--c-border-light)' }}
+                  className="cal-day"
+                  onClick={() => hasEntries || today ? (isSameDay(day, selected) ? closeModal() : openModal(day)) : null}
+                  style={{ cursor: (hasEntries || today) ? 'pointer' : 'default' }}
                 >
-                  {/* Day number */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{
-                      fontSize: 13, fontWeight: today ? 700 : 500,
-                      color: today ? '#7C4DFF' : inMonth ? 'var(--c-text-1)' : 'var(--c-text-4)',
-                      width: 22, height: 22, borderRadius: 6,
-                      background: today ? '#7C4DFF18' : 'transparent',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      {format(day, 'd')}
-                    </span>
-                    {totalSecs > 0 && (
-                      <span style={{
-                        fontSize: 10, fontWeight: 600,
-                        color: 'var(--c-text-2)',
-                        fontVariantNumeric: 'tabular-nums',
+                  <div
+                    className="cal-day-inner"
+                    style={{
+                      borderRadius: isMobile ? 8 : 12,
+                      border: isSelected
+                        ? '2px solid #7C4DFF'
+                        : today
+                          ? '2px solid #7C4DFF55'
+                          : `1.5px solid ${isWeekend && inMonth ? 'var(--c-border)' : 'var(--c-border-light)'}`,
+                      background: isSelected
+                        ? 'linear-gradient(145deg, #7C4DFF12, #E040FB08)'
+                        : today
+                          ? 'var(--c-bg-subtle)'
+                          : inMonth ? 'var(--c-bg-surface)' : 'var(--c-bg-muted)',
+                      padding: isMobile ? '4px 3px 0' : '8px 8px 0',
+                      opacity: inMonth ? 1 : 0.3,
+                      transition: 'border-color 0.15s, background 0.15s',
+                      height: '100%',
+                      boxSizing: 'border-box',
+                      display: 'flex', flexDirection: 'column',
+                      minHeight: isMobile ? 64 : 110,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {/* Top row: day number + time */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: isMobile ? 3 : 6 }}>
+                      {/* Day number */}
+                      <div style={{
+                        width: isMobile ? 18 : 24, height: isMobile ? 18 : 24, borderRadius: '50%',
+                        background: today ? '#7C4DFF' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0,
                       }}>
-                        {secsToHM(totalSecs)}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Project color dots / bars */}
-                  {dayEntries.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
-                      {dayEntries.slice(0, 3).map((e, i) => (
-                        <div key={i} style={{
-                          display: 'flex', alignItems: 'center', gap: 4,
-                          padding: '2px 5px', borderRadius: 4,
-                          background: (e.projects?.color || '#7C4DFF') + '18',
+                        <span style={{
+                          fontSize: isMobile ? 10 : 12, fontWeight: today ? 800 : inMonth ? 500 : 400,
+                          color: today ? '#fff' : inMonth ? 'var(--c-text-1)' : 'var(--c-text-4)',
+                          lineHeight: 1,
                         }}>
-                          <div style={{
-                            width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-                            background: e.projects?.color || '#7C4DFF',
-                          }} />
-                          <span style={{
-                            fontSize: 10, color: 'var(--c-text-2)',
-                            overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flex: 1,
-                          }}>
-                            {e.description || e.projects?.name || '—'}
-                          </span>
-                        </div>
-                      ))}
-                      {dayEntries.length > 3 && (
-                        <span style={{ fontSize: 9, color: 'var(--c-text-4)', paddingLeft: 5 }}>
-                          +{dayEntries.length - 3} más
+                          {format(day, 'd')}
+                        </span>
+                      </div>
+
+                      {/* Time badge — hidden on mobile */}
+                      {!isMobile && totalSecs > 0 && (
+                        <span style={{
+                          fontSize: 10, fontWeight: 700,
+                          color: isSelected ? '#7C4DFF' : 'var(--c-text-3)',
+                          fontVariantNumeric: 'tabular-nums',
+                          lineHeight: 1,
+                          marginTop: 2,
+                        }}>
+                          {secsToHM(totalSecs)}
                         </span>
                       )}
                     </div>
-                  )}
+
+                    {/* Entry previews */}
+                    {dayEntries.length > 0 && (
+                      isMobile ? (
+                        /* Mobile: compact color dots only */
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, paddingBottom: 3 }}>
+                          {[...new Map(dayEntries.map(e => [
+                            e.projects?.id ?? e.id, e.projects?.color || '#7C4DFF'
+                          ])).values()].slice(0, 4).map((c, idx) => (
+                            <span key={idx} style={{ width: 5, height: 5, borderRadius: '50%', background: c, flexShrink: 0 }} />
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, overflow: 'hidden' }}>
+                          {dayEntries.slice(0, 3).map((e, i) => {
+                            const c = e.projects?.color || '#7C4DFF'
+                            const label = e.description || e.projects?.name || '—'
+                            return (
+                              <div key={i} style={{
+                                display: 'flex', alignItems: 'center', gap: 4,
+                                padding: '2px 4px', borderRadius: 4,
+                                background: c + '14',
+                              }}>
+                                <span style={{
+                                  width: 5, height: 5, borderRadius: '50%',
+                                  background: c, flexShrink: 0,
+                                }} />
+                                <span style={{
+                                  fontSize: 10, fontWeight: 500,
+                                  color: 'var(--c-text-2)',
+                                  overflow: 'hidden', whiteSpace: 'nowrap',
+                                  textOverflow: 'ellipsis', flex: 1,
+                                  lineHeight: 1.3,
+                                }}>
+                                  {label}
+                                </span>
+                              </div>
+                            )
+                          })}
+                          {dayEntries.length > 3 && (
+                            <span style={{
+                              fontSize: 9, fontWeight: 600,
+                              color: 'var(--c-text-4)', paddingLeft: 4,
+                            }}>
+                              +{dayEntries.length - 3} más
+                            </span>
+                          )}
+                        </div>
+                      )
+                    )}
+
+                    {/* Heat bar at bottom */}
+                    {heatH > 0 && (
+                      <div style={{ marginTop: 'auto', padding: '0 0 0', height: 4, marginBottom: 0, position: 'relative' }}>
+                        <div
+                          className="cal-heat"
+                          style={{
+                            position: 'absolute', bottom: 0, left: 0,
+                            width: `${Math.max(heatPct * 100, 8)}%`,
+                            height: '100%',
+                            borderRadius: '4px 4px 0 0',
+                            background: isSelected
+                              ? 'linear-gradient(90deg, #7C4DFF, #E040FB)'
+                              : colors[0]
+                                ? `linear-gradient(90deg, ${colors[0]}, ${colors[0]}99)`
+                                : 'linear-gradient(90deg, #7C4DFF, #7C4DFF99)',
+                            opacity: isSelected ? 1 : 0.65,
+                            transition: 'opacity 0.15s, width 0.3s',
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               )
             })}
           </div>
         </div>
 
-        {/* Detail panel */}
-        <div style={{
-          width: 280, flexShrink: 0,
-          background: 'var(--c-bg-surface)',
-          borderRadius: 14, border: '1px solid var(--c-border-light)',
-          display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        }}>
-          {selected ? (
-            <>
+      </div>
+
+      {/* ── Day detail — right drawer ── */}
+      {selected && createPortal(
+        <>
+          {/* Backdrop + centering flex wrapper */}
+          <div
+            onClick={closeModal}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 1000,
+              background: modalVisible ? 'rgba(6,6,18,0.45)' : 'rgba(6,6,18,0)',
+              backdropFilter: modalVisible ? 'blur(4px)' : 'none',
+              transition: 'background 0.25s, backdrop-filter 0.25s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 20,
+            }}
+          >
+          {/* Centered modal */}
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 480,
+              maxHeight: '88vh',
+              background: 'var(--c-bg-surface)',
+              borderRadius: 24,
+              border: '1px solid var(--c-border-light)',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.25)',
+              display: 'flex', flexDirection: 'column',
+              animation: modalVisible ? 'slideInUp 0.25s cubic-bezier(0.22,1,0.36,1) forwards' : 'slideOutDown 0.2s ease-in forwards',
+              overflow: 'hidden',
+            }}
+          >
+            {/* ── Header with gradient ── */}
+            <div style={{
+              padding: '28px 24px 22px',
+              background: 'linear-gradient(160deg, #7C4DFF0f 0%, #E040FB07 60%, transparent 100%)',
+              borderBottom: '1px solid var(--c-border-light)',
+              flexShrink: 0,
+              position: 'relative',
+              overflow: 'hidden',
+            }}>
+              {/* Big decorative number background */}
               <div style={{
-                padding: '16px 18px 12px',
-                borderBottom: '1px solid var(--c-border-light)',
+                position: 'absolute', right: -10, top: -16,
+                fontSize: 130, fontWeight: 900, lineHeight: 1,
+                color: '#7C4DFF09', pointerEvents: 'none',
+                userSelect: 'none', letterSpacing: '-8px',
               }}>
-                <p style={{ fontSize: 11, color: 'var(--c-text-4)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
-                  {format(selected, 'EEEE', { locale: es })}
-                </p>
-                <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--c-text-1)', margin: 0 }}>
-                  {format(selected, "d 'de' MMMM", { locale: es })}
-                </p>
-                {selectedEntries.length > 0 && (
-                  <div style={{
-                    marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 5,
-                    background: 'var(--c-card-a)', borderRadius: 6, padding: '3px 8px',
-                  }}>
-                    <Clock size={11} style={{ color: '#7C4DFF' }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#7C4DFF' }}>
-                      {secsToHM(selectedEntries.reduce((s, e) => s + (e.duration || 0), 0))} totales
-                    </span>
-                  </div>
-                )}
+                {format(selected, 'd')}
               </div>
 
-              <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px' }}>
-                {selectedEntries.length === 0 ? (
-                  <div style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center',
-                    justifyContent: 'center', height: '100%', gap: 8, opacity: 0.5,
-                  }}>
-                    <Clock size={28} style={{ color: 'var(--c-text-4)' }} />
-                    <p style={{ fontSize: 13, color: 'var(--c-text-3)', margin: 0 }}>Sin registros</p>
-                  </div>
-                ) : (
-                  selectedEntries.map(e => (
-                    <div key={e.id} style={{
-                      padding: '10px 12px', borderRadius: 10, marginBottom: 6,
-                      background: (e.projects?.color || '#7C4DFF') + '12',
-                      borderLeft: `3px solid ${e.projects?.color || '#7C4DFF'}`,
-                    }}>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-1)', margin: '0 0 3px' }}>
-                        {e.description || '(sin descripción)'}
-                      </p>
-                      {e.projects && (
-                        <p style={{ fontSize: 11, color: 'var(--c-text-3)', margin: '0 0 4px' }}>
-                          {e.projects.name}
-                          {e.projects.clients?.name && ` · ${e.projects.clients.name}`}
-                        </p>
-                      )}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <Clock size={10} style={{ color: 'var(--c-text-4)' }} />
-                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-text-2)' }}>
-                          {secsToHM(e.duration)}
-                        </span>
-                        <span style={{ fontSize: 10, color: 'var(--c-text-4)', marginLeft: 4 }}>
-                          {format(parseISO(e.start_time), 'HH:mm')} – {format(parseISO(e.end_time), 'HH:mm')}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </>
-          ) : (
-            <div style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              justifyContent: 'center', height: '100%', gap: 10, padding: 24,
-              opacity: 0.5,
-            }}>
-              <div style={{
-                width: 44, height: 44, borderRadius: 12,
-                background: 'var(--c-bg-muted)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              {/* Close */}
+              <button
+                onClick={closeModal}
+                style={{
+                  position: 'absolute', top: 16, right: 16,
+                  width: 30, height: 30, borderRadius: 9,
+                  background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--c-text-3)', transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#EF444412'; e.currentTarget.style.color = '#EF4444' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'var(--c-bg-muted)'; e.currentTarget.style.color = 'var(--c-text-3)' }}
+              >
+                <X size={13} />
+              </button>
+
+              {/* Day label */}
+              <p style={{
+                fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+                color: '#7C4DFF', margin: '0 0 6px', textTransform: 'uppercase',
               }}>
-                <Clock size={20} style={{ color: 'var(--c-text-3)' }} />
-              </div>
-              <p style={{ fontSize: 13, color: 'var(--c-text-3)', margin: 0, textAlign: 'center' }}>
-                Selecciona un día para ver sus registros
+                {format(selected, 'EEEE', { locale: es })}
               </p>
+
+              {/* Date big */}
+              <p style={{
+                fontSize: 32, fontWeight: 800, color: 'var(--c-text-1)',
+                margin: '0 0 18px', letterSpacing: '-1px', lineHeight: 1,
+              }}>
+                {format(selected, "d 'de' MMMM", { locale: es })}
+              </p>
+
+              {/* Stats row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  background: '#7C4DFF', borderRadius: 10, padding: '7px 14px',
+                  boxShadow: '0 4px 14px #7C4DFF40',
+                }}>
+                  <Clock size={13} color="rgba(255,255,255,0.8)" />
+                  <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                    {secsToHMFull(selectedEntries.reduce((s, e) => s + (e.duration || 0), 0))}
+                  </span>
+                </div>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',
+                  borderRadius: 10, padding: '7px 12px',
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)' }}>
+                    {selectedEntries.length}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--c-text-3)', fontWeight: 400 }}>
+                    {selectedEntries.length === 1 ? 'entrada' : 'entradas'}
+                  </span>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
-      </div>
-    </div>
+
+            {/* ── Timeline entries ── */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 24px' }}>
+              {selectedEntries.length === 0 ? (
+                <div style={{
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center',
+                  height: '100%', gap: 14, opacity: 0.5,
+                }}>
+                  <Clock size={36} style={{ color: 'var(--c-text-4)' }} />
+                  <p style={{ fontSize: 14, color: 'var(--c-text-3)', margin: 0, fontWeight: 600 }}>Sin registros este día</p>
+                </div>
+              ) : selectedEntries.map((e, i) => {
+                const color = e.projects?.color || '#7C4DFF'
+                const isConfirming = confirmDeleteId === e.id
+                const isLast = i === selectedEntries.length - 1
+
+                return (
+                  <div key={e.id} style={{ display: 'flex', gap: 14, marginBottom: isLast ? 0 : 6 }}>
+
+                    {/* Timeline spine */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 14, flexShrink: 0 }}>
+                      <div style={{
+                        width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+                        background: color,
+                        boxShadow: `0 0 0 3px ${color}25`,
+                        zIndex: 1,
+                      }} />
+                      {!isLast && (
+                        <div style={{
+                          width: 2, flex: 1, minHeight: 16,
+                          background: `linear-gradient(180deg, ${color}40, ${color}10)`,
+                          borderRadius: 2, marginTop: 4,
+                        }} />
+                      )}
+                    </div>
+
+                    {/* Card */}
+                    <div
+                      className="cal-entry-card"
+                      style={{
+                        flex: 1, borderRadius: 14,
+                        background: 'var(--c-bg-muted)',
+                        border: '1px solid var(--c-border-light)',
+                        padding: '12px 14px',
+                        marginBottom: isLast ? 0 : 8,
+                        transition: 'box-shadow 0.15s',
+                      }}
+                    >
+                      {/* Top row */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                        <p style={{
+                          flex: 1, fontSize: 13, fontWeight: 600,
+                          color: 'var(--c-text-1)', margin: 0, lineHeight: 1.4,
+                        }}>
+                          {e.description || <span style={{ color: 'var(--c-text-4)', fontStyle: 'italic' }}>Sin descripción</span>}
+                        </p>
+                        {!isConfirming && (
+                          <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                            <button
+                              onClick={() => { setEditingEntry(e); closeModal() }}
+                              title="Editar"
+                              style={{ width: 26, height: 26, borderRadius: 7, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--c-text-4)', transition: 'all 0.12s' }}
+                              onMouseEnter={ev => { ev.currentTarget.style.background = '#7C4DFF15'; ev.currentTarget.style.color = '#7C4DFF' }}
+                              onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--c-text-4)' }}
+                            ><Pencil size={12} /></button>
+                            <button
+                              onClick={() => setConfirmDeleteId(e.id)}
+                              title="Eliminar"
+                              style={{ width: 26, height: 26, borderRadius: 7, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--c-text-4)', transition: 'all 0.12s' }}
+                              onMouseEnter={ev => { ev.currentTarget.style.background = '#EF444415'; ev.currentTarget.style.color = '#EF4444' }}
+                              onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--c-text-4)' }}
+                            ><Trash2 size={12} /></button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Project tag */}
+                      {e.projects && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>
+                          <div style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            background: color + '15', border: `1px solid ${color}28`,
+                            borderRadius: 6, padding: '2px 7px',
+                          }}>
+                            <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                            <span style={{ fontSize: 11, fontWeight: 600, color }}>
+                              {e.projects.name}
+                              {e.projects.clients?.name && <span style={{ fontWeight: 400, opacity: 0.65 }}> · {e.projects.clients.name}</span>}
+                            </span>
+                          </div>
+                          {e.tasks && (
+                            <span style={{ fontSize: 11, color: 'var(--c-text-4)', fontWeight: 500 }}>› {e.tasks.name}</span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Time row */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 5,
+                          background: color + '18', borderRadius: 7, padding: '3px 9px',
+                        }}>
+                          <Clock size={10} style={{ color, flexShrink: 0 }} />
+                          <span style={{ fontSize: 12, fontWeight: 800, color, fontVariantNumeric: 'tabular-nums' }}>
+                            {secsToHM(e.duration)}
+                          </span>
+                        </div>
+                        {e.start_time && e.end_time && (
+                          <span style={{ fontSize: 11, color: 'var(--c-text-4)', fontVariantNumeric: 'tabular-nums' }}>
+                            {format(parseISO(e.start_time), 'HH:mm')} → {format(parseISO(e.end_time), 'HH:mm')}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Delete confirm */}
+                      {isConfirming && (
+                        <div style={{
+                          marginTop: 10, display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '8px 10px', borderRadius: 9,
+                          background: '#EF444410', border: '1px solid #EF444430',
+                        }}>
+                          <span style={{ fontSize: 12, color: '#EF4444', fontWeight: 600, flex: 1 }}>¿Eliminar entrada?</span>
+                          <button onClick={() => handleDelete(e.id)} style={{ padding: '3px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, background: '#EF4444', color: '#fff', border: 'none', cursor: 'pointer' }}>Sí</button>
+                          <button onClick={() => setConfirmDeleteId(null)} style={{ padding: '3px 9px', borderRadius: 6, fontSize: 12, fontWeight: 600, background: 'var(--c-bg-surface)', color: 'var(--c-text-2)', border: '1px solid var(--c-border)', cursor: 'pointer' }}>No</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          </div>
+        </>,
+        document.body
+      )}
+
+      {/* Edit entry modal */}
+      {editingEntry && (
+        <EditEntryModal
+          entry={editingEntry}
+          onClose={() => setEditingEntry(null)}
+          onSaved={handleSaved}
+          user={user}
+        />
+      )}
+    </>
   )
 }

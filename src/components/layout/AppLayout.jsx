@@ -6,12 +6,18 @@ import { Toaster } from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
 import AppTour, { useTour } from '../tour/AppTour'
 import { useTheme } from '../../context/ThemeContext'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 
 export default function AppLayout() {
   const { isDemo } = useAuth()
   const { isDark } = useTheme()
   const { isDone } = useTour()
+  const isMobile = useMediaQuery('(max-width: 768px)')
   const [tourRunning, setTourRunning] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Close sidebar when switching to desktop
+  useEffect(() => { if (!isMobile) setSidebarOpen(false) }, [isMobile])
 
   useEffect(() => {
     const t = setTimeout(() => { if (!isDone()) setTourRunning(true) }, 700)
@@ -19,22 +25,43 @@ export default function AppLayout() {
   }, [])
 
   return (
-    <div style={{
+    <div className="app-wrapper" style={{
       display: 'flex', height: '100vh', overflow: 'hidden',
       background: 'var(--c-bg-app)',
       fontFamily: 'Inter, system-ui, sans-serif',
+      padding: isMobile ? 0 : 12,
+      gap: isMobile ? 0 : 12,
     }}>
-      <Sidebar onStartTour={() => setTourRunning(true)} />
+      {/* Mobile sidebar backdrop */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            zIndex: 299,
+            backdropFilter: 'blur(2px)',
+            WebkitBackdropFilter: 'blur(2px)',
+          }}
+        />
+      )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', minWidth: 0, padding: '12px 12px 12px 0' }}>
-        <div style={{
+      <Sidebar
+        onStartTour={() => setTourRunning(true)}
+        mobileOpen={sidebarOpen}
+        onMobileClose={() => setSidebarOpen(false)}
+      />
+
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', minWidth: 0 }}>
+        <div className="app-content-frame" style={{
           display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden',
           background: 'var(--c-bg-surface)',
-          borderRadius: 14,
-          border: '1px solid var(--c-border)',
-          boxShadow: isDark ? '0 2px 16px rgba(0,0,0,0.3)' : '0 2px 16px rgba(0,0,0,0.05)',
+          borderRadius: isMobile ? 0 : 14,
+          border: isMobile ? 'none' : '1px solid var(--c-border)',
+          boxShadow: isMobile ? 'none' : isDark ? '0 2px 16px rgba(0,0,0,0.3)' : '0 2px 16px rgba(0,0,0,0.05)',
+          height: '100%',
         }}>
-          <TopBar />
+          <TopBar onMenuClick={() => setSidebarOpen(true)} />
           <main style={{ flex: 1, overflowY: 'auto', background: 'var(--c-bg-subtle)' }}>
             <Outlet context={{ onStartTour: () => setTourRunning(true) }} />
           </main>

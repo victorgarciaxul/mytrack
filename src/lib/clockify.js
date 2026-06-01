@@ -316,12 +316,37 @@ export async function clockifyStartTimer({ description, projectId, taskId }) {
     ...(taskId    && { taskId }),
     billable: true,
   }
-  const res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/time-entries`, {
+
+  console.log('[Clockify] Starting timer with body:', JSON.stringify(body))
+
+  let res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/time-entries`, {
     method: 'POST',
     headers: { ...h, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!res.ok) throw new Error(`Clockify start error ${res.status}`)
+
+  // 400 almost always means there's already a running timer — stop it first, then retry
+  if (res.status === 400) {
+    await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/user/${CLOCKIFY_USER_ID}/time-entries`, {
+      method: 'PATCH',
+      headers: { ...h, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ end: new Date().toISOString() }),
+    }).catch(() => {}) // ignore if nothing was running
+
+    // small gap so Clockify registers the stop
+    await new Promise(r => setTimeout(r, 300))
+
+    res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/time-entries`, {
+      method: 'POST',
+      headers: { ...h, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, start: new Date().toISOString() }),
+    })
+  }
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '')
+    throw new Error(`Clockify start error ${res.status}: ${txt.slice(0, 200)}`)
+  }
   return res.json()
 }
 

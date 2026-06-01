@@ -1,23 +1,26 @@
-import { useState, useEffect } from 'react'
-import { Play, Square, Plus, ChevronDown, Clock, Zap, Briefcase, Pencil, Trash2 } from 'lucide-react'
-import { useTimer } from '../hooks/useTimer'
+import { useState, useEffect, useRef } from 'react'
+import { useMediaQuery } from '../hooks/useMediaQuery'
+import { Play, Square, Plus, ChevronDown, Clock, Zap, Briefcase, Pencil, Trash2, Share2, Check, Smile, X } from 'lucide-react'
+import { useTimerContext } from '../context/TimerContext'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { loadClockifyCache, clockifyStartTimer, clockifyStopTimer, clockifyDeleteEntry, getClockifyUserId, isClockifyUser, clockifyGetProjectTasks } from '../lib/clockify'
 import { getSelectedYear } from '../components/layout/TopBar'
-import { initDB, dbGetEntries, dbInsertEntry, dbDeleteEntry } from '../lib/db'
+import { initDB, dbGetEntries, dbInsertEntry, dbDeleteEntry, dbGetMyNotes, dbSaveNote, dbShareNote, dbGetSharedNotes, dbGetAllMembers, dbUpdateNoteContent, dbUnshareNote, dbToggleReaction, ensureReactionsColumn, dbDeleteNote } from '../lib/db'
 import { format, parseISO, isToday, isYesterday, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import ManualEntryModal from '../components/timer/ManualEntryModal'
 import SearchableDropdown from '../components/ui/SearchableDropdown'
 import EditEntryModal from '../components/timer/EditEntryModal'
+import StickyNote from '../components/ui/StickyNote'
 
 export default function Tracker() {
   const { user, isDemo } = useAuth()
-  const { workspace, projects, getTasksForProject } = useWorkspace()
-  const timer = useTimer()
+  const { workspace, projects, getTasksForProject, markProjectArchived } = useWorkspace()
+  const timer = useTimerContext()
+  const isMobile = useMediaQuery('(max-width: 768px)')
 
   const ACTIVE_KEY = 'mytrack-active-entry'
 
@@ -59,10 +62,36 @@ export default function Tracker() {
   const [showManual, setShowManual] = useState(false)
   const [editingEntry, setEditingEntry] = useState(null)   // entry being edited
   const [confirmDeleteId, setConfirmDeleteId] = useState(null) // id pending delete confirm
+  const [showAllActivity, setShowAllActivity] = useState(false)
   const [chartPeriod, setChartPeriod] = useState('Semana')
   const [syncing, setSyncing] = useState(false)
   const [projectTasks, setProjectTasks] = useState([])
   const [loadingTasks, setLoadingTasks] = useState(false)
+
+  // ── Sticky notes ─────────────────────────────────────────────
+  const [stickyNotes, setStickyNotes] = useState([
+    { id: null, slot: 0, content: '', shared_with: '[]' },
+    { id: null, slot: 1, content: '', shared_with: '[]' },
+    { id: null, slot: 2, content: '', shared_with: '[]' },
+  ])
+  const [sharedNotes, setSharedNotes] = useState([])
+  const [members, setMembers]         = useState([])
+
+  // Load members first (so share picker is instant) — no initDB needed here
+  useEffect(() => {
+    if (!user?.email) return
+    dbGetAllMembers()
+      .then(all => setMembers(all.filter(m => m.user_email !== user.email)))
+      .catch(console.error)
+  }, [user?.email])
+
+  // Load notes — skip initDB, table already exists
+  useEffect(() => {
+    if (!user?.email) return
+    Promise.all([dbGetMyNotes(user.email), dbGetSharedNotes(user.email)])
+      .then(([mine, shared]) => { setStickyNotes(mine); setSharedNotes(shared) })
+      .catch(console.error)
+  }, [user?.email])
 
   // Load tasks when project changes
   useEffect(() => {
@@ -99,6 +128,10 @@ export default function Tracker() {
 
   async function handleStart() {
     if (syncEnabled) {
+      if (!selectedProject) {
+        toast.error('Selecciona un proyecto antes de iniciar')
+        return
+      }
       setSyncing(true)
       try {
         await clockifyStartTimer({
@@ -229,8 +262,12 @@ export default function Tracker() {
     // Restore description, project and task from the entry
     setDescription(e.description || '')
     const proj = e.projects?.name
-      ? projects.find(p => p.name === e.projects.name) || { name: e.projects.name, color: e.projects.color, id: e.project_id }
+      ? projects.find(p => p.name === e.projects.name && !p.archived) || null
       : null
+    if (e.projects?.name && !proj) {
+      toast.error(`El proyecto "${e.projects.name}" está archivado y no se puede reactivar`)
+      return
+    }
     setSelectedProject(proj || null)
     setSelectedTask(e.tasks?.name ? { name: e.tasks.name, id: e.task_id } : null)
     // Start timer
@@ -285,7 +322,7 @@ export default function Tracker() {
     : chartPeriod === 'Semana' ? weekEntries
     : monthEntries
 
-  const recentEntries = entries.slice(0, 8)
+  const recentEntries = showAllActivity ? entries : entries.slice(0, 8)
 
   // Hours by project (all entries)
   const byProject = {}
@@ -313,11 +350,19 @@ export default function Tracker() {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      {/* 3-column grid */}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'grid', gridTemplateColumns: '1fr 1fr 320px', gap: 0 }}>
+      {/* 3-column grid — stacks on mobile */}
+      <div style={{
+        flex: 1,
+        overflowY: isMobile ? 'auto' : 'hidden',
+        overflowX: 'hidden',
+        display: isMobile ? 'flex' : 'grid',
+        flexDirection: isMobile ? 'column' : undefined,
+        gridTemplateColumns: isMobile ? undefined : '1fr 1fr 320px',
+        gap: 0,
+      }}>
 
         {/* ══ LEFT COLUMN ══ */}
-        <div style={{ padding: '20px 12px 20px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ padding: isMobile ? '14px' : '20px 12px 20px 20px', overflowY: isMobile ? 'visible' : 'auto', display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
 
           {/* Active task card */}
           <Card data-tour="timer-bar" color="var(--c-card-a)">
@@ -391,7 +436,7 @@ export default function Tracker() {
 
             {/* Project / Task pickers */}
             <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', minWidth: 0 }}>
-              <div data-tour="project-picker" style={{ minWidth: 180 }}>
+              <div data-tour="project-picker" style={{ minWidth: isMobile ? 0 : 180, flex: isMobile ? 1 : undefined }}>
                 <SearchableDropdown
                   value={selectedProject?.id || null}
                   onChange={opt => {
@@ -400,15 +445,15 @@ export default function Tracker() {
                     setSelectedProject(p || null)
                     setSelectedTask(null)
                   }}
-                  options={projects.map(p => ({ value: p.id, label: p.name, color: p.color }))}
-                  placeholder="Proyecto"
+                  options={projects.filter(p => !p.archived).map(p => ({ value: p.id, label: p.name, color: p.color }))}
+                  placeholder={syncEnabled && !selectedProject ? '⚠️ Proyecto requerido' : 'Proyecto'}
                   clearLabel="Sin proyecto"
                   style={{ fontSize: 12 }}
                 />
               </div>
 
               {selectedProject && (
-                <div style={{ minWidth: 140 }}>
+                <div style={{ minWidth: isMobile ? 0 : 140, flex: isMobile ? 1 : undefined }}>
                   <SearchableDropdown
                     value={selectedTask?.id || null}
                     onChange={opt => {
@@ -431,10 +476,10 @@ export default function Tracker() {
           <Card color="var(--c-card-b)">
             <CardHeader title="Recent Activity">
               <button
-                onClick={() => {}}
+                onClick={() => setShowAllActivity(p => !p)}
                 style={{ fontSize: 12, color: '#7C4DFF', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}
               >
-                See All
+                {showAllActivity ? 'Ver menos' : `Ver todas (${entries.length})`}
               </button>
             </CardHeader>
             <div style={{ marginTop: 8 }}>
@@ -463,9 +508,12 @@ export default function Tracker() {
                     <p style={{ fontSize: 11, color: 'var(--c-text-3)', margin: '2px 0 0' }}>
                       {e.projects?.name || 'Sin proyecto'}
                       {e.tasks && <span style={{ color: '#7C4DFF' }}> · {e.tasks.name}</span>}
+                      {isMobile && e.end_time && (
+                        <span style={{ color: 'var(--c-text-4)' }}> · {format(parseISO(e.start_time), 'HH:mm')}–{format(parseISO(e.end_time), 'HH:mm')}</span>
+                      )}
                     </p>
                   </div>
-                  {e.end_time && (
+                  {!isMobile && e.end_time && (
                     <span style={{ fontSize: 11, color: 'var(--c-text-3)', flexShrink: 0 }}>
                       {format(parseISO(e.start_time), 'HH:mm')} – {format(parseISO(e.end_time), 'HH:mm')}
                     </span>
@@ -473,16 +521,18 @@ export default function Tracker() {
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', minWidth: 52, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {timer.format(e.duration || 0)}
                   </span>
-                  {/* Reactivate */}
-                  <button
-                    onClick={() => reactivateEntry(e)}
-                    title="Reactivar"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6 }}
-                    onMouseEnter={ev => { ev.currentTarget.style.background = '#7C4DFF15'; ev.currentTarget.style.color = '#7C4DFF' }}
-                    onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--c-text-3)' }}
-                  >
-                    <Play size={13} fill="currentColor" />
-                  </button>
+                  {/* Reactivate — hidden on mobile */}
+                  {!isMobile && (
+                    <button
+                      onClick={() => reactivateEntry(e)}
+                      title="Reactivar"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6 }}
+                      onMouseEnter={ev => { ev.currentTarget.style.background = '#7C4DFF15'; ev.currentTarget.style.color = '#7C4DFF' }}
+                      onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--c-text-3)' }}
+                    >
+                      <Play size={13} fill="currentColor" />
+                    </button>
+                  )}
 
                   {/* Edit */}
                   <button
@@ -526,7 +576,7 @@ export default function Tracker() {
         </div>
 
         {/* ══ MIDDLE COLUMN ══ */}
-        <div style={{ padding: '20px 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, borderLeft: '1px solid var(--c-border-light)', borderRight: '1px solid var(--c-border-light)' }}>
+        <div style={{ padding: isMobile ? '14px' : '20px 12px', overflowY: isMobile ? 'visible' : 'auto', display: 'flex', flexDirection: 'column', gap: 14, borderLeft: isMobile ? 'none' : '1px solid var(--c-border-light)', borderRight: isMobile ? 'none' : '1px solid var(--c-border-light)', borderTop: isMobile ? '1px solid var(--c-border-light)' : 'none', minWidth: 0 }}>
 
           {/* Week Earns */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -569,37 +619,68 @@ export default function Tracker() {
 
           {/* Project time breakdown */}
           <Card color="var(--c-card-d)">
-            <CardHeader title="Por proyecto" />
+            <CardHeader title="Asignación de horas por proyecto/servicios" />
             <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {projectList.length === 0 ? (
                 <p style={{ fontSize: 13, color: 'var(--c-text-3)', textAlign: 'center', padding: '12px 0' }}>Sin datos</p>
-              ) : projectList.map(p => (
-                <div key={p.name}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color }} />
-                      <span style={{ fontSize: 12, color: 'var(--c-text-2)', fontWeight: 500 }}>{p.name}</span>
+              ) : (() => {
+                const totalProjectSecs = projectList.reduce((s, p) => s + p.secs, 0) || 1
+                return projectList.map(p => {
+                  const pct = Math.round((p.secs / totalProjectSecs) * 100)
+                  return (
+                    <div key={p.name}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+                          <span style={{ fontSize: 12, color: 'var(--c-text-2)', fontWeight: 500, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: p.color, minWidth: 32, textAlign: 'right' }}>{pct}%</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-1)', fontVariantNumeric: 'tabular-nums', minWidth: 60, textAlign: 'right' }}>
+                            {timer.format(p.secs)}
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ height: 5, borderRadius: 3, background: 'var(--c-bg-muted)' }}>
+                        <div style={{
+                          height: '100%', borderRadius: 3,
+                          background: p.color,
+                          width: `${pct}%`,
+                          transition: 'width 0.4s',
+                        }} />
+                      </div>
                     </div>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#1A1A2E', fontVariantNumeric: 'tabular-nums' }}>
-                      {timer.format(p.secs)}
-                    </span>
-                  </div>
-                  <div style={{ height: 5, borderRadius: 3, background: 'var(--c-bg-muted)' }}>
-                    <div style={{
-                      height: '100%', borderRadius: 3,
-                      background: p.color,
-                      width: `${Math.min(100, (p.secs / (totalWeek || 1)) * 100)}%`,
-                      transition: 'width 0.4s',
-                    }} />
-                  </div>
-                </div>
-              ))}
+                  )
+                })
+              })()}
             </div>
           </Card>
+
+          {/* ── Mis Post-its ── */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--c-text-4)' }}>Mis notas</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {stickyNotes.map((note, i) => (
+                <StickyNote
+                  key={note.id != null ? note.id : `empty-${i}`}
+                  idx={i}
+                  note={note}
+                  members={members}
+                  userEmail={user?.email}
+                  authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || ''}
+                  onChange={updated => setStickyNotes(prev => prev.map((n, j) => j === i ? updated : n))}
+                  onDelete={() => setStickyNotes(prev => prev.map((n, j) => j === i ? { id: null, slot: i, content: '', shared_with: '[]' } : n))}
+                />
+              ))}
+            </div>
+          </div>
+
         </div>
 
         {/* ══ RIGHT COLUMN ══ */}
-        <div style={{ padding: '20px 20px 20px 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ padding: isMobile ? '14px' : '20px 20px 20px 12px', overflowY: isMobile ? 'visible' : 'auto', display: 'flex', flexDirection: 'column', gap: 14, borderTop: isMobile ? '1px solid var(--c-border-light)' : 'none', minWidth: 0 }}>
 
           {/* Ongoing timesheet */}
           <Card color="var(--c-card-b)">
@@ -636,7 +717,7 @@ export default function Tracker() {
           {/* Quick projects */}
           <Card color="var(--c-card-c)" style={{ overflow: 'hidden' }}>
             <CardHeader title="Proyectos recientes">
-              <span style={{ fontSize: 11, color: '#7C4DFF', fontWeight: 600 }}>{projects.length} TOTAL</span>
+              <span style={{ fontSize: 11, color: '#7C4DFF', fontWeight: 600 }}>{projects.filter(p => !p.archived).length} TOTAL</span>
             </CardHeader>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
               {recentProjects.length > 0 ? recentProjects.map(p => (
@@ -660,6 +741,31 @@ export default function Tracker() {
               )}
             </div>
           </Card>
+
+          {/* ── Notas compartidas conmigo ── */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <Share2 size={11} style={{ color: 'var(--c-text-4)' }} />
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--c-text-4)' }}>Compartidas conmigo</span>
+            </div>
+            {sharedNotes.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px 0', opacity: 0.45 }}>
+                <Share2 size={22} style={{ color: 'var(--c-text-4)', marginBottom: 8 }} />
+                <p style={{ fontSize: 12, color: 'var(--c-text-3)', margin: 0 }}>Nadie ha compartido notas contigo</p>
+              </div>
+            ) : sharedNotes.map((note, i) => (
+              <SharedNoteCard
+                key={note.id}
+                note={note}
+                idx={i}
+                userEmail={user?.email}
+                userName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || ''}
+                onRemove={id => setSharedNotes(prev => prev.filter(n => n.id !== id))}
+                onChange={updated => setSharedNotes(prev => prev.map(n => n.id === updated.id ? updated : n))}
+              />
+            ))}
+          </div>
+
         </div>
       </div>
 
@@ -701,6 +807,138 @@ function Card({ children, compact, color, style, ...props }) {
       ...style,
     }} {...props}>
       {children}
+    </div>
+  )
+}
+
+// ── SharedNoteCard ─────────────────────────────────────────────────────────────
+const SHARED_NOTE_COLORS = ['#FFF9C4', '#FFF3E0', '#F3E5F5']
+const REACTION_EMOJIS_SN = ['👍', '❤️', '😂', '🎉', '👀', '🔥']
+
+function SharedNoteCard({ note, idx, userEmail, userName, onRemove, onChange }) {
+  const [editing, setEditing]     = useState(false)
+  const [draft, setDraft]         = useState(note.content || '')
+  const [saving, setSaving]       = useState(false)
+  const [emojiOpen, setEmojiOpen] = useState(false)
+  const [reactions, setReactions] = useState(() => {
+    try { return JSON.parse(note.reactions || '[]') } catch { return [] }
+  })
+
+  useEffect(() => {
+    try { setReactions(JSON.parse(note.reactions || '[]')) } catch {}
+  }, [note.reactions])
+
+  const bg = SHARED_NOTE_COLORS[idx % 3]
+  const initials = note.author_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'
+
+  const grouped = REACTION_EMOJIS_SN.map(emoji => {
+    const list = reactions.filter(r => r.emoji === emoji)
+    return { emoji, count: list.length, mine: list.some(r => r.email === userEmail) }
+  }).filter(g => g.count > 0)
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await dbUpdateNoteContent(note.id, draft)
+      onChange({ ...note, content: draft })
+      setEditing(false)
+      toast.success('Nota guardada')
+    } catch { toast.error('Error al guardar') }
+    setSaving(false)
+  }
+
+  async function handleUnshare() {
+    try {
+      await dbUnshareNote(note.id, userEmail)
+      onRemove(note.id)
+      toast.success('Nota eliminada')
+    } catch { toast.error('Error al eliminar') }
+  }
+
+  async function handleReact(emoji) {
+    try {
+      await ensureReactionsColumn()
+      const next = await dbToggleReaction(note.id, userEmail, userName, emoji)
+      setReactions(next)
+      onChange({ ...note, reactions: JSON.stringify(next) })
+    } catch { toast.error('Error al reaccionar') }
+    setEmojiOpen(false)
+  }
+
+  return (
+    <div style={{ borderRadius: 12, background: bg, boxShadow: '2px 4px 10px rgba(0,0,0,0.08)', marginBottom: 10, overflow: 'hidden', position: 'relative' }}>
+      {/* Header: author + action buttons */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 12px 6px' }}>
+        <div style={{ width: 20, height: 20, borderRadius: 6, background: 'linear-gradient(135deg,#7C4DFF,#E040FB)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{initials}</div>
+        <span style={{ fontSize: 11, fontWeight: 600, color: '#5a4a00', flex: 1 }}>{note.author_name}</span>
+        <button onClick={() => { setEditing(true); setDraft(note.content || '') }} title="Editar"
+          style={{ width: 22, height: 22, borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a08000' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.1)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+          <Pencil size={11} />
+        </button>
+        <button onClick={handleUnshare} title="Eliminar"
+          style={{ width: 22, height: 22, borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c0392b' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(192,57,43,0.12)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+          <X size={11} />
+        </button>
+      </div>
+
+      {/* Content or editor */}
+      {editing ? (
+        <div style={{ padding: '0 12px 8px' }}>
+          <textarea
+            autoFocus
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            style={{ width: '100%', minHeight: 70, background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 8, outline: 'none', resize: 'none', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 13, lineHeight: 1.5, color: '#4a3f00', boxSizing: 'border-box', padding: '8px' }}
+          />
+          <div style={{ display: 'flex', gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
+            <button onClick={() => setEditing(false)}
+              style={{ height: 26, padding: '0 10px', borderRadius: 7, border: 'none', background: 'rgba(0,0,0,0.1)', cursor: 'pointer', fontSize: 11, color: '#5a4a00', fontWeight: 500 }}>
+              Cancelar
+            </button>
+            <button onClick={handleSave} disabled={saving}
+              style={{ height: 26, padding: '0 10px', borderRadius: 7, border: 'none', background: 'rgba(0,0,0,0.18)', cursor: 'pointer', fontSize: 11, color: '#4a3000', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+              {saving ? 'Guardando…' : <><Check size={11} /><span>Guardar</span></>}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p style={{ fontSize: 13, color: '#4a3f00', margin: 0, padding: '0 12px 8px', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          {note.content || <span style={{ opacity: 0.4, fontStyle: 'italic' }}>Nota vacía</span>}
+        </p>
+      )}
+
+      {/* Reaction bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 10px 10px', flexWrap: 'wrap' }}>
+        {grouped.map(g => (
+          <button key={g.emoji} onClick={() => handleReact(g.emoji)}
+            title={`${g.count} reacción${g.count > 1 ? 'es' : ''}`}
+            style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 20, fontSize: 12, border: `1.5px solid ${g.mine ? 'rgba(124,77,255,0.5)' : 'rgba(0,0,0,0.15)'}`, background: g.mine ? 'rgba(124,77,255,0.12)' : 'rgba(0,0,0,0.06)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <span>{g.emoji}</span><span style={{ fontSize: 10, fontWeight: 700, color: '#5a4a00' }}>{g.count}</span>
+          </button>
+        ))}
+        <div style={{ position: 'relative' }}>
+          <button onClick={() => setEmojiOpen(p => !p)} title="Reaccionar"
+            style={{ width: 24, height: 24, borderRadius: 20, border: '1.5px dashed rgba(0,0,0,0.2)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>
+            <Smile size={12} style={{ color: '#a08000' }} />
+          </button>
+          {emojiOpen && (
+            <div style={{ position: 'absolute', bottom: 'calc(100% + 4px)', left: 0, background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', borderRadius: 12, padding: '6px 8px', display: 'flex', gap: 4, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200 }}>
+              {REACTION_EMOJIS_SN.map(e => (
+                <button key={e} onClick={() => handleReact(e)}
+                  style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  onMouseEnter={ev => ev.currentTarget.style.background = 'var(--c-bg-muted)'}
+                  onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
+                  {e}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

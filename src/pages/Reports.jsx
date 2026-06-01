@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -61,6 +62,7 @@ const CustomTooltip = ({ active, payload }) => {
 
 // ── main component ─────────────────────────────────────────────
 export default function Reports() {
+  const isMobile = useMediaQuery('(max-width: 768px)')
   const { user } = useAuth()
   const { isAdmin } = useRole()
   const [tab, setTab] = useState('Resumido')
@@ -173,7 +175,7 @@ export default function Reports() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: 'Inter, system-ui, sans-serif' }}>
 
       {/* ── Top bar ── */}
-      <div style={{ padding: '14px 28px', borderBottom: '1px solid var(--c-border-light)', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', flexShrink: 0 }}>
+      <div style={{ padding: isMobile ? '10px 14px' : '14px 28px', borderBottom: '1px solid var(--c-border-light)', display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16, flexWrap: 'wrap', flexShrink: 0 }}>
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 2 }}>
           {TABS.map(t => (
@@ -239,7 +241,7 @@ export default function Reports() {
       </div>
 
       {/* ── Stats bar ── */}
-      <div style={{ padding: '12px 28px', borderBottom: '1px solid var(--c-border-light)', display: 'flex', alignItems: 'center', gap: 28, flexShrink: 0, background: 'var(--c-bg-muted)' }}>
+      <div style={{ padding: isMobile ? '10px 14px' : '12px 28px', borderBottom: '1px solid var(--c-border-light)', display: 'flex', alignItems: 'center', gap: isMobile ? 16 : 28, flexShrink: 0, background: 'var(--c-bg-muted)', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
           <span style={{ fontSize: 11, color: 'var(--c-text-3)', fontWeight: 600 }}>TOTAL</span>
           <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--c-text-1)', fontVariantNumeric: 'tabular-nums' }}>{fmtDuration(totalSecs)}</span>
@@ -259,7 +261,7 @@ export default function Reports() {
       </div>
 
       {/* ── Body ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '14px' : '20px 28px' }}>
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
             <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid #7C4DFF', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
@@ -267,7 +269,7 @@ export default function Reports() {
         ) : (
           <>
             {/* Charts row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 280px', gap: 16, marginBottom: 20 }}>
               {/* Bar chart */}
               <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, padding: '18px 20px' }}>
                 <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 16px' }}>Horas por día</p>
@@ -323,8 +325,8 @@ export default function Reports() {
             {tab === 'Resumido' && (
               <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
                 {/* Header */}
-                <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
-                  {['#', 'Proyecto / Cliente', 'Entradas', 'Duración'].map(h => (
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '24px 1fr 48px 72px' : '40px 1fr 100px 100px', padding: isMobile ? '8px 14px' : '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+                  {(isMobile ? ['#', 'Proyecto', 'Ent.', 'Dur.'] : ['#', 'Proyecto / Cliente', 'Entradas', 'Duración']).map(h => (
                     <span key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-4)' }}>{h}</span>
                   ))}
                 </div>
@@ -333,7 +335,7 @@ export default function Reports() {
                   <p style={{ textAlign: 'center', color: 'var(--c-text-3)', fontSize: 13, padding: '32px 0' }}>Sin entradas en este período</p>
                 ) : grouped.map((g, i) => (
                   <div key={g.name}
-                    style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px', padding: '13px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
+                    style={{ display: 'grid', gridTemplateColumns: isMobile ? '24px 1fr 48px 72px' : '40px 1fr 100px 100px', padding: isMobile ? '10px 14px' : '13px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
@@ -364,7 +366,7 @@ export default function Reports() {
 
                 {/* Total row */}
                 {grouped.length > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px', padding: '12px 20px', background: 'var(--c-bg-muted)', borderTop: '1px solid var(--c-border-light)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '24px 1fr 48px 72px' : '40px 1fr 100px 100px', padding: isMobile ? '10px 14px' : '12px 20px', background: 'var(--c-bg-muted)', borderTop: '1px solid var(--c-border-light)' }}>
                     <span />
                     <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-2)' }}>{filtered.length}</span>

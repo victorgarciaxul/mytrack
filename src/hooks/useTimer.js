@@ -39,10 +39,16 @@ export function useTimer() {
         startedAtRef.current = Date.now() - elapsed * 1000
       }
       intervalRef.current = setInterval(() => {
-        setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000))
+        const secs = Math.floor((Date.now() - startedAtRef.current) / 1000)
+        setElapsed(secs)
+        const h = String(Math.floor(secs / 3600)).padStart(2, '0')
+        const m = String(Math.floor((secs % 3600) / 60)).padStart(2, '0')
+        const s = String(secs % 60).padStart(2, '0')
+        document.title = `${h}:${m}:${s} • MyTrack`
       }, 1000)
     } else {
       clearInterval(intervalRef.current)
+      document.title = 'MyTrack | XUL'
     }
     return () => clearInterval(intervalRef.current)
   }, [isRunning])

@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Bell, Moon, Sun, MoreHorizontal, Calendar } from 'lucide-react'
+import { Bell, Moon, Sun, Calendar, Menu } from 'lucide-react'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { useAuth } from '../../context/AuthContext'
 import { useRole } from '../../context/RoleContext'
 import { useTheme } from '../../context/ThemeContext'
@@ -14,11 +15,12 @@ export function getSelectedYear() {
   return saved ? Number(saved) : new Date().getFullYear()
 }
 
-export default function TopBar() {
+export default function TopBar({ onMenuClick }) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { unreadCount } = useRole()
   const { isDark, toggle } = useTheme()
+  const isMobile = useMediaQuery('(max-width: 768px)')
 
   // Years from Clockify cache (owner only) or Neon (everyone else)
   const cacheYears = useMemo(() => {
@@ -61,20 +63,20 @@ export default function TopBar() {
       flexShrink: 0,
       fontFamily: 'Inter, system-ui, sans-serif',
     }}>
-      {/* Search */}
-      <div style={{
-        flex: 1, display: 'flex', alignItems: 'center', gap: 10,
-        background: 'var(--c-bg-muted)', border: '1.5px solid var(--c-border)',
-        borderRadius: 10, padding: '8px 14px', maxWidth: 480,
-      }}>
-        <Search size={14} style={{ color: 'var(--c-text-4)', flexShrink: 0 }} />
-        <span style={{ fontSize: 13, color: 'var(--c-text-4)', flex: 1 }}>¿En qué estás trabajando?</span>
-        <kbd style={{
-          fontSize: 11, color: 'var(--c-text-4)',
-          background: 'var(--c-border)', borderRadius: 5,
-          padding: '2px 6px', fontFamily: 'inherit',
-        }}>/</kbd>
-      </div>
+      {/* Hamburger – mobile only */}
+      {isMobile && (
+        <button
+          onClick={onMenuClick}
+          style={{
+            width: 36, height: 36, borderRadius: 9,
+            background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', color: 'var(--c-text-3)', flexShrink: 0,
+          }}
+        >
+          <Menu size={17} />
+        </button>
+      )}
 
       <div style={{ flex: 1 }} />
 
@@ -138,15 +140,6 @@ export default function TopBar() {
         )}
       </button>
 
-      {/* More */}
-      <button style={{
-        width: 36, height: 36, borderRadius: 9,
-        background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer', color: 'var(--c-text-3)',
-      }}>
-        <MoreHorizontal size={15} />
-      </button>
     </div>
   )
 }

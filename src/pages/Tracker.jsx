@@ -179,7 +179,7 @@ export default function Tracker() {
         initDB().then(() => dbInsertEntry({
           id: saved.id,
           userEmail: user.email,
-          workspaceId: 'xul-ws-1',
+          workspaceId: user.workspace_id || 'xul-ws-1',
           projectId: selectedProject?.id || null,
           projectName: selectedProject?.name || null,
           projectColor: selectedProject?.color || null,
@@ -206,7 +206,7 @@ export default function Tracker() {
         await initDB()
         const saved = await dbInsertEntry({
           userEmail: user.email,
-          workspaceId: 'xul-ws-1',
+          workspaceId: user.workspace_id || 'xul-ws-1',
           projectId: selectedProject?.id || null,
           projectName: selectedProject?.name || null,
           projectColor: selectedProject?.color || null,

@@ -10,6 +10,20 @@ export function sql() {
 }
 
 /**
+ * Returns the current user's workspace_id from their session.
+ * Falls back to 'xul-ws-1' so existing data is never lost.
+ */
+const SESSION_KEY = 'mytrack-demo-user'
+export function getWsId() {
+  try {
+    const u = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null')
+    return u?.workspace_id || 'xul-ws-1'
+  } catch {
+    return 'xul-ws-1'
+  }
+}
+
+/**
  * Neon's HTTP driver returns TIMESTAMPTZ columns as JS Date objects.
  * All our UI code (date-fns parseISO, format, etc.) expects ISO strings.
  * This helper normalises any Date object to an ISO string; passes strings through.
@@ -207,28 +221,30 @@ export async function initDB() {
   await db`ALTER TABLE projects ADD COLUMN IF NOT EXISTS access TEXT DEFAULT 'PRIVATE'`
   await db`ALTER TABLE clients ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false`
 
-
-  // Seed workspace
+  // ── Seed workspaces ──────────────────────────────────────────
   await db`
     INSERT INTO workspaces (id, name, slug, working_hours_per_day)
     VALUES ('xul-ws-1', 'XUL', 'xul', 8)
     ON CONFLICT (slug) DO NOTHING
   `
+  await db`
+    INSERT INTO workspaces (id, name, slug, working_hours_per_day)
+    VALUES ('fundacion-ws-1', 'Fundación XUL', 'fundacion', 8)
+    ON CONFLICT (slug) DO NOTHING
+  `
 
-  // Seed all workspace users so they can log in before the first Clockify import
-  const seedUsers = [
+  // ── Seed XUL workspace users ─────────────────────────────────
+  const xulUsers = [
     { email: 'victorgarcia@xul.es',           name: 'Víctor García',                 role: 'admin'    },
     { email: 'carlagarcia@xul.es',             name: 'Carla García',                  role: 'admin'    },
     { email: 'josecastillo@xul.es',            name: 'José Castillo',                 role: 'admin'    },
     { email: 'aidacisneros@xul.es',            name: 'Aida Cisneros',                 role: 'employee' },
     { email: 'aitorrecalde@xul.es',            name: 'Aitor RV',                      role: 'employee' },
     { email: 'alejandraperea@xul.es',          name: 'Alejandra Perea',               role: 'employee' },
-    { email: 'anarojas@fundacionxul.org',      name: 'Ana Rojas',                     role: 'employee' },
     { email: 'andreabenitez@xul.es',           name: 'Andrea Benítez',                role: 'employee' },
     { email: 'asuncionblanco@xul.es',          name: 'Asunción Blanco',               role: 'employee' },
     { email: 'auximazuecos@xul.es',            name: 'Auxi Mazuecos',                 role: 'employee' },
     { email: 'cristinafernandez@xul.es',       name: 'Cristina Fernández',            role: 'employee' },
-    { email: 'cristinareyes@fundacionxul.org', name: 'Cristina Reyes Baro',           role: 'employee' },
     { email: 'elenarojo@xul.es',               name: 'Elena Rojo',                    role: 'employee' },
     { email: 'inmaosuna@xul.es',               name: 'Inma Osuna',                    role: 'employee' },
     { email: 'irenezurita@xul.es',             name: 'Irene Zurita',                  role: 'employee' },
@@ -253,11 +269,32 @@ export async function initDB() {
     { email: 'sarasanchez@xul.es',             name: 'Sara Sánchez',                  role: 'employee' },
     { email: 'silviamunoz@xul.es',             name: 'Silvia Muñoz',                  role: 'employee' },
   ]
-  for (const u of seedUsers) {
+  for (const u of xulUsers) {
     await db`
       INSERT INTO workspace_members (workspace_id, user_email, user_name, role, password)
       VALUES ('xul-ws-1', ${u.email}, ${u.name}, ${u.role}, 'Mytrack14$')
       ON CONFLICT (workspace_id, user_email) DO NOTHING
+    `
+  }
+
+  // ── Seed Fundación XUL workspace users ───────────────────────
+  const fundacionUsers = [
+    { email: 'anarojas@fundacionxul.org',      name: 'Ana Rojas',          role: 'admin'    },
+    { email: 'cristinareyes@fundacionxul.org', name: 'Cristina Reyes Baro', role: 'employee' },
+  ]
+  for (const u of fundacionUsers) {
+    await db`
+      INSERT INTO workspace_members (workspace_id, user_email, user_name, role, password)
+      VALUES ('fundacion-ws-1', ${u.email}, ${u.name}, ${u.role}, 'Mytrack14$')
+      ON CONFLICT (workspace_id, user_email) DO NOTHING
+    `
+  }
+
+  // ── Migration: move fundación users out of xul-ws-1 ─────────
+  for (const u of fundacionUsers) {
+    await db`
+      DELETE FROM workspace_members
+      WHERE workspace_id = 'xul-ws-1' AND user_email = ${u.email}
     `
   }
 }
@@ -266,10 +303,10 @@ export async function initDB() {
 
 export async function dbSignIn(email, password) {
   const db = sql()
+  // Search across all workspaces — workspace_id is returned in the row
   const rows = await db`
     SELECT * FROM workspace_members
-    WHERE workspace_id = 'xul-ws-1'
-      AND user_email = ${email}
+    WHERE user_email = ${email}
       AND password = ${password}
     LIMIT 1
   `
@@ -281,7 +318,7 @@ export async function dbGetNotifications(userId) {
   const db = sql()
   return db`
     SELECT * FROM notifications
-    WHERE user_id = ${userId} AND workspace_id = 'xul-ws-1'
+    WHERE user_id = ${userId} AND workspace_id = ${getWsId()}
     ORDER BY created_at DESC
     LIMIT 50
   `
@@ -289,11 +326,10 @@ export async function dbGetNotifications(userId) {
 
 export async function dbSendNotification({ senderEmail, senderName, recipientIds, type, title, message }) {
   const db = sql()
-  // Insert one row per recipient
   for (const userId of recipientIds) {
     await db`
       INSERT INTO notifications (workspace_id, user_id, sender_email, sender_name, type, title, message)
-      VALUES ('xul-ws-1', ${userId}, ${senderEmail}, ${senderName}, ${type || 'default'}, ${title}, ${message || ''})
+      VALUES (${getWsId()}, ${userId}, ${senderEmail}, ${senderName}, ${type || 'default'}, ${title}, ${message || ''})
     `
   }
 }
@@ -305,14 +341,14 @@ export async function dbMarkNotificationRead(id) {
 
 export async function dbMarkAllNotificationsRead(userId) {
   const db = sql()
-  await db`UPDATE notifications SET read = true WHERE user_id = ${userId} AND workspace_id = 'xul-ws-1'`
+  await db`UPDATE notifications SET read = true WHERE user_id = ${userId} AND workspace_id = ${getWsId()}`
 }
 
 export async function dbGetAllMembers() {
   const db = sql()
   return db`
     SELECT * FROM workspace_members
-    WHERE workspace_id = 'xul-ws-1'
+    WHERE workspace_id = ${getWsId()}
     ORDER BY user_name
   `
 }
@@ -336,7 +372,7 @@ export async function dbGetEntriesForPeriod(from, to) {
   const db = sql()
   const rows = await db`
     SELECT * FROM time_entries
-    WHERE workspace_id = 'xul-ws-1'
+    WHERE workspace_id = ${getWsId()}
       AND end_time IS NOT NULL
       AND start_time >= ${from.toISOString()}
       AND start_time <= ${to.toISOString()}
@@ -353,12 +389,13 @@ export async function dbInsertEntry({
 }) {
   const db = sql()
   const entryId = id || `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const wsId = workspaceId || getWsId()
   const rows = await db`
     INSERT INTO time_entries
       (id, workspace_id, user_email, project_id, project_name, project_color, client_name,
        task_id, task_name, description, start_time, end_time, duration, billable)
     VALUES
-      (${entryId}, ${workspaceId || 'xul-ws-1'}, ${userEmail},
+      (${entryId}, ${wsId}, ${userEmail},
        ${projectId || null}, ${projectName || null}, ${projectColor || null}, ${clientName || null},
        ${taskId || null}, ${taskName || null}, ${description || ''},
        ${startTime}, ${endTime || null}, ${duration || null}, ${billable || false})
@@ -381,6 +418,7 @@ export async function dbInsertEntry({
 /** Bulk upsert — inserts entries in batches of 50 */
 export async function dbUpsertEntries(entries, onProgress) {
   const db = sql()
+  const wsId = getWsId()
   const BATCH = 50
   let done = 0
   for (let i = 0; i < entries.length; i += BATCH) {
@@ -391,7 +429,7 @@ export async function dbUpsertEntries(entries, onProgress) {
           (id, workspace_id, user_email, project_id, project_name, project_color, client_name,
            task_id, task_name, description, start_time, end_time, duration, billable)
         VALUES
-          (${e.id}, 'xul-ws-1', ${e.user_email},
+          (${e.id}, ${wsId}, ${e.user_email},
            ${e.project_id || null}, ${e.project_name || null},
            ${e.project_color || null}, ${e.client_name || null},
            ${e.task_id || null}, ${e.task_name || null},
@@ -425,7 +463,7 @@ export async function dbChangePassword(userEmail, newPassword) {
   await db`
     UPDATE workspace_members
     SET password = ${newPassword}
-    WHERE workspace_id = 'xul-ws-1' AND user_email = ${userEmail}
+    WHERE workspace_id = ${getWsId()} AND user_email = ${userEmail}
   `
 }
 
@@ -445,18 +483,19 @@ export async function dbGetAvailableYears(userEmail) {
 
 export async function dbGetProjects() {
   const db = sql()
-  return db`SELECT * FROM projects WHERE workspace_id = 'xul-ws-1' AND archived = false ORDER BY name`
+  return db`SELECT * FROM projects WHERE workspace_id = ${getWsId()} AND archived = false ORDER BY name`
 }
 
 export async function dbGetProjectsWithHours() {
   const db = sql()
+  const wsId = getWsId()
   return db`
     SELECT p.*,
            COALESCE(SUM(te.duration), 0)::bigint AS total_seconds,
            COUNT(DISTINCT te.user_email)::int     AS member_count
     FROM projects p
     LEFT JOIN time_entries te ON te.project_id = p.id
-    WHERE p.workspace_id = 'xul-ws-1' AND p.archived = false
+    WHERE p.workspace_id = ${wsId} AND p.archived = false
     GROUP BY p.id
     ORDER BY p.name
   `
@@ -464,13 +503,14 @@ export async function dbGetProjectsWithHours() {
 
 export async function dbGetAllProjectsWithHours() {
   const db = sql()
+  const wsId = getWsId()
   return db`
     SELECT p.*,
            COALESCE(SUM(te.duration), 0)::bigint AS total_seconds,
            COUNT(DISTINCT te.user_email)::int     AS member_count
     FROM projects p
     LEFT JOIN time_entries te ON te.project_id = p.id
-    WHERE p.workspace_id = 'xul-ws-1'
+    WHERE p.workspace_id = ${wsId}
     GROUP BY p.id
     ORDER BY p.archived ASC, p.name ASC
   `
@@ -478,22 +518,23 @@ export async function dbGetAllProjectsWithHours() {
 
 export async function dbGetClients() {
   const db = sql()
-  return db`SELECT * FROM clients WHERE workspace_id = 'xul-ws-1' ORDER BY name`
+  return db`SELECT * FROM clients WHERE workspace_id = ${getWsId()} ORDER BY name`
 }
 
 // ── Groups ────────────────────────────────────────────────────
 
 export async function dbGetGroups() {
   const db = sql()
-  return db`SELECT * FROM groups WHERE workspace_id = 'xul-ws-1' ORDER BY name`
+  return db`SELECT * FROM groups WHERE workspace_id = ${getWsId()} ORDER BY name`
 }
 
 export async function dbUpsertGroups(groups) {
   const db = sql()
+  const wsId = getWsId()
   for (const g of groups) {
     await db`
       INSERT INTO groups (id, workspace_id, name, user_ids, manager_ids)
-      VALUES (${g.id}, 'xul-ws-1', ${g.name},
+      VALUES (${g.id}, ${wsId}, ${g.name},
               ${g.user_ids || '[]'}, ${g.manager_ids || '[]'})
       ON CONFLICT (id) DO UPDATE SET
         name        = EXCLUDED.name,
@@ -518,17 +559,18 @@ export async function dbGetAllTasks() {
   const db = sql()
   return db`
     SELECT * FROM tasks
-    WHERE workspace_id = 'xul-ws-1' AND archived = false
+    WHERE workspace_id = ${getWsId()} AND archived = false
     ORDER BY project_id, created_at ASC
   `
 }
 
 export async function dbUpsertTasks(tasks) {
   const db = sql()
+  const wsId = getWsId()
   for (const t of tasks) {
     await db`
       INSERT INTO tasks (id, workspace_id, project_id, name, status, estimate, archived)
-      VALUES (${t.id}, 'xul-ws-1', ${t.project_id}, ${t.name},
+      VALUES (${t.id}, ${wsId}, ${t.project_id}, ${t.name},
               ${t.status || 'ACTIVE'}, ${t.estimate || null}, ${t.archived || false})
       ON CONFLICT (id) DO UPDATE SET
         name     = EXCLUDED.name,
@@ -544,7 +586,7 @@ export async function dbCreateTask({ projectId, name, estimate }) {
   const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
   const rows = await db`
     INSERT INTO tasks (id, workspace_id, project_id, name, status, estimate)
-    VALUES (${id}, 'xul-ws-1', ${projectId}, ${name}, 'ACTIVE', ${estimate || null})
+    VALUES (${id}, ${getWsId()}, ${projectId}, ${name}, 'ACTIVE', ${estimate || null})
     RETURNING *
   `
   return rows[0]
@@ -565,7 +607,7 @@ export async function dbCreateProject({ name, color, clientId, clientName, budge
   const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
   const rows = await db`
     INSERT INTO projects (id, workspace_id, name, color, client_id, client_name, budget_hours, archived, access)
-    VALUES (${id}, 'xul-ws-1', ${name}, ${color || '#7C4DFF'},
+    VALUES (${id}, ${getWsId()}, ${name}, ${color || '#7C4DFF'},
             ${clientId || null}, ${clientName || null}, ${budgetHours || null}, false, 'PRIVATE')
     RETURNING *
   `
@@ -602,7 +644,7 @@ export async function dbCreateClient({ name, email }) {
   const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
   const rows = await db`
     INSERT INTO clients (id, workspace_id, name, email)
-    VALUES (${id}, 'xul-ws-1', ${name}, ${email || null})
+    VALUES (${id}, ${getWsId()}, ${name}, ${email || null})
     RETURNING *
   `
   return rows[0]
@@ -633,7 +675,7 @@ export async function dbCreateTag({ name }) {
   const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
   const rows = await db`
     INSERT INTO tags (id, workspace_id, name, archived)
-    VALUES (${id}, 'xul-ws-1', ${name}, false)
+    VALUES (${id}, ${getWsId()}, ${name}, false)
     RETURNING *
   `
   return rows[0]
@@ -659,7 +701,7 @@ export async function dbCreateTimeOffRequest({ userEmail, userName, policyId, po
     INSERT INTO time_off_requests
       (id, workspace_id, user_email, user_name, policy_id, policy_name, status, start_date, end_date, note)
     VALUES
-      (${id}, 'xul-ws-1', ${userEmail || null}, ${userName || null},
+      (${id}, ${getWsId()}, ${userEmail || null}, ${userName || null},
        ${policyId || null}, ${policyName || null}, 'PENDING',
        ${startDate}, ${endDate}, ${note || null})
     RETURNING *
@@ -669,10 +711,11 @@ export async function dbCreateTimeOffRequest({ userEmail, userName, policyId, po
 
 export async function dbUpsertProjects(projects) {
   const db = sql()
+  const wsId = getWsId()
   for (const p of projects) {
     await db`
       INSERT INTO projects (id, workspace_id, name, color, client_id, client_name, budget_hours, archived, access)
-      VALUES (${p.id}, 'xul-ws-1', ${p.name}, ${p.color || '#7C4DFF'},
+      VALUES (${p.id}, ${wsId}, ${p.name}, ${p.color || '#7C4DFF'},
               ${p.client_id || null}, ${p.clients?.name || null},
               ${p.budget_hours || null}, ${p.archived || false}, ${p.access || 'PRIVATE'})
       ON CONFLICT (id) DO UPDATE SET
@@ -707,7 +750,6 @@ export async function dbGetMyNotes(userEmail) {
 
 export async function dbSaveNote({ userEmail, authorName, slot, content }) {
   const db = sql()
-  // Try UPDATE first (works even if UNIQUE constraint is missing)
   const updated = await db`
     UPDATE sticky_notes
     SET content = ${content}, author_name = ${authorName || ''}, updated_at = NOW()
@@ -716,10 +758,9 @@ export async function dbSaveNote({ userEmail, authorName, slot, content }) {
   `
   if (updated.length > 0) return updated[0]
 
-  // No existing row — insert new
   const rows = await db`
     INSERT INTO sticky_notes (workspace_id, author_email, author_name, slot, content, updated_at)
-    VALUES ('xul-ws-1', ${userEmail}, ${authorName || ''}, ${slot}, ${content}, NOW())
+    VALUES (${getWsId()}, ${userEmail}, ${authorName || ''}, ${slot}, ${content}, NOW())
     ON CONFLICT (author_email, slot) DO UPDATE SET
       content     = EXCLUDED.content,
       author_name = EXCLUDED.author_name,
@@ -748,7 +789,7 @@ export async function dbGetSharedNotes(userEmail) {
   const rows = await db`
     SELECT * FROM sticky_notes
     WHERE author_email != ${userEmail}
-      AND workspace_id = 'xul-ws-1'
+      AND workspace_id = ${getWsId()}
       AND content != ''
       AND (shared_with::text LIKE ${'%"all"%'}
            OR shared_with::text LIKE ${'%' + userEmail + '%'})
@@ -804,10 +845,11 @@ export async function ensureReactionsColumn() {
 
 export async function dbUpsertClients(clients) {
   const db = sql()
+  const wsId = getWsId()
   for (const c of clients) {
     await db`
       INSERT INTO clients (id, workspace_id, name, email)
-      VALUES (${c.id}, 'xul-ws-1', ${c.name}, ${c.email || null})
+      VALUES (${c.id}, ${wsId}, ${c.name}, ${c.email || null})
       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
     `
   }
@@ -815,9 +857,10 @@ export async function dbUpsertClients(clients) {
 
 export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId, groupName }) {
   const db = sql()
+  const wsId = getWsId()
   await db`
     INSERT INTO workspace_members (workspace_id, user_email, user_name, role, password, clockify_user_id, group_name)
-    VALUES ('xul-ws-1', ${userEmail}, ${userName}, ${role || 'employee'}, 'Mytrack14$', ${clockifyUserId || null}, ${groupName || null})
+    VALUES (${wsId}, ${userEmail}, ${userName}, ${role || 'employee'}, 'Mytrack14$', ${clockifyUserId || null}, ${groupName || null})
     ON CONFLICT (workspace_id, user_email) DO UPDATE SET
       user_name        = EXCLUDED.user_name,
       -- Protect manually-promoted admins: only upgrade role (employee→admin), never downgrade
@@ -834,15 +877,16 @@ export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId
 
 export async function dbGetTags() {
   const db = sql()
-  return db`SELECT * FROM tags WHERE workspace_id = 'xul-ws-1' AND archived = false ORDER BY name`
+  return db`SELECT * FROM tags WHERE workspace_id = ${getWsId()} AND archived = false ORDER BY name`
 }
 
 export async function dbUpsertTags(tags) {
   const db = sql()
+  const wsId = getWsId()
   for (const t of tags) {
     await db`
       INSERT INTO tags (id, workspace_id, name, archived)
-      VALUES (${t.id}, 'xul-ws-1', ${t.name}, ${t.archived || false})
+      VALUES (${t.id}, ${wsId}, ${t.name}, ${t.archived || false})
       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, archived = EXCLUDED.archived
     `
   }
@@ -852,15 +896,16 @@ export async function dbUpsertTags(tags) {
 
 export async function dbGetTimeOffPolicies() {
   const db = sql()
-  return db`SELECT * FROM time_off_policies WHERE workspace_id = 'xul-ws-1' ORDER BY name`
+  return db`SELECT * FROM time_off_policies WHERE workspace_id = ${getWsId()} ORDER BY name`
 }
 
 export async function dbUpsertTimeOffPolicies(policies) {
   const db = sql()
+  const wsId = getWsId()
   for (const p of policies) {
     await db`
       INSERT INTO time_off_policies (id, workspace_id, name, color, days_per_year)
-      VALUES (${p.id}, 'xul-ws-1', ${p.name}, ${p.color || '#7C4DFF'}, ${p.daysPerYear || null})
+      VALUES (${p.id}, ${wsId}, ${p.name}, ${p.color || '#7C4DFF'}, ${p.daysPerYear || null})
       ON CONFLICT (id) DO UPDATE SET
         name         = EXCLUDED.name,
         color        = EXCLUDED.color,
@@ -873,19 +918,20 @@ export async function dbGetTimeOffRequests() {
   const db = sql()
   return db`
     SELECT * FROM time_off_requests
-    WHERE workspace_id = 'xul-ws-1'
+    WHERE workspace_id = ${getWsId()}
     ORDER BY start_date DESC
   `
 }
 
 export async function dbUpsertTimeOffRequests(requests) {
   const db = sql()
+  const wsId = getWsId()
   for (const r of requests) {
     await db`
       INSERT INTO time_off_requests
         (id, workspace_id, user_email, user_name, policy_id, policy_name, status, start_date, end_date, note)
       VALUES
-        (${r.id}, 'xul-ws-1', ${r.user_email || null}, ${r.user_name || null},
+        (${r.id}, ${wsId}, ${r.user_email || null}, ${r.user_name || null},
          ${r.policy_id || null}, ${r.policy_name || null}, ${r.status || 'PENDING'},
          ${r.start_date || null}, ${r.end_date || null}, ${r.note || null})
       ON CONFLICT (id) DO UPDATE SET
@@ -905,16 +951,17 @@ export async function dbUpsertTimeOffRequests(requests) {
 /** Get all compensation entries for a user (or all users if email omitted) */
 export async function dbGetCompensations(userEmail) {
   const db = sql()
+  const wsId = getWsId()
   if (userEmail) {
     return db`
       SELECT * FROM hour_compensations
-      WHERE workspace_id = 'xul-ws-1' AND user_email = ${userEmail}
+      WHERE workspace_id = ${wsId} AND user_email = ${userEmail}
       ORDER BY week_start DESC
     `
   }
   return db`
     SELECT * FROM hour_compensations
-    WHERE workspace_id = 'xul-ws-1'
+    WHERE workspace_id = ${wsId}
     ORDER BY week_start DESC, user_email
   `
 }
@@ -924,7 +971,7 @@ export async function dbAddCompensation({ userEmail, weekStart, compHours, notes
   const db = sql()
   const rows = await db`
     INSERT INTO hour_compensations (workspace_id, user_email, week_start, comp_hours, notes, created_by)
-    VALUES ('xul-ws-1', ${userEmail}, ${weekStart}, ${compHours}, ${notes || ''}, ${createdBy || ''})
+    VALUES (${getWsId()}, ${userEmail}, ${weekStart}, ${compHours}, ${notes || ''}, ${createdBy || ''})
     RETURNING *
   `
   return rows[0]
@@ -939,6 +986,7 @@ export async function dbDeleteCompensation(id) {
 /** Get weekly hours per user from time_entries */
 export async function dbGetWeeklyHours(userEmail, fromDate, toDate) {
   const db = sql()
+  const wsId = getWsId()
   const where = userEmail
     ? db`AND user_email = ${userEmail}`
     : db``
@@ -948,7 +996,7 @@ export async function dbGetWeeklyHours(userEmail, fromDate, toDate) {
       DATE_TRUNC('week', start_time AT TIME ZONE 'Europe/Madrid')::date AS week_start,
       SUM(duration) AS total_seconds
     FROM time_entries
-    WHERE workspace_id = 'xul-ws-1'
+    WHERE workspace_id = ${wsId}
       AND start_time >= ${fromDate}
       AND start_time <= ${toDate}
       AND duration > 0

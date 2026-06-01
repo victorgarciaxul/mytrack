@@ -6,7 +6,7 @@ import {
 import { useRole } from '../context/RoleContext'
 import { useAuth } from '../context/AuthContext'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-import { initDB, sql, dbGetCompensations, dbAddCompensation, dbDeleteCompensation, dbGetWeeklyHours } from '../lib/db'
+import { initDB, sql, dbGetCompensations, dbAddCompensation, dbDeleteCompensation, dbGetWeeklyHours, getWsId } from '../lib/db'
 import {
   format, startOfWeek, endOfWeek, addWeeks, subWeeks,
   parseISO, startOfYear, endOfYear
@@ -168,7 +168,7 @@ export default function Overtime() {
       await initDB()
       const db = sql()
       const [mems, compsAll] = await Promise.all([
-        db`SELECT id, user_name, user_email, group_name FROM workspace_members WHERE workspace_id = 'xul-ws-1' ORDER BY user_name`,
+        db`SELECT id, user_name, user_email, group_name FROM workspace_members WHERE workspace_id = ${getWsId()} ORDER BY user_name`,
         dbGetCompensations(null), // all users
       ])
       setMembers(mems)

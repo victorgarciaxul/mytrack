@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Building2, Mail, Plus, X, Trash2, Search, Pencil, Archive, ArchiveRestore } from 'lucide-react'
-import { initDB, dbGetClients, dbGetProjects, dbCreateClient, dbDeleteClient, dbUpdateClient, dbArchiveClient } from '../lib/db'
+import { initDB, dbGetClients, dbGetProjects, dbCreateClient, dbDeleteClient, dbUpdateClient, dbArchiveClient, getWsId } from '../lib/db'
 import { useRole } from '../context/RoleContext'
 import toast from 'react-hot-toast'
 
@@ -322,5 +322,5 @@ export default function Clients() {
 async function dbGetAllClients() {
   const { sql } = await import('../lib/db')
   const db = sql()
-  return db`SELECT * FROM clients WHERE workspace_id = 'xul-ws-1' ORDER BY archived ASC, name ASC`
+  return db`SELECT * FROM clients WHERE workspace_id = ${getWsId()} ORDER BY archived ASC, name ASC`
 }

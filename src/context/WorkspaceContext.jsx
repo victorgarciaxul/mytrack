@@ -19,7 +19,9 @@ function getInitialData(isDemo, email) {
       tasks: [],
     }
   }
-  return { ws: { id: 'xul-ws-1', name: 'XUL', working_hours_per_day: 8, alert_threshold_days: 1 }, projects: [], clients: [], members: [], tasks: [] }
+  const wsId = email?.endsWith('@fundacionxul.org') ? 'fundacion-ws-1' : 'xul-ws-1'
+  const wsName = wsId === 'fundacion-ws-1' ? 'Fundación XUL' : 'XUL'
+  return { ws: { id: wsId, name: wsName, working_hours_per_day: 8, alert_threshold_days: 1 }, projects: [], clients: [], members: [], tasks: [] }
 }
 
 export function WorkspaceProvider({ children }) {

@@ -70,7 +70,7 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
         initDB().then(() => dbInsertEntry({
           id: saved.id,
           userEmail: user?.email,
-          workspaceId: 'xul-ws-1',
+          workspaceId: user?.workspace_id || 'xul-ws-1',
           projectId: projectId || null,
           projectName: project?.name || null,
           projectColor: project?.color || null,

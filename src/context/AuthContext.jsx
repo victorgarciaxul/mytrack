@@ -88,6 +88,7 @@ export function AuthProvider({ children }) {
             email: member.user_email,
             user_metadata: { full_name: member.user_name },
             role: member.role,
+            workspace_id: member.workspace_id,
             clockify_user_id: member.clockify_user_id,
           }
           setUser(u)
@@ -103,11 +104,13 @@ export function AuthProvider({ children }) {
         u => u.email === email.toLowerCase().trim() && u.password === password
       )
       if (match) {
+        const wsId = match.email.endsWith('@fundacionxul.org') ? 'fundacion-ws-1' : 'xul-ws-1'
         const u = {
           id: `local-${match.email}`,
           email: match.email,
           user_metadata: { full_name: match.name },
           role: match.role,
+          workspace_id: wsId,
         }
         setUser(u)
         localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))

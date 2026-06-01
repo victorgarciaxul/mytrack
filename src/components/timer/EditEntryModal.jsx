@@ -49,7 +49,7 @@ export default function EditEntryModal({ entry, onClose, onSaved, user }) {
       const saved = await dbInsertEntry({
         id:           entry.id,
         userEmail:    user?.email,
-        workspaceId:  'xul-ws-1',
+        workspaceId:  user?.workspace_id || 'xul-ws-1',
         projectId:    projectId || null,
         projectName:  project?.name  || null,
         projectColor: project?.color || null,

@@ -24,6 +24,15 @@ export function getWsId() {
 }
 
 /**
+ * Returns the workspace_id that should own data for a given user email.
+ * Used during Clockify imports to route entries/members to the right workspace.
+ */
+export function getWsIdForEmail(email) {
+  if (email?.endsWith('@fundacionxul.org')) return 'fundacion-ws-1'
+  return 'xul-ws-1'
+}
+
+/**
  * Neon's HTTP driver returns TIMESTAMPTZ columns as JS Date objects.
  * All our UI code (date-fns parseISO, format, etc.) expects ISO strings.
  * This helper normalises any Date object to an ISO string; passes strings through.
@@ -415,21 +424,22 @@ export async function dbInsertEntry({
   return rows[0] ? normEntry(rows[0]) : null
 }
 
-/** Bulk upsert — inserts entries in batches of 50 */
+/** Bulk upsert — inserts entries in batches of 50.
+ *  Each entry is routed to its owner's workspace (by email domain). */
 export async function dbUpsertEntries(entries, onProgress) {
   const db = sql()
-  const wsId = getWsId()
   const BATCH = 50
   let done = 0
   for (let i = 0; i < entries.length; i += BATCH) {
     const batch = entries.slice(i, i + BATCH)
     for (const e of batch) {
+      const entryWsId = getWsIdForEmail(e.user_email)
       await db`
         INSERT INTO time_entries
           (id, workspace_id, user_email, project_id, project_name, project_color, client_name,
            task_id, task_name, description, start_time, end_time, duration, billable)
         VALUES
-          (${e.id}, ${wsId}, ${e.user_email},
+          (${e.id}, ${entryWsId}, ${e.user_email},
            ${e.project_id || null}, ${e.project_name || null},
            ${e.project_color || null}, ${e.client_name || null},
            ${e.task_id || null}, ${e.task_name || null},
@@ -564,9 +574,9 @@ export async function dbGetAllTasks() {
   `
 }
 
-export async function dbUpsertTasks(tasks) {
+export async function dbUpsertTasks(tasks, wsId) {
   const db = sql()
-  const wsId = getWsId()
+  wsId = wsId || getWsId()
   for (const t of tasks) {
     await db`
       INSERT INTO tasks (id, workspace_id, project_id, name, status, estimate, archived)
@@ -709,9 +719,9 @@ export async function dbCreateTimeOffRequest({ userEmail, userName, policyId, po
   return rows[0]
 }
 
-export async function dbUpsertProjects(projects) {
+export async function dbUpsertProjects(projects, wsId) {
   const db = sql()
-  const wsId = getWsId()
+  wsId = wsId || getWsId()
   for (const p of projects) {
     await db`
       INSERT INTO projects (id, workspace_id, name, color, client_id, client_name, budget_hours, archived, access)
@@ -843,9 +853,9 @@ export async function ensureReactionsColumn() {
   } catch {}
 }
 
-export async function dbUpsertClients(clients) {
+export async function dbUpsertClients(clients, wsId) {
   const db = sql()
-  const wsId = getWsId()
+  wsId = wsId || getWsId()
   for (const c of clients) {
     await db`
       INSERT INTO clients (id, workspace_id, name, email)
@@ -857,7 +867,8 @@ export async function dbUpsertClients(clients) {
 
 export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId, groupName }) {
   const db = sql()
-  const wsId = getWsId()
+  // Route member to their workspace based on email domain
+  const wsId = getWsIdForEmail(userEmail) || getWsId()
   await db`
     INSERT INTO workspace_members (workspace_id, user_email, user_name, role, password, clockify_user_id, group_name)
     VALUES (${wsId}, ${userEmail}, ${userName}, ${role || 'employee'}, 'Mytrack14$', ${clockifyUserId || null}, ${groupName || null})
@@ -880,9 +891,9 @@ export async function dbGetTags() {
   return db`SELECT * FROM tags WHERE workspace_id = ${getWsId()} AND archived = false ORDER BY name`
 }
 
-export async function dbUpsertTags(tags) {
+export async function dbUpsertTags(tags, wsId) {
   const db = sql()
-  const wsId = getWsId()
+  wsId = wsId || getWsId()
   for (const t of tags) {
     await db`
       INSERT INTO tags (id, workspace_id, name, archived)
@@ -899,9 +910,9 @@ export async function dbGetTimeOffPolicies() {
   return db`SELECT * FROM time_off_policies WHERE workspace_id = ${getWsId()} ORDER BY name`
 }
 
-export async function dbUpsertTimeOffPolicies(policies) {
+export async function dbUpsertTimeOffPolicies(policies, wsId) {
   const db = sql()
-  const wsId = getWsId()
+  wsId = wsId || getWsId()
   for (const p of policies) {
     await db`
       INSERT INTO time_off_policies (id, workspace_id, name, color, days_per_year)
@@ -925,8 +936,9 @@ export async function dbGetTimeOffRequests() {
 
 export async function dbUpsertTimeOffRequests(requests) {
   const db = sql()
-  const wsId = getWsId()
   for (const r of requests) {
+    // Route each request to the workspace that owns that user
+    const wsId = r.user_email ? getWsIdForEmail(r.user_email) : getWsId()
     await db`
       INSERT INTO time_off_requests
         (id, workspace_id, user_email, user_name, policy_id, policy_name, status, start_date, end_date, note)

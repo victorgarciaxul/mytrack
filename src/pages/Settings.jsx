@@ -25,14 +25,21 @@ function ClockifyImportCard({ onImported }) {
         setProgress(pct)
       }, since)
 
-      // 2. Save projects & clients to Neon (always — they may have changed)
+      // 2. Save projects & clients to Neon — both workspaces share the same Clockify projects
       await initDB()
       setStatus('Guardando proyectos y clientes…')
       setProgress(88)
-      if (result.projects?.length) await dbUpsertProjects(result.projects)
-      if (result.clients?.length)  await dbUpsertClients(result.clients)
+      if (result.projects?.length) {
+        await dbUpsertProjects(result.projects)                        // xul-ws-1
+        await dbUpsertProjects(result.projects, 'fundacion-ws-1')     // fundacion-ws-1
+      }
+      if (result.clients?.length) {
+        await dbUpsertClients(result.clients)                          // xul-ws-1
+        await dbUpsertClients(result.clients, 'fundacion-ws-1')       // fundacion-ws-1
+      }
 
       // 3. Save all users + groups to Neon
+      // dbUpsertMember routes each member to their workspace automatically (by email domain)
       setStatus('Registrando usuarios en MyTrack…')
       setProgress(90)
       for (const member of result.members || []) {
@@ -47,10 +54,10 @@ function ClockifyImportCard({ onImported }) {
       if (result.groups?.length) {
         setStatus('Guardando grupos…')
         setProgress(91)
-        await dbUpsertGroups(result.groups)
+        await dbUpsertGroups(result.groups) // XUL workspace only
       }
 
-      // 4. Save only the new/changed entries to Neon (upserts are safe)
+      // 4. Save entries — dbUpsertEntries routes each entry to the correct workspace by email
       if (result.allEntriesForNeon?.length) {
         setStatus(`Guardando ${result.allEntriesForNeon.length} entradas nuevas…`)
         setProgress(92)
@@ -60,11 +67,14 @@ function ClockifyImportCard({ onImported }) {
         })
       }
 
-      // 5. Tags
+      // 5. Tags — both workspaces
       setStatus('Importando etiquetas…')
       setProgress(97)
       const tags = await clockifyGetTags()
-      if (tags.length) await dbUpsertTags(tags)
+      if (tags.length) {
+        await dbUpsertTags(tags)                      // xul-ws-1
+        await dbUpsertTags(tags, 'fundacion-ws-1')   // fundacion-ws-1
+      }
 
       // 6. Time off
       setStatus('Importando bajas y vacaciones…')
@@ -74,14 +84,20 @@ function ClockifyImportCard({ onImported }) {
         clockifyGetTimeOffPolicies(),
         clockifyGetTimeOffRequests(rawUsers),
       ])
-      if (policies.length) await dbUpsertTimeOffPolicies(policies)
-      if (requests.length) await dbUpsertTimeOffRequests(requests)
+      if (policies.length) {
+        await dbUpsertTimeOffPolicies(policies)                    // xul-ws-1
+        await dbUpsertTimeOffPolicies(policies, 'fundacion-ws-1') // fundacion-ws-1
+      }
+      if (requests.length) await dbUpsertTimeOffRequests(requests) // routed by user email inside
 
-      // 7. Tasks (all projects)
+      // 7. Tasks (all projects) — both workspaces
       setStatus('Importando tareas de proyectos…')
       setProgress(99)
       const tasks = await clockifyGetAllTasks(result.projects || [])
-      if (tasks.length) await dbUpsertTasks(tasks)
+      if (tasks.length) {
+        await dbUpsertTasks(tasks)                      // xul-ws-1
+        await dbUpsertTasks(tasks, 'fundacion-ws-1')   // fundacion-ws-1
+      }
 
       if (result.isIncremental) {
         toast.success(`✅ ${result.newCount} entradas · ${tags.length} etiquetas · ${tasks.length} tareas`)

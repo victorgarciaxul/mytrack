@@ -61,6 +61,7 @@ body {
   font-size: 13px;
   color: var(--c-text-1);
   background: var(--c-bg-app);
+  overflow-x: hidden;
 }
 
 .font-numeric {
@@ -79,6 +80,14 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: var(--c-text-3); }
 * { scrollbar-width: thin; scrollbar-color: var(--c-scrollbar) transparent; }
 
+.no-scrollbar { scrollbar-width: none !important; -ms-overflow-style: none !important; }
+.no-scrollbar::-webkit-scrollbar { display: none !important; width: 0 !important; }
+
+aside nav { scrollbar-width: none !important; -ms-overflow-style: none !important; }
+aside nav::-webkit-scrollbar { display: none !important; width: 0 !important; }
+aside { scrollbar-width: none !important; -ms-overflow-style: none !important; }
+aside::-webkit-scrollbar { display: none !important; width: 0 !important; }
+
 /* ── Logo XUL como máscara (blanco/negro según tema) ───────── */
 .xul-logo {
   display: block;
@@ -94,6 +103,120 @@ body {
   -webkit-mask-position: center;
   mask-position: center;
   flex-shrink: 0;
+}
+
+/* ── Mobile responsive ─────────────────────────────────────── */
+
+/* Sidebar backdrop (hidden on desktop) */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 299;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+/* Hamburger button (hidden on desktop) */
+.mobile-menu-btn {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  /* ── Outer shell ── */
+  .app-wrapper {
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
+  /* ── Inner content frame (rounded card) ── */
+  .app-content-frame {
+    border-radius: 0 !important;
+    border: none !important;
+  }
+
+  /* ── Sidebar becomes a drawer ── */
+  .app-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 260px !important;
+    height: 100vh !important;
+    border-radius: 0 14px 14px 0 !important;
+    z-index: 300 !important;
+    transform: translateX(-100%);
+    transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: none !important;
+  }
+
+  .app-sidebar.mobile-open {
+    transform: translateX(0) !important;
+    box-shadow: 4px 0 32px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+  }
+
+  .mobile-menu-btn {
+    display: flex !important;
+  }
+
+  /* ── Page containers: tighter padding ── */
+  .page-container {
+    padding: 16px !important;
+  }
+
+  /* ── Page header rows: stack on mobile ── */
+  .page-container > div:first-child {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+
+  /* ── Page header action groups: full-width wrap ── */
+  .page-container > div:first-child > div:last-child {
+    width: 100% !important;
+    flex-wrap: wrap !important;
+  }
+
+  /* ── Search bar inside header action group: expand ── */
+  .page-container > div:first-child > div:last-child > div:first-child {
+    flex: 1 !important;
+    width: auto !important;
+    min-width: 0 !important;
+  }
+
+  /* ── XUL logo: scale down ── */
+  .xul-logo {
+    width: 200px !important;
+    height: 56px !important;
+  }
+
+  /* ── Modal / dialog boxes: full width on small screens ── */
+  .modal-box {
+    width: calc(100vw - 32px) !important;
+    max-width: none !important;
+    margin: 0 16px !important;
+  }
+
+  /* ── Project/Client grid: 1 column ── */
+  .projects-grid,
+  .clients-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── General: prevent any element wider than viewport ── */
+  .page-container * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* ── Table rows: allow horizontal scroll ── */
+  .page-container > div > div[style*="grid"] {
+    overflow-x: auto !important;
+  }
 }
 
 /* ── Dark mode: eliminar todos los bordes de tarjetas ──────── */

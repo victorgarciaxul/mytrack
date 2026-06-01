@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, ChevronDown, X } from 'lucide-react'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 
 /**
  * Reusable searchable dropdown.
@@ -26,6 +27,7 @@ export default function SearchableDropdown({
   const [query, setQuery]   = useState('')
   const containerRef        = useRef(null)
   const inputRef            = useRef(null)
+  const isMobile            = useMediaQuery('(max-width: 768px)')
 
   const selected = options.find(o => o.value === value) || null
 
@@ -39,13 +41,13 @@ export default function SearchableDropdown({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [open])
 
-  // Auto-focus search when opened
+  // Auto-focus search when opened (skip on mobile to avoid iOS scroll/zoom)
   useEffect(() => {
     if (open) {
       setQuery('')
-      setTimeout(() => inputRef.current?.focus(), 30)
+      if (!isMobile) setTimeout(() => inputRef.current?.focus(), 30)
     }
-  }, [open])
+  }, [open, isMobile])
 
   const filtered = options.filter(o =>
     o.label.toLowerCase().includes(query.toLowerCase())
@@ -96,7 +98,9 @@ export default function SearchableDropdown({
       {open && (
         <div style={{
           position: 'absolute', left: 0, top: 'calc(100% + 4px)',
-          minWidth: '100%', width: 'max-content', maxWidth: 320,
+          minWidth: '100%',
+          width: isMobile ? '100%' : 'max-content',
+          maxWidth: isMobile ? '100%' : 320,
           zIndex: 200,
           background: 'var(--c-bg-surface)',
           border: '1px solid var(--c-border-light)',

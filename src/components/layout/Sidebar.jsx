@@ -219,11 +219,16 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
     left: 0,
     width: 260,
     height: '100vh',
+    height: '100dvh',          // iOS Safari: excludes browser chrome
+    maxHeight: '-webkit-fill-available',
     borderRadius: '0 14px 14px 0',
     zIndex: 300,
     transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
     transition: 'transform 0.26s cubic-bezier(0.4,0,0.2,1)',
     boxShadow: mobileOpen ? '4px 0 32px rgba(0,0,0,0.18)' : 'none',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
   } : {}
 
   return (

@@ -476,8 +476,41 @@ export async function dbInsertEntry({
   return rows[0] ? normEntry(rows[0]) : null
 }
 
+/** Returns true if the entry belongs to the Fundación client */
+function isFundacionEntry(e) {
+  return e.client_name?.toLowerCase().includes('fundaci')
+}
+
+/** Insert a single entry row (helper used by dbUpsertEntries) */
+async function _upsertEntry(db, id, wsId, e) {
+  await db`
+    INSERT INTO time_entries
+      (id, workspace_id, user_email, project_id, project_name, project_color, client_name,
+       task_id, task_name, description, start_time, end_time, duration, billable)
+    VALUES
+      (${id}, ${wsId}, ${e.user_email},
+       ${e.project_id || null}, ${e.project_name || null},
+       ${e.project_color || null}, ${e.client_name || null},
+       ${e.task_id || null}, ${e.task_name || null},
+       ${e.description || ''}, ${e.start_time}, ${e.end_time || null},
+       ${e.duration || null}, ${e.billable || false})
+    ON CONFLICT (id) DO UPDATE SET
+      description   = EXCLUDED.description,
+      project_name  = EXCLUDED.project_name,
+      project_color = EXCLUDED.project_color,
+      client_name   = EXCLUDED.client_name,
+      task_name     = EXCLUDED.task_name,
+      start_time    = EXCLUDED.start_time,
+      end_time      = EXCLUDED.end_time,
+      duration      = EXCLUDED.duration
+  `
+}
+
 /** Bulk upsert — inserts entries in batches of 50.
- *  Each entry is routed to its owner's workspace (by email domain). */
+ *  Routing rules:
+ *  1. Each entry goes to its owner's workspace (by email domain).
+ *  2. Entries for the "Fundación" client are ALSO saved to fundacion-ws-1
+ *     (even if tracked by a XUL user), using a suffixed ID to avoid PK conflicts. */
 export async function dbUpsertEntries(entries, onProgress) {
   const db = sql()
   const BATCH = 50
@@ -485,28 +518,16 @@ export async function dbUpsertEntries(entries, onProgress) {
   for (let i = 0; i < entries.length; i += BATCH) {
     const batch = entries.slice(i, i + BATCH)
     for (const e of batch) {
-      const entryWsId = getWsIdForEmail(e.user_email)
-      await db`
-        INSERT INTO time_entries
-          (id, workspace_id, user_email, project_id, project_name, project_color, client_name,
-           task_id, task_name, description, start_time, end_time, duration, billable)
-        VALUES
-          (${e.id}, ${entryWsId}, ${e.user_email},
-           ${e.project_id || null}, ${e.project_name || null},
-           ${e.project_color || null}, ${e.client_name || null},
-           ${e.task_id || null}, ${e.task_name || null},
-           ${e.description || ''}, ${e.start_time}, ${e.end_time || null},
-           ${e.duration || null}, ${e.billable || false})
-        ON CONFLICT (id) DO UPDATE SET
-          description   = EXCLUDED.description,
-          project_name  = EXCLUDED.project_name,
-          project_color = EXCLUDED.project_color,
-          client_name   = EXCLUDED.client_name,
-          task_name     = EXCLUDED.task_name,
-          start_time    = EXCLUDED.start_time,
-          end_time      = EXCLUDED.end_time,
-          duration      = EXCLUDED.duration
-      `
+      const ownerWsId = getWsIdForEmail(e.user_email)
+
+      // 1. Save to owner's workspace
+      await _upsertEntry(db, e.id, ownerWsId, e)
+
+      // 2. Fundación client entries also land in fundacion-ws-1
+      //    Skip if already routed there (avoids double-writing @fundacionxul.org entries)
+      if (isFundacionEntry(e) && ownerWsId !== 'fundacion-ws-1') {
+        await _upsertEntry(db, `${e.id}__f`, 'fundacion-ws-1', e)
+      }
     }
     done += batch.length
     onProgress?.(done, entries.length)

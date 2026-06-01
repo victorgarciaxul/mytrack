@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from 'recharts'
-import { initDB, dbGetEntriesForPeriod } from '../lib/db'
+import { initDB, dbGetEntriesForPeriod, getWsId } from '../lib/db'
 import { loadClockifyCache } from '../lib/clockify'
 import { useAuth } from '../context/AuthContext'
 import { useRole } from '../context/RoleContext'
@@ -109,8 +109,13 @@ export default function Reports() {
     setLoading(false)
   }
 
+  // When viewing Fundación workspace, only entries from @fundacionxul.org count
+  const isFundacion = getWsId() === 'fundacion-ws-1'
+
   // ── derived ─────────────────────────────────────────────────
   const filtered = useMemo(() => entries.filter(e => {
+    // Fundación workspace: only the two Fundación users
+    if (isFundacion && !e.user_email?.endsWith('@fundacionxul.org')) return false
     // Non-admins only see their own entries regardless of filter
     if (!isAdmin && e.user_email !== user?.email) return false
     if (filterProject  !== 'ALL' && (e.project_name || 'Sin proyecto') !== filterProject) return false
@@ -119,11 +124,16 @@ export default function Reports() {
     if (filterBillable === 'YES' && !e.billable) return false
     if (filterBillable === 'NO'  &&  e.billable) return false
     return true
-  }), [entries, filterProject, filterClient, filterUser, filterBillable, isAdmin, user?.email])
+  }), [entries, filterProject, filterClient, filterUser, filterBillable, isAdmin, user?.email, isFundacion])
 
-  const projects  = [...new Set(entries.map(e => e.project_name || 'Sin proyecto'))].sort()
-  const clients   = [...new Set(entries.map(e => e.client_name  || 'Sin cliente'))].sort()
-  const users     = [...new Set(entries.map(e => e.user_email).filter(Boolean))].sort()
+  // Base entries for building filter options (scoped to Fundación if applicable)
+  const baseEntries = isFundacion
+    ? entries.filter(e => e.user_email?.endsWith('@fundacionxul.org'))
+    : entries
+
+  const projects  = [...new Set(baseEntries.map(e => e.project_name || 'Sin proyecto'))].sort()
+  const clients   = [...new Set(baseEntries.map(e => e.client_name  || 'Sin cliente'))].sort()
+  const users     = [...new Set(baseEntries.map(e => e.user_email).filter(Boolean))].sort()
 
   const totalSecs    = filtered.reduce((s, e) => s + (Number(e.duration) || 0), 0)
   const billableSecs = filtered.filter(e => e.billable).reduce((s, e) => s + (Number(e.duration) || 0), 0)
@@ -221,8 +231,14 @@ export default function Reports() {
         {/* Filters */}
         {isAdmin && (
           <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={selectStyle}>
-            <option value="ALL">Todos los usuarios</option>
-            {users.map(u => <option key={u} value={u}>{u.split('@')[0]}</option>)}
+            <option value="ALL">{isFundacion ? 'Ambas usuarias' : 'Todos los usuarios'}</option>
+            {users.map(u => (
+              <option key={u} value={u}>
+                {u === 'anarojas@fundacionxul.org'      ? 'Ana Rojas'
+                : u === 'cristinareyes@fundacionxul.org' ? 'Cristina Reyes'
+                : u.split('@')[0]}
+              </option>
+            ))}
           </select>
         )}
         <select value={filterProject} onChange={e => setFilterProject(e.target.value)} style={selectStyle}>

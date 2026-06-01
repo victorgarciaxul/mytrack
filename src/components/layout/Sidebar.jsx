@@ -122,17 +122,24 @@ function AvatarPickerPanel({ selected, onSelect, onClose, pos }) {
 
 // ── Workspace Switcher (admins only) ──────────────────────────────
 const WORKSPACES = [
-  { id: 'xul-ws-1',       label: 'XUL',       shortLabel: 'XUL'  },
-  { id: 'fundacion-ws-1', label: 'Fundación',  shortLabel: 'Fund' },
+  { id: 'xul-ws-1',       label: 'XUL',       shortLabel: 'X' },
+  { id: 'fundacion-ws-1', label: 'Fundación',  shortLabel: 'F' },
 ]
 
-function WorkspaceSwitcher({ collapsed, user, isAdmin, switchWorkspace }) {
+function WorkspaceSwitcher({ collapsed, user, isAdmin, switchWorkspace, isDark }) {
   // Only XUL admins can switch workspaces
   // workspace_id may be undefined in old sessions — treat that as xul-ws-1
   const userWs = user?.workspace_id || 'xul-ws-1'
   if (!isAdmin || userWs !== 'xul-ws-1') return null
 
   const activeWsId = getWsId()
+
+  // Blue palette matching the topbar gradient
+  const activeBg     = 'linear-gradient(135deg, #1D4ED8, #2563EB)'
+  const inactiveBg   = isDark ? 'rgba(37,99,235,0.18)' : 'rgba(37,99,235,0.10)'
+  const inactiveClr  = isDark ? '#93C5FD' : '#1D4ED8'
+  const inactiveBdr  = isDark ? 'rgba(37,99,235,0.35)' : 'rgba(37,99,235,0.28)'
+  const hoverBg      = isDark ? 'rgba(37,99,235,0.30)' : 'rgba(37,99,235,0.18)'
 
   return (
     <div style={{
@@ -158,22 +165,21 @@ function WorkspaceSwitcher({ collapsed, user, isAdmin, switchWorkspace }) {
               title={ws.label}
               style={{
                 flex: collapsed ? 'none' : 1,
-                padding: collapsed ? '5px 0' : '5px 8px',
+                padding: collapsed ? '6px 0' : '5px 8px',
                 borderRadius: 7,
-                border: active ? '1.5px solid #7C4DFF88' : '1.5px solid var(--c-border)',
-                background: active ? '#7C4DFF18' : 'var(--c-bg-muted)',
-                color: active ? '#7C4DFF' : 'var(--c-text-3)',
-                fontSize: collapsed ? 9 : 11,
+                border: active ? '1.5px solid rgba(37,99,235,0.6)' : `1.5px solid ${inactiveBdr}`,
+                background: active ? activeBg : inactiveBg,
+                color: active ? '#fff' : inactiveClr,
+                fontSize: collapsed ? 10 : 11,
                 fontWeight: 700,
                 cursor: active ? 'default' : 'pointer',
                 transition: 'all 0.15s',
                 textAlign: 'center',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
+                letterSpacing: collapsed ? '0.02em' : 0,
+                boxShadow: active ? '0 2px 8px rgba(37,99,235,0.35)' : 'none',
               }}
-              onMouseEnter={e => { if (!active) { e.currentTarget.style.borderColor = '#7C4DFF66'; e.currentTarget.style.color = '#7C4DFF' } }}
-              onMouseLeave={e => { if (!active) { e.currentTarget.style.borderColor = 'var(--c-border)'; e.currentTarget.style.color = 'var(--c-text-3)' } }}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.background = hoverBg }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.background = inactiveBg }}
             >
               {collapsed ? ws.shortLabel : ws.label}
             </button>
@@ -375,6 +381,7 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
         user={user}
         isAdmin={isAdmin}
         switchWorkspace={switchWorkspace}
+        isDark={isDark}
       />
 
       {/* Nav */}

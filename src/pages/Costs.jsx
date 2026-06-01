@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { DollarSign, ChevronDown, ChevronUp, TrendingUp, Users, Briefcase, Filter } from 'lucide-react'
+import { DollarSign, ChevronDown, ChevronUp, TrendingUp, Users, Briefcase, Filter, CalendarRange } from 'lucide-react'
 import { useRole } from '../context/RoleContext'
 import { useNavigate } from 'react-router-dom'
 import { sql, getWsId } from '../lib/db'
@@ -18,7 +18,9 @@ const PRESETS = [
   { label: 'Mes anterior',  fn: LAST_MONTH },
   { label: 'Este año',      fn: THIS_YEAR  },
   { label: 'Todo',          fn: ALL_TIME   },
+  { label: 'Rango',         fn: null },     // custom date range — handled separately
 ]
+const CUSTOM_IDX = 4
 
 function fmtEUR(n) {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
@@ -58,6 +60,8 @@ export default function Costs() {
   const [members,     setMembers]     = useState([])   // { id, user_name, user_email, hourly_rate, group_name }
   const [entries,     setEntries]     = useState([])   // raw time_entries rows
   const [preset,      setPreset]      = useState(0)    // index in PRESETS
+  const [customFrom,  setCustomFrom]  = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'))
+  const [customTo,    setCustomTo]    = useState(() => format(new Date(), 'yyyy-MM-dd'))
   const [filterUser,  setFilterUser]  = useState('all')
   const [filterProj,  setFilterProj]  = useState('all')
   const [viewMode,    setViewMode]    = useState('project') // 'project' | 'person'
@@ -70,10 +74,17 @@ export default function Costs() {
     if (role !== null && !isAdmin) navigate('/tracker', { replace: true })
   }, [role, isAdmin])
 
-  // Date range from preset (computed first so load() can use it)
-  const { from, to } = useMemo(() => PRESETS[preset].fn(), [preset])
+  // Date range — either from preset or from custom inputs
+  const { from, to } = useMemo(() => {
+    if (preset === CUSTOM_IDX) {
+      const f = customFrom ? new Date(customFrom) : new Date('2020-01-01')
+      const t = customTo   ? new Date(customTo + 'T23:59:59') : new Date()
+      return { from: f, to: t }
+    }
+    return PRESETS[preset].fn()
+  }, [preset, customFrom, customTo])
 
-  // Load data — filtered by date range in SQL, refetch when preset changes
+  // Load data — refetch whenever the resolved date range changes
   useEffect(() => {
     async function load() {
       setLoading(true)
@@ -100,7 +111,8 @@ export default function Costs() {
       }
     }
     load()
-  }, [preset])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [from, to])
 
   // Date already filtered in SQL — no client-side date filter needed
   const dateFiltered = entries
@@ -228,18 +240,51 @@ export default function Costs() {
         </div>
         <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--c-text-4)' }}>Solo visible para administradores</p>
 
-        {/* Preset selector — full width scrollable row on mobile */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+        {/* Preset selector */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
           {PRESETS.map((p, i) => (
             <button key={i} onClick={() => setPreset(i)} style={{
+              display: 'flex', alignItems: 'center', gap: 5,
               padding: isMobile ? '7px 14px' : '6px 12px',
               borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
               background: preset === i ? '#7C4DFF' : 'var(--c-bg-muted)',
               color: preset === i ? '#fff' : 'var(--c-text-3)',
               border: preset === i ? '1.5px solid #7C4DFF' : '1.5px solid var(--c-border)',
-              transition: 'all 0.15s', flex: isMobile ? '1 1 auto' : '0 0 auto',
-            }}>{p.label}</button>
+              transition: 'all 0.15s',
+            }}>
+              {i === CUSTOM_IDX && <CalendarRange size={13} />}
+              {p.label}
+            </button>
           ))}
+
+          {/* Date inputs — visible only when "Rango" is selected */}
+          {preset === CUSTOM_IDX && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginLeft: 4 }}>
+              <input
+                type="date"
+                value={customFrom}
+                max={customTo}
+                onChange={e => setCustomFrom(e.target.value)}
+                style={{
+                  padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
+                  border: '1.5px solid #7C4DFF88', background: 'var(--c-bg-muted)',
+                  color: 'var(--c-text-1)', cursor: 'pointer', outline: 'none',
+                }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--c-text-4)', fontWeight: 600 }}>→</span>
+              <input
+                type="date"
+                value={customTo}
+                min={customFrom}
+                onChange={e => setCustomTo(e.target.value)}
+                style={{
+                  padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
+                  border: '1.5px solid #7C4DFF88', background: 'var(--c-bg-muted)',
+                  color: 'var(--c-text-1)', cursor: 'pointer', outline: 'none',
+                }}
+              />
+            </div>
+          )}
         </div>
       </div>
 

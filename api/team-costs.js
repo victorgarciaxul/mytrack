@@ -51,8 +51,11 @@ export default async function handler(req, res) {
   }
 
   // ── Params ────────────────────────────────────────────────────
-  const year      = parseInt(req.query.year)      || new Date().getFullYear()
-  const workspace = req.query.workspace           || 'xul-ws-1'
+  const year      = parseInt(req.query.year)  || new Date().getFullYear()
+  const workspace = req.query.workspace       || 'xul-ws-1'
+  // Optional: filter by project name (partial, case-insensitive)
+  // e.g. ?project=XULTECH-2026 or ?project=Fundación
+  const project   = req.query.project?.trim() || null
 
   if (!['xul-ws-1', 'fundacion-ws-1'].includes(workspace)) {
     res.status(400).json({ ok: false, error: 'Invalid workspace' })
@@ -61,25 +64,51 @@ export default async function handler(req, res) {
 
   // ── Query ─────────────────────────────────────────────────────
   try {
-    const sql = neon(process.env.VITE_NEON_URL)
+    const db = neon(process.env.VITE_NEON_URL)
 
-    const rows = await sql`
-      SELECT
-        TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM') AS month,
-        ROUND(
-          SUM(te.duration / 3600.0 * COALESCE(wm.hourly_rate, 0))::numeric,
-          2
-        ) AS cost
-      FROM time_entries te
-      LEFT JOIN workspace_members wm
-        ON te.user_email = wm.user_email
-       AND wm.workspace_id = te.workspace_id
-      WHERE te.workspace_id = ${workspace}
-        AND te.duration > 0
-        AND EXTRACT(YEAR FROM te.start_time AT TIME ZONE 'Europe/Madrid') = ${year}
-      GROUP BY TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM')
-      ORDER BY month
-    `
+    // Two query variants: with / without project filter.
+    // Neon tagged templates don't support dynamic LIKE interpolation
+    // in a single template, so we branch explicitly.
+    let rows
+    if (project) {
+      const like = `%${project.toLowerCase()}%`
+      rows = await db`
+        SELECT
+          TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM') AS month,
+          ROUND(
+            SUM(te.duration / 3600.0 * COALESCE(wm.hourly_rate, 0))::numeric,
+            2
+          ) AS cost
+        FROM time_entries te
+        LEFT JOIN workspace_members wm
+          ON te.user_email    = wm.user_email
+         AND wm.workspace_id = te.workspace_id
+        WHERE te.workspace_id = ${workspace}
+          AND te.duration > 0
+          AND EXTRACT(YEAR FROM te.start_time AT TIME ZONE 'Europe/Madrid') = ${year}
+          AND LOWER(COALESCE(te.project_name, '')) LIKE ${like}
+        GROUP BY TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM')
+        ORDER BY month
+      `
+    } else {
+      rows = await db`
+        SELECT
+          TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM') AS month,
+          ROUND(
+            SUM(te.duration / 3600.0 * COALESCE(wm.hourly_rate, 0))::numeric,
+            2
+          ) AS cost
+        FROM time_entries te
+        LEFT JOIN workspace_members wm
+          ON te.user_email    = wm.user_email
+         AND wm.workspace_id = te.workspace_id
+        WHERE te.workspace_id = ${workspace}
+          AND te.duration > 0
+          AND EXTRACT(YEAR FROM te.start_time AT TIME ZONE 'Europe/Madrid') = ${year}
+        GROUP BY TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM')
+        ORDER BY month
+      `
+    }
 
     // Convert rows → { "2026-01": 7445.50, ... }
     const costs = {}
@@ -87,7 +116,7 @@ export default async function handler(req, res) {
       costs[r.month] = parseFloat(r.cost) || 0
     }
 
-    res.status(200).json({ ok: true, year, workspace, costs })
+    res.status(200).json({ ok: true, year, workspace, project: project || null, costs })
   } catch (err) {
     console.error('[team-costs] DB error:', err.message)
     res.status(500).json({ ok: false, error: 'Database error' })

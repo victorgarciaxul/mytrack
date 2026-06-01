@@ -46,6 +46,7 @@ import Tags from './pages/Tags'
 import TimeOff from './pages/TimeOff'
 import Clients from './pages/Clients'
 import Costs from './pages/Costs'
+import Overtime from './pages/Overtime'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -87,6 +88,7 @@ function App() {
             <Route path="time-off" element={<TimeOff />} />
             <Route path="clients" element={<Clients />} />
             <Route path="costs" element={<Costs />} />
+            <Route path="overtime" element={<Overtime />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

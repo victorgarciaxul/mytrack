@@ -6,7 +6,7 @@ import {
   Clock, BarChart2, Briefcase, Users, Settings,
   HelpCircle, ChevronDown, Plus, CalendarDays,
   Bell, LogOut, Tag, CalendarOff, Building2,
-  PanelLeftClose, X, Check, CircleDollarSign,
+  PanelLeftClose, X, Check, CircleDollarSign, AlarmClock,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
@@ -185,6 +185,7 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
     { to: '/tracker',       icon: Clock,        label: 'Registro de tiempo',  badge: false },
     { to: '/calendar',      icon: CalendarDays, label: 'Calendario',          badge: false },
     ...(isManager ? [{ to: '/reports', icon: BarChart2, label: 'Informes', badge: false }] : []),
+    { to: '/overtime',      icon: AlarmClock,   label: 'Compensación',        badge: false },
     { to: '/notifications', icon: Bell,         label: 'Bandeja de entrada',  badge: true  },
   ]
 

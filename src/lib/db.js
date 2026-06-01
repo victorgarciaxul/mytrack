@@ -189,6 +189,19 @@ export async function initDB() {
     )
   `
 
+  await db`
+    CREATE TABLE IF NOT EXISTS hour_compensations (
+      id           TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      workspace_id TEXT DEFAULT 'xul-ws-1',
+      user_email   TEXT NOT NULL,
+      week_start   TEXT NOT NULL,
+      comp_hours   NUMERIC NOT NULL,
+      notes        TEXT DEFAULT '',
+      created_by   TEXT DEFAULT '',
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    )
+  `
+
   // Migrate existing tables (safe to run repeatedly)
   await db`ALTER TABLE workspace_members ADD COLUMN IF NOT EXISTS group_name TEXT`
   await db`ALTER TABLE projects ADD COLUMN IF NOT EXISTS access TEXT DEFAULT 'PRIVATE'`
@@ -885,4 +898,62 @@ export async function dbUpsertTimeOffRequests(requests) {
         note        = EXCLUDED.note
     `
   }
+}
+
+// ── Hour Compensations ────────────────────────────────────────
+
+/** Get all compensation entries for a user (or all users if email omitted) */
+export async function dbGetCompensations(userEmail) {
+  const db = sql()
+  if (userEmail) {
+    return db`
+      SELECT * FROM hour_compensations
+      WHERE workspace_id = 'xul-ws-1' AND user_email = ${userEmail}
+      ORDER BY week_start DESC
+    `
+  }
+  return db`
+    SELECT * FROM hour_compensations
+    WHERE workspace_id = 'xul-ws-1'
+    ORDER BY week_start DESC, user_email
+  `
+}
+
+/** Add a compensation entry */
+export async function dbAddCompensation({ userEmail, weekStart, compHours, notes, createdBy }) {
+  const db = sql()
+  const rows = await db`
+    INSERT INTO hour_compensations (workspace_id, user_email, week_start, comp_hours, notes, created_by)
+    VALUES ('xul-ws-1', ${userEmail}, ${weekStart}, ${compHours}, ${notes || ''}, ${createdBy || ''})
+    RETURNING *
+  `
+  return rows[0]
+}
+
+/** Delete a compensation entry */
+export async function dbDeleteCompensation(id) {
+  const db = sql()
+  await db`DELETE FROM hour_compensations WHERE id = ${id}`
+}
+
+/** Get weekly hours per user from time_entries */
+export async function dbGetWeeklyHours(userEmail, fromDate, toDate) {
+  const db = sql()
+  const where = userEmail
+    ? db`AND user_email = ${userEmail}`
+    : db``
+  return db`
+    SELECT
+      user_email,
+      DATE_TRUNC('week', start_time AT TIME ZONE 'Europe/Madrid')::date AS week_start,
+      SUM(duration) AS total_seconds
+    FROM time_entries
+    WHERE workspace_id = 'xul-ws-1'
+      AND start_time >= ${fromDate}
+      AND start_time <= ${toDate}
+      AND duration > 0
+      ${where}
+    GROUP BY user_email, DATE_TRUNC('week', start_time AT TIME ZONE 'Europe/Madrid')
+    ORDER BY week_start DESC, user_email
+  `
 }

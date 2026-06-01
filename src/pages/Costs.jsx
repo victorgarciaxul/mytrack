@@ -50,7 +50,7 @@ function StatCard({ icon: Icon, label, value, color }) {
 
 // ── Main ────────────────────────────────────────────────────────────────────
 export default function Costs() {
-  const { isAdmin } = useRole()
+  const { isAdmin, role } = useRole()
   const navigate    = useNavigate()
   const isMobile    = useMediaQuery('(max-width: 768px)')
 
@@ -65,10 +65,10 @@ export default function Costs() {
   const [sortDir,     setSortDir]     = useState('desc')
   const [expandedRow, setExpandedRow] = useState(null)
 
-  // Guard: only admins
+  // Guard: only admins — wait until role is loaded before redirecting
   useEffect(() => {
-    if (isAdmin === false) navigate('/tracker', { replace: true })
-  }, [isAdmin])
+    if (role !== null && !isAdmin) navigate('/tracker', { replace: true })
+  }, [role, isAdmin])
 
   // Load data
   useEffect(() => {
@@ -206,11 +206,13 @@ export default function Costs() {
     ? (sortDir === 'desc' ? <ChevronDown size={12} /> : <ChevronUp size={12} />)
     : null
 
-  if (isAdmin === null || loading) return (
+  if (role === null || (role !== null && !isAdmin)) return null
+  if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
       <div style={{ width: 28, height: 28, border: '3px solid #7C4DFF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
     </div>
   )
+
 
   return (
     <div className="page-container" style={{ padding: isMobile ? '14px' : '24px 28px', overflowY: 'auto', height: '100%' }}>

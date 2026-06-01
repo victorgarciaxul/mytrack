@@ -66,6 +66,22 @@ export default async function handler(req, res) {
   try {
     const db = neon(process.env.VITE_NEON_URL)
 
+    // ── List mode: return distinct project names for the workspace+year ──
+    if (req.query.list === '1') {
+      const rows = await db`
+        SELECT DISTINCT project_name
+        FROM time_entries
+        WHERE workspace_id = ${workspace}
+          AND duration > 0
+          AND project_name IS NOT NULL
+          AND project_name <> ''
+          AND EXTRACT(YEAR FROM start_time AT TIME ZONE 'Europe/Madrid') = ${year}
+        ORDER BY project_name
+      `
+      res.status(200).json({ ok: true, year, workspace, projects: rows.map(r => r.project_name) })
+      return
+    }
+
     // Two query variants: with / without project filter.
     // Neon tagged templates don't support dynamic LIKE interpolation
     // in a single template, so we branch explicitly.

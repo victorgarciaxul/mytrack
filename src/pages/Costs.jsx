@@ -20,7 +20,7 @@ const PRESETS = [
   { label: 'Todo',          fn: ALL_TIME   },
 ]
 
-function fmt€(n) {
+function fmtEUR(n) {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
 }
 function fmtH(secs) {
@@ -245,7 +245,7 @@ export default function Costs() {
 
       {/* Stat cards */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        <StatCard icon={DollarSign}  label="Coste total"       value={fmt€(totalCost)}  color="#7C4DFF" />
+        <StatCard icon={DollarSign}  label="Coste total"       value={fmtEUR(totalCost)}  color="#7C4DFF" />
         <StatCard icon={TrendingUp}  label="Horas registradas" value={fmtH(totalSecs)}  color="#06B6D4" />
         <StatCard icon={Users}       label="Perfiles activos"  value={totalPeople}       color="#10B981" />
         <StatCard icon={Briefcase}   label="Proyectos"         value={byProject.length}  color="#F59E0B" />
@@ -362,7 +362,7 @@ export default function Costs() {
           }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)' }}>TOTAL</span>
             {!isMobile && <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-2)' }}>{fmtH(totalSecs)}</span>}
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)' }}>{fmt€(totalCost)}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)' }}>{fmtEUR(totalCost)}</span>
             {!isMobile && <span />}
           </div>
         )}
@@ -398,7 +398,7 @@ function ProjectRow({ proj, isMobile, expanded, onToggle }) {
           {expanded ? <ChevronUp size={12} color="var(--c-text-4)" style={{ flexShrink: 0 }} /> : <ChevronDown size={12} color="var(--c-text-4)" style={{ flexShrink: 0 }} />}
         </div>
         {!isMobile && <span style={{ fontSize: 13, color: 'var(--c-text-2)' }}>{fmtH(proj.totalSecs)}</span>}
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#7C4DFF' }}>{fmt€(proj.totalCost)}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#7C4DFF' }}>{fmtEUR(proj.totalCost)}</span>
         {!isMobile && <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{people.length > 1 ? `${people.length} tarifas` : people[0] ? `${people[0].rate} €/h` : ''}</span>}
       </div>
 
@@ -419,7 +419,7 @@ function ProjectRow({ proj, isMobile, expanded, onToggle }) {
             <span style={{ fontSize: 12, color: 'var(--c-text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
           </div>
           {!isMobile && <span style={{ fontSize: 12, color: 'var(--c-text-3)' }}>{fmtH(p.secs)}</span>}
-          <span style={{ fontSize: 12, color: 'var(--c-text-2)', fontWeight: 600 }}>{fmt€(p.cost)}</span>
+          <span style={{ fontSize: 12, color: 'var(--c-text-2)', fontWeight: 600 }}>{fmtEUR(p.cost)}</span>
           {!isMobile && <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{p.rate} €/h</span>}
         </div>
       ))}
@@ -458,7 +458,7 @@ function PersonRow({ person, isMobile, expanded, onToggle }) {
           {expanded ? <ChevronUp size={12} color="var(--c-text-4)" style={{ flexShrink: 0 }} /> : <ChevronDown size={12} color="var(--c-text-4)" style={{ flexShrink: 0 }} />}
         </div>
         {!isMobile && <span style={{ fontSize: 13, color: 'var(--c-text-2)' }}>{fmtH(person.totalSecs)}</span>}
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#7C4DFF' }}>{fmt€(person.totalCost)}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#7C4DFF' }}>{fmtEUR(person.totalCost)}</span>
         {!isMobile && <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{person.rate} €/h</span>}
       </div>
 
@@ -477,7 +477,7 @@ function PersonRow({ person, isMobile, expanded, onToggle }) {
             <span style={{ fontSize: 12, color: 'var(--c-text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
           </div>
           {!isMobile && <span style={{ fontSize: 12, color: 'var(--c-text-3)' }}>{fmtH(p.secs)}</span>}
-          <span style={{ fontSize: 12, color: 'var(--c-text-2)', fontWeight: 600 }}>{fmt€(p.cost)}</span>
+          <span style={{ fontSize: 12, color: 'var(--c-text-2)', fontWeight: 600 }}>{fmtEUR(p.cost)}</span>
           {!isMobile && <span />}
         </div>
       ))}

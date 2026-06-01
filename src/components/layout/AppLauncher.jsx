@@ -164,6 +164,7 @@ export default function AppLauncher() {
     <div style={{ position: 'relative', flexShrink: 0 }}>
       <button
         ref={btnRef}
+        data-tour="app-launcher"
         onClick={handleToggle}
         title="Apps XUL"
         style={{

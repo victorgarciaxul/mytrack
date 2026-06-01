@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { initDB, dbSignIn } from '../lib/db'
+import { initDB, dbSignIn, setActiveWorkspace, clearActiveWorkspace } from '../lib/db'
 
 const DEMO_MODE = import.meta.env.VITE_SUPABASE_URL === 'https://placeholder.supabase.co'
 
@@ -128,6 +128,7 @@ export function AuthProvider({ children }) {
   }
 
   const signOut = () => {
+    clearActiveWorkspace()
     if (DEMO_MODE) {
       setUser(null)
       localStorage.removeItem(DEMO_SESSION_KEY)
@@ -136,8 +137,14 @@ export function AuthProvider({ children }) {
     supabase.auth.signOut()
   }
 
+  /** Switch to a different workspace (admins only). Reloads the page to re-fetch all data. */
+  const switchWorkspace = (wsId) => {
+    setActiveWorkspace(wsId)
+    window.location.reload()
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, isDemo: DEMO_MODE }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, switchWorkspace, isDemo: DEMO_MODE }}>
       {children}
     </AuthContext.Provider>
   )

@@ -10,17 +10,35 @@ export function sql() {
 }
 
 /**
- * Returns the current user's workspace_id from their session.
- * Falls back to 'xul-ws-1' so existing data is never lost.
+ * Returns the active workspace_id.
+ * Admins can override this to browse another workspace (stored in localStorage).
+ * Falls back to the user's own workspace_id, then to 'xul-ws-1'.
  */
-const SESSION_KEY = 'mytrack-demo-user'
+const SESSION_KEY       = 'mytrack-demo-user'
+const ACTIVE_WS_KEY     = 'mytrack-active-workspace'
+
 export function getWsId() {
   try {
+    const override = localStorage.getItem(ACTIVE_WS_KEY)
+    if (override) return override
     const u = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null')
     return u?.workspace_id || 'xul-ws-1'
   } catch {
     return 'xul-ws-1'
   }
+}
+
+/** Switch the active workspace (admin-only feature). Pass null to reset to own workspace. */
+export function setActiveWorkspace(wsId) {
+  try {
+    if (wsId) localStorage.setItem(ACTIVE_WS_KEY, wsId)
+    else localStorage.removeItem(ACTIVE_WS_KEY)
+  } catch {}
+}
+
+/** Clear the workspace override (called on sign-out). */
+export function clearActiveWorkspace() {
+  try { localStorage.removeItem(ACTIVE_WS_KEY) } catch {}
 }
 
 /**
@@ -304,6 +322,20 @@ export async function initDB() {
     await db`
       DELETE FROM workspace_members
       WHERE workspace_id = 'xul-ws-1' AND user_email = ${u.email}
+    `
+  }
+
+  // ── XUL admins also in Fundación workspace (cross-workspace visibility) ──
+  const xulAdmins = [
+    { email: 'victorgarcia@xul.es',  name: 'Víctor García', role: 'admin' },
+    { email: 'carlagarcia@xul.es',   name: 'Carla García',  role: 'admin' },
+    { email: 'josecastillo@xul.es',  name: 'José Castillo', role: 'admin' },
+  ]
+  for (const u of xulAdmins) {
+    await db`
+      INSERT INTO workspace_members (workspace_id, user_email, user_name, role, password)
+      VALUES ('fundacion-ws-1', ${u.email}, ${u.name}, ${u.role}, 'Mytrack14$')
+      ON CONFLICT (workspace_id, user_email) DO NOTHING
     `
   }
 }

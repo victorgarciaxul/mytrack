@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import { useRole } from '../../context/RoleContext'
+import { getWsId } from '../../lib/db'
 import { useTour } from '../tour/AppTour'
 import { useTheme } from '../../context/ThemeContext'
 import AppLauncher from './AppLauncher'
@@ -119,9 +120,71 @@ function AvatarPickerPanel({ selected, onSelect, onClose, pos }) {
   )
 }
 
+// ── Workspace Switcher (admins only) ──────────────────────────────
+const WORKSPACES = [
+  { id: 'xul-ws-1',       label: 'XUL',       shortLabel: 'XUL'  },
+  { id: 'fundacion-ws-1', label: 'Fundación',  shortLabel: 'Fund' },
+]
+
+function WorkspaceSwitcher({ collapsed, user, isAdmin, switchWorkspace }) {
+  // Only XUL admins can switch workspaces
+  if (!isAdmin || user?.workspace_id !== 'xul-ws-1') return null
+
+  const activeWsId = getWsId()
+
+  return (
+    <div style={{
+      padding: collapsed ? '0 8px 10px' : '0 14px 10px',
+      flexShrink: 0,
+    }}>
+      {!collapsed && (
+        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--c-text-4)', marginBottom: 5, paddingLeft: 2 }}>
+          Espacio
+        </div>
+      )}
+      <div style={{
+        display: 'flex',
+        gap: 4,
+        flexDirection: collapsed ? 'column' : 'row',
+      }}>
+        {WORKSPACES.map(ws => {
+          const active = activeWsId === ws.id
+          return (
+            <button
+              key={ws.id}
+              onClick={() => !active && switchWorkspace(ws.id)}
+              title={ws.label}
+              style={{
+                flex: collapsed ? 'none' : 1,
+                padding: collapsed ? '5px 0' : '5px 8px',
+                borderRadius: 7,
+                border: active ? '1.5px solid #7C4DFF88' : '1.5px solid var(--c-border)',
+                background: active ? '#7C4DFF18' : 'var(--c-bg-muted)',
+                color: active ? '#7C4DFF' : 'var(--c-text-3)',
+                fontSize: collapsed ? 9 : 11,
+                fontWeight: 700,
+                cursor: active ? 'default' : 'pointer',
+                transition: 'all 0.15s',
+                textAlign: 'center',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+              onMouseEnter={e => { if (!active) { e.currentTarget.style.borderColor = '#7C4DFF66'; e.currentTarget.style.color = '#7C4DFF' } }}
+              onMouseLeave={e => { if (!active) { e.currentTarget.style.borderColor = 'var(--c-border)'; e.currentTarget.style.color = 'var(--c-text-3)' } }}
+            >
+              {collapsed ? ws.shortLabel : ws.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── Sidebar ───────────────────────────────────────────────────────
 export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
-  const { user, signOut } = useAuth()
+  const { user, signOut, switchWorkspace } = useAuth()
   const { workspace } = useWorkspace()
   const { isManager, isAdmin, unreadCount } = useRole()
   const { isDark } = useTheme()
@@ -295,11 +358,19 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
 
       {/* XUL logo */}
       {!collapsed && (
-        <div style={{ padding: '20px 20px 14px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ padding: '16px 20px 10px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
           <div className="xul-logo" />
         </div>
       )}
-      {collapsed && <div style={{ height: 14, flexShrink: 0 }} />}
+      {collapsed && <div style={{ height: 10, flexShrink: 0 }} />}
+
+      {/* Workspace switcher — XUL admins only */}
+      <WorkspaceSwitcher
+        collapsed={collapsed}
+        user={user}
+        isAdmin={isAdmin}
+        switchWorkspace={switchWorkspace}
+      />
 
       {/* Nav */}
       <nav className="no-scrollbar" onClick={onMobileClose} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: collapsed ? '4px 8px' : '4px 14px' }}>
@@ -369,7 +440,7 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
               {avatarEl}
               <div style={{ flex: 1, textAlign: 'left', overflow: 'hidden', minWidth: 0 }}>
                 <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-1)', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{userName}</p>
-                <p style={{ fontSize: 10, color: 'var(--c-text-3)', margin: 0 }}>EQUIPO</p>
+                <p style={{ fontSize: 10, color: 'var(--c-text-3)', margin: 0 }}>{getWsId() === 'fundacion-ws-1' ? 'FUNDACIÓN' : 'XUL'}</p>
               </div>
               <ChevronDown size={12} style={{ color: 'var(--c-text-3)', flexShrink: 0, transform: menuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
             </button>

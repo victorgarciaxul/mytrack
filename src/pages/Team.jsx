@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Users, Search, Mail, Shield, Crown, Bell, BellOff, Plus, X, ChevronDown, Check } from 'lucide-react'
+import { Users, Search, Mail, Shield, Crown, Bell, BellOff, Plus, X, ChevronDown, Check, Pencil, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useRole } from '../context/RoleContext'
-import { initDB, dbGetAllMembers, dbGetGroups, dbUpsertMember, dbUpsertGroups, dbChangePassword } from '../lib/db'
+import { initDB, dbGetAllMembers, dbGetGroups, dbUpsertMember, dbUpsertGroups, dbChangePassword, dbDeleteGroup, dbUpdateMemberAdmin } from '../lib/db'
 
 // ── helpers ────────────────────────────────────────────────────
 const TABS = ['Miembros', 'Grupos', 'Recordatorios']
@@ -307,8 +307,205 @@ function NewGroupModal({ members, onClose, onSaved }) {
   )
 }
 
+// ── Edit Group Modal ───────────────────────────────────────────
+function EditGroupModal({ group, members, onClose, onSaved }) {
+  let initUserIds = [], initManagerIds = []
+  try { initUserIds    = JSON.parse(group.user_ids    || '[]') } catch {}
+  try { initManagerIds = JSON.parse(group.manager_ids || '[]') } catch {}
+
+  const [name, setName]               = useState(group.name)
+  const [selectedMembers, setSelMems] = useState(initUserIds)
+  const [managerEmail, setManager]    = useState(initManagerIds[0] || '')
+  const [saving, setSaving]           = useState(false)
+  const [error, setError]             = useState('')
+  const [search, setSearch]           = useState('')
+  const [confirmDel, setConfirmDel]   = useState(false)
+
+  const filtered = members.filter(m => {
+    const match = (m.user_name || m.user_email).toLowerCase().includes(search.toLowerCase())
+    const notSelected = !selectedMembers.includes(m.user_email) && !selectedMembers.includes(m.clockify_user_id)
+    return match && notSelected
+  })
+
+  function toggleMember(email) {
+    setSelMems(prev => prev.includes(email) ? prev.filter(e => e !== email) : [...prev, email])
+  }
+
+  async function handleSave() {
+    if (!name.trim()) return setError('El nombre del grupo es obligatorio')
+    setSaving(true); setError('')
+    try {
+      await dbUpsertGroups([{
+        id: group.id,
+        name: name.trim(),
+        user_ids: JSON.stringify(selectedMembers),
+        manager_ids: managerEmail ? JSON.stringify([managerEmail]) : '[]',
+      }])
+      onSaved(); onClose()
+    } catch (e) { setError('Error al guardar: ' + (e.message || e)); setSaving(false) }
+  }
+
+  async function handleDelete() {
+    if (!confirmDel) { setConfirmDel(true); setTimeout(() => setConfirmDel(false), 3500); return }
+    try { await dbDeleteGroup(group.id); onSaved(); onClose() }
+    catch (e) { setError('Error al eliminar: ' + (e.message || e)) }
+  }
+
+  return (
+    <Modal title={`Editar grupo · ${group.name}`} onClose={onClose} onSave={handleSave} saving={saving}>
+      <Field label="Nombre del grupo">
+        <input value={name} onChange={e => setName(e.target.value)} style={inputStyle} autoFocus />
+      </Field>
+
+      <Field label="Miembros">
+        {selectedMembers.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+            {selectedMembers.map(emailOrId => {
+              const m = members.find(x => x.user_email === emailOrId || x.clockify_user_id === emailOrId)
+              return (
+                <MemberChip
+                  key={emailOrId}
+                  name={m?.user_name || emailOrId}
+                  onRemove={() => toggleMember(emailOrId)}
+                />
+              )
+            })}
+          </div>
+        )}
+        <div style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 9, border: '1.5px solid var(--c-border)', background: 'var(--c-bg-muted)' }}>
+            <Search size={13} style={{ color: 'var(--c-text-4)', flexShrink: 0 }} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar y añadir miembros…"
+              style={{ background: 'none', border: 'none', outline: 'none', fontSize: 13, color: 'var(--c-text-1)', width: '100%' }}
+            />
+          </div>
+          {search && filtered.length > 0 && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+              background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)',
+              borderRadius: 10, marginTop: 4, maxHeight: 180, overflowY: 'auto',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+            }}>
+              {filtered.map(m => (
+                <div
+                  key={m.user_email}
+                  onClick={() => { toggleMember(m.user_email); setSearch('') }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <div style={{ width: 28, height: 28, borderRadius: 7, background: avatarColor(m.user_name) + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: avatarColor(m.user_name) }}>{initials(m.user_name)}</span>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)', margin: 0 }}>{m.user_name || m.user_email}</p>
+                    <p style={{ fontSize: 11, color: 'var(--c-text-4)', margin: 0 }}>{m.user_email}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Field>
+
+      <Field label="Gerente del grupo (opcional)">
+        <div style={{ position: 'relative' }}>
+          <select value={managerEmail} onChange={e => setManager(e.target.value)}
+            style={{ ...inputStyle, appearance: 'none', paddingRight: 32, cursor: 'pointer' }}>
+            <option value="">— Sin gerente —</option>
+            {members.map(m => (
+              <option key={m.user_email} value={m.user_email}>{m.user_name || m.user_email}</option>
+            ))}
+          </select>
+          <ChevronDown size={14} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--c-text-4)', pointerEvents: 'none' }} />
+        </div>
+      </Field>
+
+      {error && <p style={{ fontSize: 12, color: '#EF4444', marginTop: -10 }}>{error}</p>}
+
+      {/* Delete */}
+      <div style={{ borderTop: '1px solid var(--c-border-light)', paddingTop: 14, marginTop: 4 }}>
+        <button
+          onClick={handleDelete}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            border: confirmDel ? '1.5px solid #EF4444' : '1.5px solid var(--c-border)',
+            background: confirmDel ? '#EF444418' : 'transparent',
+            color: confirmDel ? '#EF4444' : 'var(--c-text-3)',
+            transition: 'all 0.15s',
+          }}
+        >
+          <Trash2 size={13} />
+          {confirmDel ? '¿Confirmar eliminación?' : 'Eliminar grupo'}
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Edit Member Modal ──────────────────────────────────────────
+function EditMemberModal({ member, onClose, onSaved }) {
+  const [name, setName]             = useState(member.user_name || '')
+  const [role, setRole]             = useState(member.role || 'employee')
+  const [hourlyRate, setHourlyRate] = useState(member.hourly_rate != null ? String(member.hourly_rate) : '')
+  const [saving, setSaving]         = useState(false)
+  const [error, setError]           = useState('')
+
+  async function handleSave() {
+    if (!name.trim()) return setError('El nombre es obligatorio')
+    setSaving(true); setError('')
+    try {
+      await dbUpdateMemberAdmin({
+        userEmail:  member.user_email,
+        userName:   name.trim(),
+        role,
+        hourlyRate: hourlyRate !== '' ? parseFloat(String(hourlyRate).replace(',', '.')) : null,
+      })
+      onSaved(); onClose()
+    } catch (e) { setError('Error al guardar: ' + (e.message || e)); setSaving(false) }
+  }
+
+  return (
+    <Modal title="Editar miembro" onClose={onClose} onSave={handleSave} saving={saving}>
+      <Field label="Nombre completo">
+        <input value={name} onChange={e => setName(e.target.value)} style={inputStyle} autoFocus />
+      </Field>
+      <Field label="Correo electrónico">
+        <input value={member.user_email} readOnly style={{ ...inputStyle, opacity: 0.55, cursor: 'default' }} />
+      </Field>
+      <Field label="Rol">
+        <div style={{ position: 'relative' }}>
+          <select value={role} onChange={e => setRole(e.target.value)}
+            style={{ ...inputStyle, appearance: 'none', paddingRight: 32, cursor: 'pointer' }}>
+            <option value="employee">Miembro</option>
+            <option value="manager">Gerente</option>
+            <option value="admin">Administrador</option>
+            <option value="inactive">Inactivo</option>
+          </select>
+          <ChevronDown size={14} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--c-text-4)', pointerEvents: 'none' }} />
+        </div>
+      </Field>
+      <Field label="Tarifa horaria (€/h)">
+        <input
+          value={hourlyRate}
+          onChange={e => setHourlyRate(e.target.value)}
+          type="number" min="0" step="0.5"
+          placeholder="Ej: 35.00"
+          style={inputStyle}
+        />
+        <p style={{ fontSize: 11, color: 'var(--c-text-4)', marginTop: 4 }}>Usada para calcular el coste de personal en MyTrack y EcoFin.</p>
+      </Field>
+      {error && <p style={{ fontSize: 12, color: '#EF4444', marginTop: -10 }}>{error}</p>}
+    </Modal>
+  )
+}
+
 // ── Miembros tab ───────────────────────────────────────────────
-function MembersTab({ members, isAdmin, onNewMember }) {
+function MembersTab({ members, isAdmin, onNewMember, onEditMember }) {
   const [search, setSearch] = useState('')
   const filtered = members.filter(m =>
     (m.user_name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -341,8 +538,8 @@ function MembersTab({ members, isAdmin, onNewMember }) {
       </div>
 
       <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 130px 150px', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
-          {['Nombre', 'Correo electrónico', 'Grupo', 'Rol'].map(h => (
+        <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '2fr 2fr 130px 140px 44px' : '2fr 2fr 130px 150px', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+          {['Nombre', 'Correo electrónico', 'Grupo', 'Rol', ...(isAdmin ? [''] : [])].map(h => (
             <span key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-4)' }}>{h}</span>
           ))}
         </div>
@@ -353,7 +550,7 @@ function MembersTab({ members, isAdmin, onNewMember }) {
           const color = avatarColor(member.user_name)
           return (
             <div key={member.id}
-              style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 130px 150px', padding: '12px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
+              style={{ display: 'grid', gridTemplateColumns: isAdmin ? '2fr 2fr 130px 140px 44px' : '2fr 2fr 130px 150px', padding: '12px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
@@ -380,6 +577,23 @@ function MembersTab({ members, isAdmin, onNewMember }) {
               ) : <span style={{ fontSize: 12, color: 'var(--c-text-4)' }}>—</span>}
 
               <RoleBadge role={member.role} />
+
+              {isAdmin && (
+                <button
+                  onClick={() => onEditMember(member)}
+                  title="Editar miembro"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 30, height: 30, borderRadius: 7,
+                    border: '1px solid var(--c-border)', background: 'var(--c-bg-muted)',
+                    cursor: 'pointer', color: 'var(--c-text-3)',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#7C4DFF18'; e.currentTarget.style.color = '#7C4DFF'; e.currentTarget.style.borderColor = '#7C4DFF44' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'var(--c-bg-muted)'; e.currentTarget.style.color = 'var(--c-text-3)'; e.currentTarget.style.borderColor = 'var(--c-border)' }}
+                >
+                  <Pencil size={13} />
+                </button>
+              )}
             </div>
           )
         })}
@@ -389,7 +603,7 @@ function MembersTab({ members, isAdmin, onNewMember }) {
 }
 
 // ── Grupos tab ─────────────────────────────────────────────────
-function GroupsTab({ groups, members, isAdmin, onNewGroup }) {
+function GroupsTab({ groups, members, isAdmin, onNewGroup, onEditGroup }) {
   const [search, setSearch] = useState('')
 
   // Enrich groups with member objects — match by email OR clockify_user_id
@@ -447,15 +661,15 @@ function GroupsTab({ groups, members, isAdmin, onNewGroup }) {
         </div>
       ) : (
         <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 220px', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
-            {['Nombre', 'Miembros', 'Gerente de equipo'].map(h => (
+          <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '200px 1fr 220px 44px' : '200px 1fr 220px', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+            {['Nombre', 'Miembros', 'Gerente de equipo', ...(isAdmin ? [''] : [])].map(h => (
               <span key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-4)' }}>{h}</span>
             ))}
           </div>
 
           {filtered.map(group => (
             <div key={group.id}
-              style={{ display: 'grid', gridTemplateColumns: '200px 1fr 220px', padding: '14px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'start', gap: 12 }}
+              style={{ display: 'grid', gridTemplateColumns: isAdmin ? '200px 1fr 220px 44px' : '200px 1fr 220px', padding: '14px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'start', gap: 12 }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
@@ -493,6 +707,25 @@ function GroupsTab({ groups, members, isAdmin, onNewGroup }) {
                   <span style={{ fontSize: 12, color: 'var(--c-text-4)' }}>Sin gerente</span>
                 )}
               </div>
+
+              {isAdmin && (
+                <div style={{ paddingTop: 2 }}>
+                  <button
+                    onClick={() => onEditGroup(group)}
+                    title="Editar grupo"
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: 30, height: 30, borderRadius: 7,
+                      border: '1px solid var(--c-border)', background: 'var(--c-bg-muted)',
+                      cursor: 'pointer', color: 'var(--c-text-3)',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#7C4DFF18'; e.currentTarget.style.color = '#7C4DFF'; e.currentTarget.style.borderColor = '#7C4DFF44' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--c-bg-muted)'; e.currentTarget.style.color = 'var(--c-text-3)'; e.currentTarget.style.borderColor = 'var(--c-border)' }}
+                  >
+                    <Pencil size={13} />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -552,6 +785,8 @@ export default function Team() {
   const [loading, setLoading]       = useState(true)
   const [showNewMember, setNewMem]  = useState(false)
   const [showNewGroup, setNewGrp]   = useState(false)
+  const [editingGroup, setEditGrp]  = useState(null)   // group object or null
+  const [editingMember, setEditMem] = useState(null)   // member object or null
 
   function reload() {
     return Promise.all([dbGetAllMembers(), dbGetGroups()])
@@ -579,6 +814,21 @@ export default function Team() {
           members={members}
           onClose={() => setNewGrp(false)}
           onSaved={() => { setLoading(true); reload().finally(() => setLoading(false)) }}
+        />
+      )}
+      {editingGroup && (
+        <EditGroupModal
+          group={editingGroup}
+          members={members}
+          onClose={() => setEditGrp(null)}
+          onSaved={() => { setEditGrp(null); setLoading(true); reload().finally(() => setLoading(false)) }}
+        />
+      )}
+      {editingMember && (
+        <EditMemberModal
+          member={editingMember}
+          onClose={() => setEditMem(null)}
+          onSaved={() => { setEditMem(null); setLoading(true); reload().finally(() => setLoading(false)) }}
         />
       )}
 
@@ -609,8 +859,8 @@ export default function Team() {
         </div>
       ) : (
         <>
-          {tab === 'Miembros'      && <MembersTab  members={members} isAdmin={isAdmin} onNewMember={() => setNewMem(true)} />}
-          {tab === 'Grupos'        && <GroupsTab   groups={groups} members={members} isAdmin={isAdmin} onNewGroup={() => setNewGrp(true)} />}
+          {tab === 'Miembros'      && <MembersTab  members={members} isAdmin={isAdmin} onNewMember={() => setNewMem(true)} onEditMember={setEditMem} />}
+          {tab === 'Grupos'        && <GroupsTab   groups={groups} members={members} isAdmin={isAdmin} onNewGroup={() => setNewGrp(true)} onEditGroup={setEditGrp} />}
           {tab === 'Recordatorios' && <RemindersTab />}
         </>
       )}

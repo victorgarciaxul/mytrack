@@ -627,6 +627,11 @@ export async function dbUpsertGroups(groups) {
   }
 }
 
+export async function dbDeleteGroup(id) {
+  const db = sql()
+  await db`DELETE FROM groups WHERE id = ${id}`
+}
+
 // ── Tasks ──────────────────────────────────────────────────────
 
 export async function dbGetTasksForProject(projectId) {
@@ -954,6 +959,19 @@ export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId
                          END,
       clockify_user_id = EXCLUDED.clockify_user_id,
       group_name       = EXCLUDED.group_name
+  `
+}
+
+/** Admin-only update: allows role changes in both directions */
+export async function dbUpdateMemberAdmin({ userEmail, userName, role, hourlyRate }) {
+  const db = sql()
+  const wsId = getWsIdForEmail(userEmail) || getWsId()
+  await db`
+    UPDATE workspace_members SET
+      user_name   = ${userName},
+      role        = ${role},
+      hourly_rate = ${hourlyRate != null ? hourlyRate : null}
+    WHERE workspace_id = ${wsId} AND user_email = ${userEmail}
   `
 }
 

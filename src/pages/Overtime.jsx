@@ -149,11 +149,17 @@ export default function Overtime() {
   const [members, setMembers]     = useState([])
   const [weeklyRaw, setWeeklyRaw] = useState([])
   const [comps, setComps]         = useState([])
-  const [viewMode, setViewMode]   = useState('mine')   // 'mine' | 'team' (admin only)
+  // admins default to team view, employees only see their own
+  const [viewMode, setViewMode]   = useState(() => isAdmin ? 'team' : 'mine')
   const [filterUser, setFilterUser] = useState('all')
   const [expandedUser, setExpandedUser] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving]       = useState(false)
+
+  // Sync viewMode once role is loaded
+  useEffect(() => {
+    if (role !== null) setViewMode(isAdmin ? 'team' : 'mine')
+  }, [role, isAdmin])
 
   // Load all data
   async function load() {

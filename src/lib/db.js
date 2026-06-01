@@ -248,6 +248,11 @@ export async function initDB() {
   await db`ALTER TABLE projects ADD COLUMN IF NOT EXISTS access TEXT DEFAULT 'PRIVATE'`
   await db`ALTER TABLE clients ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false`
 
+  // ── Performance indexes (safe to run repeatedly) ─────────────
+  await db`CREATE INDEX IF NOT EXISTS idx_te_ws_start    ON time_entries (workspace_id, start_time DESC)`
+  await db`CREATE INDEX IF NOT EXISTS idx_te_email_start ON time_entries (user_email, start_time DESC)`
+  await db`CREATE INDEX IF NOT EXISTS idx_te_ws_dur      ON time_entries (workspace_id, duration) WHERE duration > 0`
+
   // ── Seed workspaces ──────────────────────────────────────────
   await db`
     INSERT INTO workspaces (id, name, slug, working_hours_per_day)
@@ -409,11 +414,15 @@ export async function dbGetAllMembers() {
 
 export async function dbGetEntries(userEmail, year) {
   const db = sql()
+  // Use a range predicate (not EXTRACT) so the index on (user_email, start_time) is used
+  const from = `${year}-01-01T00:00:00.000Z`
+  const to   = `${year + 1}-01-01T00:00:00.000Z`
   const rows = await db`
     SELECT * FROM time_entries
     WHERE user_email = ${userEmail}
       AND end_time IS NOT NULL
-      AND EXTRACT(YEAR FROM start_time) = ${year}
+      AND start_time >= ${from}
+      AND start_time <  ${to}
     ORDER BY start_time DESC
   `
   return rows.map(normEntry)

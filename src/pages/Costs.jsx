@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { DollarSign, ChevronDown, ChevronUp, TrendingUp, Users, Briefcase, Filter } from 'lucide-react'
 import { useRole } from '../context/RoleContext'
 import { useNavigate } from 'react-router-dom'
-import { sql, initDB } from '../lib/db'
+import { sql, initDB, getWsId } from '../lib/db'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -78,8 +78,8 @@ export default function Costs() {
         await initDB()
         const db = sql()
         const [mems, ents] = await Promise.all([
-          db`SELECT id, user_name, user_email, hourly_rate, group_name FROM workspace_members WHERE hourly_rate > 0 ORDER BY user_name`,
-          db`SELECT user_email, project_id, project_name, project_color, duration, start_time FROM time_entries WHERE duration > 0`,
+          db`SELECT id, user_name, user_email, hourly_rate, group_name FROM workspace_members WHERE workspace_id = ${getWsId()} AND hourly_rate > 0 ORDER BY user_name`,
+          db`SELECT user_email, project_id, project_name, project_color, duration, start_time FROM time_entries WHERE workspace_id = ${getWsId()} AND duration > 0`,
         ])
         setMembers(mems)
         setEntries(ents)

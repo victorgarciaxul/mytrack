@@ -31,6 +31,7 @@ class ErrorBoundary extends Component {
 import { WorkspaceProvider } from './context/WorkspaceContext'
 import { RoleProvider } from './context/RoleContext'
 import { ThemeProvider } from './context/ThemeContext'
+import { TimerProvider } from './context/TimerContext'
 import AppLayout from './components/layout/AppLayout'
 import Login from './pages/Login'
 import Tracker from './pages/Tracker'
@@ -44,6 +45,7 @@ import Notifications from './pages/Notifications'
 import Tags from './pages/Tags'
 import TimeOff from './pages/TimeOff'
 import Clients from './pages/Clients'
+import Costs from './pages/Costs'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -67,6 +69,7 @@ function App() {
     <ErrorBoundary>
     <BrowserRouter>
       <ThemeProvider>
+      <TimerProvider>
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -83,10 +86,12 @@ function App() {
             <Route path="tags" element={<Tags />} />
             <Route path="time-off" element={<TimeOff />} />
             <Route path="clients" element={<Clients />} />
+            <Route path="costs" element={<Costs />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
+      </TimerProvider>
       </ThemeProvider>
     </BrowserRouter>
     </ErrorBoundary>

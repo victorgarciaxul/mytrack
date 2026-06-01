@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { loadClockifyCache, clockifyStartTimer, clockifyStopTimer, clockifyDeleteEntry, getClockifyUserId, isClockifyUser, clockifyGetProjectTasks } from '../lib/clockify'
 import { getSelectedYear } from '../components/layout/TopBar'
-import { initDB, dbGetEntries, dbInsertEntry, dbDeleteEntry, dbGetMyNotes, dbSaveNote, dbShareNote, dbGetSharedNotes, dbGetAllMembers, dbUpdateNoteContent, dbUnshareNote, dbToggleReaction, ensureReactionsColumn, dbDeleteNote } from '../lib/db'
+import { initDB, dbGetEntries, dbInsertEntry, dbDeleteEntry, dbGetMyNotes, dbSaveNote, dbShareNote, dbGetSharedNotes, dbGetAllMembers, dbUpdateNoteContent, dbUnshareNote, dbToggleReaction, ensureReactionsColumn, dbDeleteNote, getWsId } from '../lib/db'
 import { format, parseISO, isToday, isYesterday, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -21,6 +21,25 @@ export default function Tracker() {
   const { workspace, projects, getTasksForProject, markProjectArchived } = useWorkspace()
   const timer = useTimerContext()
   const isMobile = useMediaQuery('(max-width: 768px)')
+
+  // XUL admins viewing Fundación workspace cannot register time — show info screen
+  const isGuestViewing = getWsId() !== (user?.workspace_id || 'xul-ws-1')
+  if (isGuestViewing) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        height: '60vh', gap: 12, color: 'var(--c-text-3)', fontFamily: 'Inter, system-ui, sans-serif',
+      }}>
+        <Clock size={40} style={{ opacity: 0.3 }} />
+        <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--c-text-2)', margin: 0 }}>
+          Modo solo visualización
+        </p>
+        <p style={{ fontSize: 13, margin: 0, textAlign: 'center', maxWidth: 300 }}>
+          Estás viendo el espacio de Fundación. El registro de tiempo solo está disponible en tu espacio de trabajo (XUL).
+        </p>
+      </div>
+    )
+  }
 
   const ACTIVE_KEY = 'mytrack-active-entry'
 

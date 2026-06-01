@@ -387,9 +387,20 @@ export async function dbMarkAllNotificationsRead(userId) {
 
 export async function dbGetAllMembers() {
   const db = sql()
+  const wsId = getWsId()
+  // When viewing Fundación, only return actual Fundación users.
+  // XUL admins are cross-listed there for access but must not appear in metrics.
+  if (wsId === 'fundacion-ws-1') {
+    return db`
+      SELECT * FROM workspace_members
+      WHERE workspace_id = ${wsId}
+        AND user_email LIKE '%@fundacionxul.org'
+      ORDER BY user_name
+    `
+  }
   return db`
     SELECT * FROM workspace_members
-    WHERE workspace_id = ${getWsId()}
+    WHERE workspace_id = ${wsId}
     ORDER BY user_name
   `
 }

@@ -9,33 +9,153 @@ const TOUR_KEY = 'mytrack_tour_done'
 // ─── Step definitions ────────────────────────────────────────────────────────
 
 const EMPLOYEE_STEPS = [
-  { target: null, title: '👋 Bienvenido a MyTrack', content: 'En menos de un minuto aprenderás a usar todas las funciones. Puedes saltar el tutorial cuando quieras.' },
-  { target: '[data-tour="nav-tracker"]',      title: '⏱ Tracker',              content: 'Aquí registras tu tiempo. Puedes usar el timer en vivo o añadir entradas manualmente.',                                                        route: '/tracker' },
-  { target: '[data-tour="timer-bar"]',        title: 'Timer en vivo',           content: 'Describe en qué trabajas, elige proyecto y tarea, y pulsa ▶ para arrancar. Al parar, el tiempo se guarda solo.',                               route: '/tracker' },
-  { target: '[data-tour="project-picker"]',   title: '📁 Proyecto',             content: 'Asocia el tiempo a un proyecto para que tu gestor sepa cuánto se dedica a cada cliente.',                                                       route: '/tracker' },
-  { target: '[data-tour="manual-btn"]',       title: '✏️ Entrada manual',       content: '¿Olvidaste arrancar el timer? Añade el tiempo manualmente indicando hora de inicio y fin.',                                                      route: '/tracker' },
-  { target: '[data-tour="entries-list"]',     title: '📋 Historial',            content: 'Todas tus entradas de la semana, agrupadas por día. Pasa el cursor para editar la descripción o eliminar.',                                     route: '/tracker' },
-  { target: '[data-tour="nav-notifications"]',title: '🔔 Alertas',              content: 'Recibirás avisos cuando no hayas imputado tiempo. El punto rojo indica alertas sin leer.',                                                      route: '/tracker' },
-  { target: '[data-tour="nav-settings"]',     title: '⚙️ Ajustes',             content: 'Configura tu perfil y workspace. Desde Ajustes también puedes volver a ver este tutorial.',                                                     route: '/tracker' },
-  { target: null, title: '✅ ¡Todo listo!', content: '¡Ya sabes usar MyTrack! Empieza registrando tu primer bloque de tiempo.' },
+  {
+    target: null,
+    title: '👋 Bienvenido a MyTrack',
+    content: 'Tu herramienta de registro de tiempo en XUL. En menos de dos minutos dominarás todo. ¿Necesitas ayuda? Escríbenos a tech@xul.es.',
+  },
+  {
+    target: '[data-tour="nav-tracker"]',
+    title: '⏱ Registro de tiempo',
+    content: 'Tu página principal. Aquí arrancas el timer en vivo o añades entradas manualmente cuando lo recuerdes después.',
+    route: '/tracker',
+  },
+  {
+    target: '[data-tour="timer-bar"]',
+    title: 'Timer en vivo',
+    content: 'Describe en qué estás trabajando, elige proyecto y pulsa ▶. Al parar, la entrada se guarda automáticamente en tu historial.',
+    route: '/tracker',
+  },
+  {
+    target: '[data-tour="project-picker"]',
+    title: '📁 Elige siempre un proyecto',
+    content: 'Asigna cada bloque de tiempo a un proyecto. Es importante para que los informes del equipo sean precisos.',
+    route: '/tracker',
+  },
+  {
+    target: '[data-tour="manual-btn"]',
+    title: '✏️ Entrada manual',
+    content: '¿Olvidaste arrancar el timer? Añade el tiempo a posteriori indicando hora de inicio y fin del bloque.',
+    route: '/tracker',
+  },
+  {
+    target: '[data-tour="entries-list"]',
+    title: '📋 Tu historial',
+    content: 'Todas tus entradas agrupadas por día. Pasa el cursor sobre una entrada para editarla o eliminarla.',
+    route: '/tracker',
+  },
+  {
+    target: '[data-tour="nav-calendar"]',
+    title: '📅 Calendario',
+    content: 'Vista mensual de todo tu tiempo registrado. Toca cualquier día para ver el detalle y editar entradas directamente.',
+    route: '/calendar',
+  },
+  {
+    target: '[data-tour="nav-overtime"]',
+    title: '⏰ Compensación',
+    content: 'Consulta tus horas extra acumuladas y los ajustes de compensación que haya aplicado tu gestor.',
+    route: '/overtime',
+  },
+  {
+    target: '[data-tour="nav-notifications"]',
+    title: '🔔 Bandeja de entrada',
+    content: 'Recibirás avisos cuando no hayas imputado tiempo. El punto rojo indica mensajes sin leer.',
+    route: '/overtime',
+  },
+  {
+    target: null,
+    title: '✅ ¡Ya lo tienes!',
+    content: 'Empieza registrando tu primer bloque de hoy. Si tienes dudas, el equipo de tech está en tech@xul.es.',
+  },
 ]
 
 const MANAGER_STEPS = [
-  { target: null,                               title: '👋 Bienvenido a MyTrack', content: 'En un minuto aprenderás todo lo que necesitas como gestor. Puedes saltar el tutorial en cualquier momento.' },
-  { target: '[data-tour="nav-dashboard"]',      title: '📊 Dashboard',           content: 'Tu panel de control: horas del equipo, facturación estimada, consumo de presupuesto por proyecto y alertas pendientes.',      route: '/dashboard' },
-  { target: '[data-tour="kpi-cards"]',          title: 'KPIs del equipo',        content: 'De un vistazo: horas totales, horas facturables, facturación estimada en euros y alertas activas.',                            route: '/dashboard' },
-  { target: '[data-tour="nav-tracker"]',        title: '⏱ Tracker',             content: 'Tú también puedes imputar tiempo. Elige siempre proyecto y tarea para que los reportes sean precisos.',                        route: '/tracker' },
-  { target: '[data-tour="timer-bar"]',          title: 'Proyecto → Tarea',       content: 'Selecciona el proyecto primero — aparecerá el selector de tarea. Así cada entrada queda asociada a una tarea concreta.',       route: '/tracker' },
-  { target: '[data-tour="nav-calendar"]',       title: '📅 Calendario',          content: 'Vista mensual de todos tus registros. Haz clic en cualquier día para ver el detalle de horas imputadas.',                     route: '/calendar' },
-  { target: '[data-tour="nav-projects"]',       title: '📁 Proyectos',           content: 'Crea proyectos con presupuesto de horas. Dentro de cada proyecto defines las tareas que el equipo puede seleccionar.',         route: '/projects' },
-  { target: '[data-tour="nav-reports"]',        title: '📈 Informes',            content: 'Filtra por fechas, proyecto o persona. Exporta a CSV para facturar al cliente.',                                               route: '/reports' },
-  { target: '[data-tour="nav-team"]',           title: '👥 Equipo',              content: 'Visualiza todos los miembros, sus roles y tarifas por hora.',                                                                   route: '/team' },
-  { target: '[data-tour="nav-notifications"]',  title: '🔔 Alertas',             content: 'Notificaciones del sistema: miembros sin imputar, proyectos al límite de presupuesto y resúmenes semanales.',                  route: '/notifications' },
-  { target: '[data-tour="nav-settings"]',       title: '⚙️ Ajustes',            content: 'Configura el workspace. Desde aquí puedes reiniciar este tutorial cuando quieras.',                                             route: '/settings' },
-  { target: null,                               title: '✅ ¡Todo listo!',        content: '¡Ya dominas MyTrack! Empieza creando proyectos y asignando tareas a tu equipo.' },
+  {
+    target: null,
+    title: '👋 Bienvenido a MyTrack',
+    content: 'Panel de gestión de tiempo del equipo XUL. Cualquier problema técnico: tech@xul.es. El tutorial dura unos 2 minutos.',
+  },
+  {
+    target: '[data-tour="nav-dashboard"]',
+    title: '📊 Dashboard',
+    content: 'Tu cuartel general: horas del equipo esta semana, facturación estimada, consumo de presupuesto por proyecto y miembros con alertas pendientes.',
+    route: '/dashboard',
+  },
+  {
+    target: '[data-tour="kpi-cards"]',
+    title: 'KPIs del equipo',
+    content: 'De un vistazo: horas totales, horas facturables, coste estimado en euros y alertas activas. Se actualizan en tiempo real.',
+    route: '/dashboard',
+  },
+  {
+    target: '[data-tour="nav-tracker"]',
+    title: '⏱ Tu propio registro',
+    content: 'Tú también imputas tiempo. Elige siempre proyecto y tarea para que los informes sean precisos.',
+    route: '/tracker',
+  },
+  {
+    target: '[data-tour="timer-bar"]',
+    title: 'Proyecto → Tarea',
+    content: 'Selecciona el proyecto primero y aparecerá el selector de tarea. Cada entrada queda así correctamente etiquetada.',
+    route: '/tracker',
+  },
+  {
+    target: '[data-tour="nav-calendar"]',
+    title: '📅 Calendario personal',
+    content: 'Tu historial completo en vista mensual. Los datos vienen directamente de la base de datos, siempre al día.',
+    route: '/calendar',
+  },
+  {
+    target: '[data-tour="nav-reports"]',
+    title: '📈 Informes',
+    content: 'Filtra por semana o mes, por proyecto, cliente o persona. Los datos sirven de base para facturación y seguimiento.',
+    route: '/reports',
+  },
+  {
+    target: '[data-tour="nav-overtime"]',
+    title: '⏰ Compensación de horas',
+    content: 'Gestiona las horas extra del equipo: consulta quién acumula saldo positivo o negativo y aplica compensaciones.',
+    route: '/overtime',
+  },
+  {
+    target: '[data-tour="nav-team"]',
+    title: '👥 Equipo',
+    content: 'Todos los miembros, sus roles, grupos y tarifas por hora. Desde aquí ajustas los costes que aparecen en los informes.',
+    route: '/team',
+  },
+  {
+    target: '[data-tour="nav-notifications"]',
+    title: '🔔 Alertas',
+    content: 'Notificaciones del sistema: miembros sin imputar, proyectos al límite de presupuesto y resúmenes semanales.',
+    route: '/notifications',
+  },
+  {
+    target: '[data-tour="nav-settings"]',
+    title: '⚙️ Ajustes',
+    content: 'Configura el workspace, importa datos desde Clockify y resetea este tutorial cuando quieras.',
+    route: '/settings',
+  },
+  {
+    target: null,
+    title: '✅ ¡Todo listo!',
+    content: '¡Ya dominas MyTrack como gestor! Empieza revisando el dashboard y asegúrate de que el equipo tenga proyectos asignados.',
+  },
 ]
 
-const ADMIN_EXTRA = null
+const ADMIN_EXTRA_STEPS = [
+  {
+    target: '[data-tour="workspace-switcher"]',
+    title: '🔀 Cambio de espacio de trabajo',
+    content: 'Como admin puedes alternar entre XUL y Fundación. Cada espacio tiene sus propios usuarios, proyectos e informes completamente aislados.',
+    route: '/tracker',
+  },
+  {
+    target: '[data-tour="nav-costs"]',
+    title: '💶 Costes del equipo',
+    content: 'Calcula el coste real de cada proyecto y persona según tarifas por hora. Filtra por mes, trimestre o año.',
+    route: '/costs',
+  },
+]
 
 // ─── Utility: find element rect ──────────────────────────────────────────────
 
@@ -210,7 +330,12 @@ export default function AppTour({ run, onFinish }) {
   const [rect, setRect] = useState(null)
   const navigatingRef = useRef(false)
 
-  const steps = isManager ? MANAGER_STEPS : EMPLOYEE_STEPS
+  // Admins get manager steps + extra admin-only steps (workspace switcher, costs)
+  const steps = isAdmin
+    ? [...MANAGER_STEPS.slice(0, -1), ...ADMIN_EXTRA_STEPS, MANAGER_STEPS[MANAGER_STEPS.length - 1]]
+    : isManager
+      ? MANAGER_STEPS
+      : EMPLOYEE_STEPS
 
   const current = steps[stepIndex]
 

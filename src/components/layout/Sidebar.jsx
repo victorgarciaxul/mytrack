@@ -142,7 +142,7 @@ function WorkspaceSwitcher({ collapsed, user, isAdmin, switchWorkspace, isDark }
   const hoverBg      = isDark ? 'rgba(37,99,235,0.30)' : 'rgba(37,99,235,0.18)'
 
   return (
-    <div style={{
+    <div data-tour="workspace-switcher" style={{
       padding: collapsed ? '0 8px 10px' : '0 14px 10px',
       flexShrink: 0,
     }}>

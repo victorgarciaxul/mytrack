@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from 'react'
-import { DollarSign, ChevronDown, ChevronUp, TrendingUp, Users, Briefcase, Filter, CalendarRange } from 'lucide-react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { DollarSign, ChevronDown, ChevronUp, TrendingUp, Users, Briefcase, Filter, CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useRole } from '../context/RoleContext'
 import { useNavigate } from 'react-router-dom'
 import { sql, getWsId } from '../lib/db'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns'
+import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, addMonths, isSameDay, getDaysInMonth, getDay, startOfDay, endOfDay } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 // ── Date range presets ──────────────────────────────────────────────────────
@@ -21,6 +21,183 @@ const PRESETS = [
   { label: 'Rango',         fn: null },     // custom date range — handled separately
 ]
 const CUSTOM_IDX = 4
+
+// ── DateRangePicker ─────────────────────────────────────────────────────────
+const WEEK_DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+
+function DateRangePicker({ from, to, isActive, onActivate, onChange }) {
+  const [open, setOpen]         = useState(false)
+  const [selecting, setSelecting] = useState(null)  // first date picked
+  const [hover, setHover]       = useState(null)
+  const [viewMonth, setViewMonth] = useState(() => startOfMonth(from || new Date()))
+  const containerRef            = useRef(null)
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return
+    function onDown(e) {
+      if (!containerRef.current?.contains(e.target)) {
+        setOpen(false); setSelecting(null); setHover(null)
+      }
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  function handleTrigger() {
+    onActivate()
+    setOpen(o => !o)
+    if (!open) setViewMonth(startOfMonth(from || new Date()))
+  }
+
+  function handleDayClick(date) {
+    if (!selecting) {
+      setSelecting(date)
+    } else {
+      const [f, t] = date < selecting
+        ? [startOfDay(date), endOfDay(selecting)]
+        : [startOfDay(selecting), endOfDay(date)]
+      onChange({ from: f, to: t })
+      setSelecting(null); setHover(null); setOpen(false)
+    }
+  }
+
+  // Compute visual range: while hovering after 1st click, preview the range
+  function getDisplayRange() {
+    if (selecting) {
+      const end = hover || selecting
+      return selecting <= end ? [selecting, end] : [end, selecting]
+    }
+    return [from, to]
+  }
+  const [dFrom, dTo] = getDisplayRange()
+
+  function getDayStyle(date) {
+    const isStart = dFrom && isSameDay(date, dFrom)
+    const isEnd   = dTo   && isSameDay(date, dTo)
+    const inRange = dFrom && dTo && date > dFrom && date < dTo
+    const isToday = isSameDay(date, new Date())
+    if (isStart || isEnd) return { bg: '#7C4DFF', color: '#fff', fw: 700, radius: isStart ? '8px 0 0 8px' : '0 8px 8px 0' }
+    if (inRange)          return { bg: '#7C4DFF1A', color: '#7C4DFF', fw: 500, radius: 0 }
+    if (isToday)          return { bg: 'transparent', color: '#7C4DFF', fw: 700, radius: 8, border: '1.5px solid #7C4DFF55' }
+    return { bg: 'transparent', color: 'var(--c-text-1)', fw: 400, radius: 8 }
+  }
+
+  // Month grid
+  const firstDow = (getDay(viewMonth) + 6) % 7  // Mon=0
+  const daysCount = getDaysInMonth(viewMonth)
+  const cells = []
+  for (let i = 0; i < firstDow; i++) cells.push(null)
+  for (let d = 1; d <= daysCount; d++) cells.push(new Date(viewMonth.getFullYear(), viewMonth.getMonth(), d))
+
+  const triggerLabel = isActive && from && to
+    ? `${format(from, 'd MMM', { locale: es })} → ${format(to, 'd MMM yy', { locale: es })}`
+    : 'Rango'
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      {/* Trigger button — same style as preset buttons */}
+      <button
+        onClick={handleTrigger}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+          background: isActive ? '#7C4DFF' : 'var(--c-bg-muted)',
+          color:      isActive ? '#fff'    : 'var(--c-text-3)',
+          border:     isActive ? '1.5px solid #7C4DFF' : '1.5px solid var(--c-border)',
+          transition: 'all 0.15s', whiteSpace: 'nowrap',
+        }}
+      >
+        <CalendarRange size={13} />
+        {triggerLabel}
+      </button>
+
+      {/* Calendar popover */}
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 300,
+          background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)',
+          borderRadius: 16, padding: 18, minWidth: 272,
+          boxShadow: '0 16px 48px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.04)',
+        }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Month navigation */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <button
+              onClick={() => setViewMonth(m => subMonths(m, 1))}
+              style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid var(--c-border)', background: 'var(--c-bg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--c-text-3)' }}
+            ><ChevronLeft size={14} /></button>
+
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--c-text-1)', textTransform: 'capitalize', letterSpacing: '-0.2px' }}>
+              {format(viewMonth, 'MMMM yyyy', { locale: es })}
+            </span>
+
+            <button
+              onClick={() => setViewMonth(m => addMonths(m, 1))}
+              style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid var(--c-border)', background: 'var(--c-bg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--c-text-3)' }}
+            ><ChevronRight size={14} /></button>
+          </div>
+
+          {/* Weekday headers */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 4 }}>
+            {WEEK_DAYS.map(d => (
+              <div key={d} style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, color: 'var(--c-text-4)', paddingBottom: 4 }}>{d}</div>
+            ))}
+          </div>
+
+          {/* Day grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px 0' }}>
+            {cells.map((date, i) => {
+              if (!date) return <div key={`e${i}`} />
+              const ds = getDayStyle(date)
+              return (
+                <div
+                  key={date.getDate()}
+                  onClick={() => handleDayClick(date)}
+                  onMouseEnter={() => selecting && setHover(date)}
+                  onMouseLeave={() => setHover(null)}
+                  style={{
+                    textAlign: 'center', fontSize: 12, fontWeight: ds.fw,
+                    padding: '6px 0', cursor: 'pointer',
+                    background: ds.bg, color: ds.color,
+                    borderRadius: ds.radius,
+                    border: ds.border || 'none',
+                    transition: 'background 0.08s',
+                    userSelect: 'none',
+                  }}
+                  onMouseOver={e => {
+                    if (!ds.bg || ds.bg === 'transparent') e.currentTarget.style.background = '#7C4DFF12'
+                  }}
+                  onMouseOut={e => {
+                    if (!ds.bg || ds.bg === 'transparent') e.currentTarget.style.background = ds.bg || 'transparent'
+                  }}
+                >
+                  {date.getDate()}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Status hint */}
+          <div style={{ marginTop: 12, padding: '8px 10px', borderRadius: 8, background: 'var(--c-bg-muted)', textAlign: 'center' }}>
+            {selecting ? (
+              <span style={{ fontSize: 11, color: '#7C4DFF', fontWeight: 600 }}>
+                Desde {format(selecting, 'd MMM', { locale: es })} → elige la fecha de fin
+              </span>
+            ) : (from && to) ? (
+              <span style={{ fontSize: 11, color: 'var(--c-text-3)' }}>
+                {format(from, 'd MMM', { locale: es })} → {format(to, 'd MMM yyyy', { locale: es })}
+              </span>
+            ) : (
+              <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>Elige la fecha de inicio</span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function fmtEUR(n) {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
@@ -57,34 +234,28 @@ export default function Costs() {
   const isMobile    = useMediaQuery('(max-width: 768px)')
 
   const [loading,     setLoading]     = useState(true)
-  const [members,     setMembers]     = useState([])   // { id, user_name, user_email, hourly_rate, group_name }
-  const [entries,     setEntries]     = useState([])   // raw time_entries rows
-  const [preset,      setPreset]      = useState(0)    // index in PRESETS
-  const [customFrom,  setCustomFrom]  = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'))
-  const [customTo,    setCustomTo]    = useState(() => format(new Date(), 'yyyy-MM-dd'))
+  const [members,     setMembers]     = useState([])
+  const [entries,     setEntries]     = useState([])
+  const [preset,      setPreset]      = useState(0)
+  // Custom range (visual state for the picker)
+  const [customRange, setCustomRange] = useState(() => THIS_MONTH())
+  // Applied range — only changes on preset click OR when picker confirms a full range
+  const [appliedRange, setAppliedRange] = useState(() => THIS_MONTH())
   const [filterUser,  setFilterUser]  = useState('all')
   const [filterProj,  setFilterProj]  = useState('all')
-  const [viewMode,    setViewMode]    = useState('project') // 'project' | 'person'
+  const [viewMode,    setViewMode]    = useState('project')
   const [sortCol,     setSortCol]     = useState('cost')
   const [sortDir,     setSortDir]     = useState('desc')
   const [expandedRow, setExpandedRow] = useState(null)
 
-  // Guard: only admins — wait until role is loaded before redirecting
+  // Guard: only admins
   useEffect(() => {
     if (role !== null && !isAdmin) navigate('/tracker', { replace: true })
   }, [role, isAdmin])
 
-  // Date range — either from preset or from custom inputs
-  const { from, to } = useMemo(() => {
-    if (preset === CUSTOM_IDX) {
-      const f = customFrom ? new Date(customFrom) : new Date('2020-01-01')
-      const t = customTo   ? new Date(customTo + 'T23:59:59') : new Date()
-      return { from: f, to: t }
-    }
-    return PRESETS[preset].fn()
-  }, [preset, customFrom, customTo])
+  const { from, to } = appliedRange
 
-  // Load data — refetch whenever the resolved date range changes
+  // Load data — only fires when appliedRange changes (preset click or picker confirmation)
   useEffect(() => {
     async function load() {
       setLoading(true)
@@ -112,7 +283,18 @@ export default function Costs() {
     }
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [from, to])
+  }, [appliedRange])
+
+  function handlePreset(i) {
+    setPreset(i)
+    if (i !== CUSTOM_IDX) setAppliedRange(PRESETS[i].fn())
+  }
+
+  function handleRangeChange({ from: f, to: t }) {
+    const range = { from: f, to: t }
+    setCustomRange(range)
+    setAppliedRange(range)   // ← triggers the fetch ONCE when range is complete
+  }
 
   // Date already filtered in SQL — no client-side date filter needed
   const dateFiltered = entries
@@ -242,49 +424,25 @@ export default function Costs() {
 
         {/* Preset selector */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-          {PRESETS.map((p, i) => (
-            <button key={i} onClick={() => setPreset(i)} style={{
-              display: 'flex', alignItems: 'center', gap: 5,
+          {PRESETS.slice(0, CUSTOM_IDX).map((p, i) => (
+            <button key={i} onClick={() => handlePreset(i)} style={{
               padding: isMobile ? '7px 14px' : '6px 12px',
               borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
               background: preset === i ? '#7C4DFF' : 'var(--c-bg-muted)',
-              color: preset === i ? '#fff' : 'var(--c-text-3)',
-              border: preset === i ? '1.5px solid #7C4DFF' : '1.5px solid var(--c-border)',
+              color:      preset === i ? '#fff'    : 'var(--c-text-3)',
+              border:     preset === i ? '1.5px solid #7C4DFF' : '1.5px solid var(--c-border)',
               transition: 'all 0.15s',
-            }}>
-              {i === CUSTOM_IDX && <CalendarRange size={13} />}
-              {p.label}
-            </button>
+            }}>{p.label}</button>
           ))}
 
-          {/* Date inputs — visible only when "Rango" is selected */}
-          {preset === CUSTOM_IDX && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginLeft: 4 }}>
-              <input
-                type="date"
-                value={customFrom}
-                max={customTo}
-                onChange={e => setCustomFrom(e.target.value)}
-                style={{
-                  padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-                  border: '1.5px solid #7C4DFF88', background: 'var(--c-bg-muted)',
-                  color: 'var(--c-text-1)', cursor: 'pointer', outline: 'none',
-                }}
-              />
-              <span style={{ fontSize: 13, color: 'var(--c-text-4)', fontWeight: 600 }}>→</span>
-              <input
-                type="date"
-                value={customTo}
-                min={customFrom}
-                onChange={e => setCustomTo(e.target.value)}
-                style={{
-                  padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-                  border: '1.5px solid #7C4DFF88', background: 'var(--c-bg-muted)',
-                  color: 'var(--c-text-1)', cursor: 'pointer', outline: 'none',
-                }}
-              />
-            </div>
-          )}
+          {/* Custom range picker */}
+          <DateRangePicker
+            from={preset === CUSTOM_IDX ? customRange.from : null}
+            to={preset === CUSTOM_IDX ? customRange.to : null}
+            isActive={preset === CUSTOM_IDX}
+            onActivate={() => setPreset(CUSTOM_IDX)}
+            onChange={handleRangeChange}
+          />
         </div>
       </div>
 

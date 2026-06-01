@@ -105,11 +105,13 @@ export function WorkspaceProvider({ children }) {
 
   const refresh = () => !isDemo && workspace && loadProjects(workspace.id)
   const getTasksForProject = (projectId) => tasks.filter(t => t.project_id === projectId)
+  const markProjectArchived = (projectId) => {} // no-op
 
   return (
     <WorkspaceContext.Provider value={{
       workspace, projects, clients, tasks, members,
       refresh, loadProjects, loadClients, loadMembers, loadTasks, getTasksForProject,
+      markProjectArchived,
     }}>
       {children}
     </WorkspaceContext.Provider>

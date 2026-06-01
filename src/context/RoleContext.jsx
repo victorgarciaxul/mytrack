@@ -1,29 +1,42 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
-import { demoMembers, demoNotifications } from '../lib/demoData'
+import { demoMembers } from '../lib/demoData'
+import { initDB, dbGetNotifications, dbMarkNotificationRead, dbMarkAllNotificationsRead } from '../lib/db'
 
 const RoleContext = createContext(null)
 
 export function RoleProvider({ children }) {
   const { user, isDemo } = useAuth()
-  const [role, setRole] = useState(null)       // 'admin' | 'manager' | 'employee'
-  const [profile, setProfile] = useState(null) // job_title, hourly_rate
+  const [role, setRole] = useState(null)
+  const [profile, setProfile] = useState(null)
   const [notifications, setNotifications] = useState([])
 
   useEffect(() => {
     if (!user) return
     if (isDemo) {
       const me = demoMembers.find(m => m.user_id === user.id)
-      // user.role comes from Neon login (AuthContext); demoMembers fallback for demo data
       setRole(me?.role || user?.role || 'employee')
       setProfile(me?.profiles || null)
-      setNotifications(demoNotifications.filter(n => n.user_id === user.id))
+      // Load from Neon instead of hardcoded demo data
+      loadNotificationsNeon()
       return
     }
     loadRole()
     loadNotifications()
   }, [user, isDemo])
+
+  async function loadNotificationsNeon() {
+    if (!user?.id) return
+    try {
+      await initDB()
+      const rows = await dbGetNotifications(user.id)
+      setNotifications(rows || [])
+    } catch (e) {
+      console.warn('Notifications load error:', e.message)
+      setNotifications([])
+    }
+  }
 
   async function loadRole() {
     const { data } = await supabase
@@ -53,6 +66,7 @@ export function RoleProvider({ children }) {
 
   async function markRead(id) {
     if (isDemo) {
+      try { await dbMarkNotificationRead(id) } catch {}
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
       return
     }
@@ -62,6 +76,7 @@ export function RoleProvider({ children }) {
 
   async function markAllRead() {
     if (isDemo) {
+      try { await dbMarkAllNotificationsRead(user.id) } catch {}
       setNotifications(prev => prev.map(n => ({ ...n, read: true })))
       return
     }
@@ -76,7 +91,8 @@ export function RoleProvider({ children }) {
   return (
     <RoleContext.Provider value={{
       role, profile, isManager, isAdmin,
-      notifications, unreadCount, markRead, markAllRead, loadNotifications,
+      notifications, unreadCount, markRead, markAllRead,
+      loadNotifications: isDemo ? loadNotificationsNeon : loadNotifications,
     }}>
       {children}
     </RoleContext.Provider>

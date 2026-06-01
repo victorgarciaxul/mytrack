@@ -962,6 +962,12 @@ export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId
   `
 }
 
+export async function dbDeleteMember(userEmail) {
+  const db = sql()
+  const wsId = getWsIdForEmail(userEmail) || getWsId()
+  await db`DELETE FROM workspace_members WHERE workspace_id = ${wsId} AND user_email = ${userEmail}`
+}
+
 /** Admin-only update: allows role changes in both directions */
 export async function dbUpdateMemberAdmin({ userEmail, userName, role, hourlyRate }) {
   const db = sql()

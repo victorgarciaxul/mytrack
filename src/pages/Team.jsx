@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Users, Search, Mail, Shield, Crown, Bell, BellOff, Plus, X, ChevronDown, Check, Pencil, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useRole } from '../context/RoleContext'
-import { initDB, dbGetAllMembers, dbGetGroups, dbUpsertMember, dbUpsertGroups, dbChangePassword, dbDeleteGroup, dbUpdateMemberAdmin } from '../lib/db'
+import { initDB, dbGetAllMembers, dbGetGroups, dbUpsertMember, dbUpsertGroups, dbChangePassword, dbDeleteGroup, dbUpdateMemberAdmin, dbDeleteMember } from '../lib/db'
 
 // ── helpers ────────────────────────────────────────────────────
 const TABS = ['Miembros', 'Grupos', 'Recordatorios']
@@ -505,12 +505,33 @@ function EditMemberModal({ member, onClose, onSaved }) {
 }
 
 // ── Miembros tab ───────────────────────────────────────────────
-function MembersTab({ members, isAdmin, onNewMember, onEditMember }) {
-  const [search, setSearch] = useState('')
+function MembersTab({ members, isAdmin, onNewMember, onEditMember, onReload }) {
+  const [search, setSearch]         = useState('')
+  const [confirmDel, setConfirmDel] = useState(null) // email being confirmed
+  const [deleting, setDeleting]     = useState(false)
+
   const filtered = members.filter(m =>
     (m.user_name || '').toLowerCase().includes(search.toLowerCase()) ||
     (m.user_email || '').toLowerCase().includes(search.toLowerCase())
   )
+
+  async function handleDelete(email) {
+    if (confirmDel !== email) {
+      setConfirmDel(email)
+      setTimeout(() => setConfirmDel(c => c === email ? null : c), 3500)
+      return
+    }
+    setDeleting(true)
+    try {
+      await dbDeleteMember(email)
+      setConfirmDel(null)
+      onReload()
+    } catch (e) {
+      console.error('Delete member error:', e)
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   return (
     <>
@@ -538,7 +559,7 @@ function MembersTab({ members, isAdmin, onNewMember, onEditMember }) {
       </div>
 
       <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '2fr 2fr 130px 140px 44px' : '2fr 2fr 130px 150px', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '2fr 2fr 130px 140px 80px' : '2fr 2fr 130px 150px', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
           {['Nombre', 'Correo electrónico', 'Grupo', 'Rol', ...(isAdmin ? [''] : [])].map(h => (
             <span key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-4)' }}>{h}</span>
           ))}
@@ -548,9 +569,10 @@ function MembersTab({ members, isAdmin, onNewMember, onEditMember }) {
           <p style={{ textAlign: 'center', color: 'var(--c-text-3)', fontSize: 13, padding: '32px 0' }}>Sin resultados</p>
         ) : filtered.map(member => {
           const color = avatarColor(member.user_name)
+          const isConfirming = confirmDel === member.user_email
           return (
             <div key={member.id}
-              style={{ display: 'grid', gridTemplateColumns: isAdmin ? '2fr 2fr 130px 140px 44px' : '2fr 2fr 130px 150px', padding: '12px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
+              style={{ display: 'grid', gridTemplateColumns: isAdmin ? '2fr 2fr 130px 140px 80px' : '2fr 2fr 130px 150px', padding: '12px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
@@ -579,20 +601,43 @@ function MembersTab({ members, isAdmin, onNewMember, onEditMember }) {
               <RoleBadge role={member.role} />
 
               {isAdmin && (
-                <button
-                  onClick={() => onEditMember(member)}
-                  title="Editar miembro"
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    width: 30, height: 30, borderRadius: 7,
-                    border: '1px solid var(--c-border)', background: 'var(--c-bg-muted)',
-                    cursor: 'pointer', color: 'var(--c-text-3)',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#7C4DFF18'; e.currentTarget.style.color = '#7C4DFF'; e.currentTarget.style.borderColor = '#7C4DFF44' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'var(--c-bg-muted)'; e.currentTarget.style.color = 'var(--c-text-3)'; e.currentTarget.style.borderColor = 'var(--c-border)' }}
-                >
-                  <Pencil size={13} />
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {/* Edit */}
+                  <button
+                    onClick={() => { setConfirmDel(null); onEditMember(member) }}
+                    title="Editar miembro"
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: 30, height: 30, borderRadius: 7,
+                      border: '1px solid var(--c-border)', background: 'var(--c-bg-muted)',
+                      cursor: 'pointer', color: 'var(--c-text-3)',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#7C4DFF18'; e.currentTarget.style.color = '#7C4DFF'; e.currentTarget.style.borderColor = '#7C4DFF44' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--c-bg-muted)'; e.currentTarget.style.color = 'var(--c-text-3)'; e.currentTarget.style.borderColor = 'var(--c-border)' }}
+                  >
+                    <Pencil size={13} />
+                  </button>
+
+                  {/* Delete — 2-step confirmation */}
+                  <button
+                    onClick={() => handleDelete(member.user_email)}
+                    disabled={deleting && isConfirming}
+                    title={isConfirming ? 'Confirmar eliminación' : 'Eliminar miembro'}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: 30, height: 30, borderRadius: 7,
+                      border: isConfirming ? '1.5px solid #EF4444' : '1px solid var(--c-border)',
+                      background: isConfirming ? '#EF444420' : 'var(--c-bg-muted)',
+                      cursor: 'pointer',
+                      color: isConfirming ? '#EF4444' : 'var(--c-text-3)',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { if (!isConfirming) { e.currentTarget.style.background = '#EF444418'; e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.borderColor = '#EF444444' }}}
+                    onMouseLeave={e => { if (!isConfirming) { e.currentTarget.style.background = 'var(--c-bg-muted)'; e.currentTarget.style.color = 'var(--c-text-3)'; e.currentTarget.style.borderColor = 'var(--c-border)' }}}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               )}
             </div>
           )
@@ -859,7 +904,7 @@ export default function Team() {
         </div>
       ) : (
         <>
-          {tab === 'Miembros'      && <MembersTab  members={members} isAdmin={isAdmin} onNewMember={() => setNewMem(true)} onEditMember={setEditMem} />}
+          {tab === 'Miembros'      && <MembersTab  members={members} isAdmin={isAdmin} onNewMember={() => setNewMem(true)} onEditMember={setEditMem} onReload={() => { setLoading(true); reload().finally(() => setLoading(false)) }} />}
           {tab === 'Grupos'        && <GroupsTab   groups={groups} members={members} isAdmin={isAdmin} onNewGroup={() => setNewGrp(true)} onEditGroup={setEditGrp} />}
           {tab === 'Recordatorios' && <RemindersTab />}
         </>

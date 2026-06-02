@@ -90,7 +90,7 @@ export default function EditEntryModal({ entry, onClose, onSaved, user }) {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 50, display: 'flex',
+      position: 'fixed', inset: 0, zIndex: 1100, display: 'flex',
       alignItems: 'center', justifyContent: 'center', padding: 16,
       background: 'rgba(13,13,30,0.6)', backdropFilter: 'blur(4px)',
     }} onClick={onClose}>
@@ -100,7 +100,7 @@ export default function EditEntryModal({ entry, onClose, onSaved, user }) {
       >
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--c-border-light)' }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--c-text-1)', margin: 0 }}>Editar entrada</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--c-text-1)', margin: 0 }}>{entry.id ? 'Editar entrada' : 'Nueva entrada'}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', display: 'flex', borderRadius: 6, padding: 4 }}>
             <X size={18} />
           </button>

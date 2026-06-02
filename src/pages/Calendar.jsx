@@ -145,8 +145,29 @@ export default function Calendar() {
   }
 
   function handleSaved(updated) {
-    setEntries(prev => prev.map(e => e.id === updated.id ? { ...e, ...updated } : e))
+    setEntries(prev => {
+      const exists = prev.find(e => e.id === updated.id)
+      if (exists) return prev.map(e => e.id === updated.id ? { ...e, ...updated } : e)
+      // New entry added from day modal
+      return [...prev, updated].sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+    })
     setEditingEntry(null)
+    // keep day modal open — don't call closeModal()
+  }
+
+  function handleNewEntry() {
+    if (!selected) return
+    const dateStr = format(selected, 'yyyy-MM-dd')
+    setEditingEntry({
+      id:          null,
+      description: '',
+      start_time:  `${dateStr}T09:00:00`,
+      end_time:    `${dateStr}T10:00:00`,
+      project_id:  '',
+      task_id:     '',
+      projects:    null,
+      tasks:       null,
+    })
   }
 
   return (
@@ -534,8 +555,8 @@ export default function Calendar() {
                 {format(selected, "d 'de' MMMM", { locale: es })}
               </p>
 
-              {/* Stats row */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* Stats row + add button */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 7,
                   background: '#7C4DFF', borderRadius: 10, padding: '7px 14px',
@@ -558,6 +579,23 @@ export default function Calendar() {
                     {selectedEntries.length === 1 ? 'entrada' : 'entradas'}
                   </span>
                 </div>
+
+                {/* Add new entry button */}
+                <button
+                  onClick={handleNewEntry}
+                  style={{
+                    marginLeft: 'auto',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '7px 14px', borderRadius: 10, fontSize: 12, fontWeight: 700,
+                    background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer',
+                    boxShadow: '0 4px 12px #10B98130', transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#059669'}
+                  onMouseLeave={e => e.currentTarget.style.background = '#10B981'}
+                >
+                  <CalendarDays size={13} />
+                  + Añadir
+                </button>
               </div>
             </div>
 
@@ -620,7 +658,7 @@ export default function Calendar() {
                         {!isConfirming && (
                           <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
                             <button
-                              onClick={() => { setEditingEntry(e); closeModal() }}
+                              onClick={() => setEditingEntry(e)}
                               title="Editar"
                               style={{ width: 26, height: 26, borderRadius: 7, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--c-text-4)', transition: 'all 0.12s' }}
                               onMouseEnter={ev => { ev.currentTarget.style.background = '#7C4DFF15'; ev.currentTarget.style.color = '#7C4DFF' }}

@@ -229,18 +229,22 @@ export default function Overtime() {
       const group = mb?.group_name || ''
 
       const weekEntries = Object.entries(data.weeks || {}).map(([wk, h]) => {
-        const overtime = Math.max(0, h - STANDARD_HOURS)
+        const diff      = h - STANDARD_HOURS                   // net for this week (± )
+        const overtime  = Math.max(0, diff)                    // positive contribution
+        const undertime = Math.max(0, -diff)                   // negative contribution
         const compEntries = (data.compEntries || []).filter(c => c.week_start === wk)
         const compUsed = compEntries.reduce((s, c) => s + parseFloat(c.comp_hours), 0)
-        return { wk, h, overtime, compUsed, compEntries, diff: h - STANDARD_HOURS }
+        return { wk, h, overtime, undertime, compUsed, compEntries, diff }
       }).sort((a, b) => b.wk.localeCompare(a.wk))
 
-      // ACUMULADO = total extra hours in range
+      // ACUMULADO = overtime bank (only weeks above 37.5h)
       const acumulado = weekEntries.reduce((s, w) => s + w.overtime, 0)
-      // COMPENSADO = total comp hours used in range
+      // COMPENSADO = time already taken as comp leave
       const compensado = (data.compEntries || []).reduce((s, c) => s + parseFloat(c.comp_hours), 0)
-      // DEBIDO = what's still owed (acumulado - compensado)
-      const debido = acumulado - compensado
+      // Total undertime = weeks worked below 37.5h (deficits)
+      const totalUndertime = weekEntries.reduce((s, w) => s + w.undertime, 0)
+      // DEBIDO = true net balance: overtime earned − undertime owed − comp taken
+      const debido = acumulado - totalUndertime - compensado
 
       return { email, name, group, weekEntries, acumulado, compensado, debido,
         // keep old names for compat
@@ -348,11 +352,11 @@ export default function Overtime() {
               sub='Horas ya disfrutadas / descontadas'
             />
             <BalanceCard
-              icon={myData?.debido > 0 ? TrendingUp : myData?.debido < 0 ? TrendingDown : CheckCircle2}
+              icon={myData?.debido > 0.05 ? TrendingUp : myData?.debido < -0.05 ? TrendingDown : CheckCircle2}
               label='DEBIDO'
               value={myData ? fmtHShort(myData.debido) : '0h'}
-              color={!myData || myData.debido === 0 ? '#10B981' : myData.debido > 0 ? '#F59E0B' : '#EF4444'}
-              sub={myData?.debido > 0 ? 'Pendiente de compensar' : myData?.debido < 0 ? 'Por debajo del estándar' : 'Al día'}
+              color={!myData || Math.abs(myData.debido) < 0.05 ? '#10B981' : myData.debido > 0 ? '#F59E0B' : '#EF4444'}
+              sub={myData?.debido > 0.05 ? 'La empresa te debe este tiempo' : myData?.debido < -0.05 ? 'Debes estas horas a la empresa' : 'Al día'}
             />
           </div>
 
@@ -481,7 +485,8 @@ function WeekRow({ row, isMobile, isAdmin, onDeleteComp }) {
 
 // ── User row (team view) ──────────────────────────────────────────────────────
 function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
-  const balanceColor = u.balance === 0 ? '#10B981' : u.balance > 0 ? '#F59E0B' : '#EF4444'
+  const deb = u.debido ?? u.balance
+  const balanceColor = Math.abs(deb) < 0.05 ? '#10B981' : deb > 0 ? '#F59E0B' : '#EF4444'
 
   return (
     <>
@@ -520,7 +525,7 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
           </span>
         )}
         <span style={{ fontSize: 14, fontWeight: 800, color: balanceColor, letterSpacing: '-0.3px' }}>
-          {fmtHShort(u.balance)}
+          {fmtHShort(deb)}
         </span>
       </div>
 

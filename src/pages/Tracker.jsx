@@ -167,42 +167,34 @@ export default function Tracker() {
   const syncEnabled = isClockifyUser(user?.email)
 
   // ── Cross-device timer sync ──────────────────────────────────
+  // Only RESTORES a timer from Neon — never resets a running local timer.
+  // This avoids race conditions where Neon hasn't saved yet but local is already running.
   async function syncTimerWithNeon() {
     if (!user?.email) return
+    if (timer.isRunning) return   // local timer is active — don't touch it
     try {
       await initDB()
       const running = await dbGetRunningTimer(user.email)
-      if (running) {
-        // Timer active on another device — restore it here
-        if (!timer.isRunning) {
-          timer.start(running.started_at)  // restores correct elapsed time
-          setDescription(running.description || '')
-          if (running.project_id) {
-            setSelectedProject({
-              id: running.project_id,
-              name: running.project_name || '',
-              color: running.project_color || '#7C4DFF',
-            })
-          }
-          if (running.task_id) {
-            setSelectedTask({ id: running.task_id, name: running.task_name || '' })
-          }
-        }
-      } else {
-        // No active timer in Neon — if we're running locally, something stopped it elsewhere
-        if (timer.isRunning) {
-          timer.reset()
-          setDescription('')
-          setSelectedProject(null)
-          setSelectedTask(null)
-        }
+      if (!running) return        // nothing to restore
+      // Timer was started on another device — restore here
+      timer.start(running.started_at)
+      setDescription(running.description || '')
+      if (running.project_id) {
+        setSelectedProject({
+          id: running.project_id,
+          name: running.project_name || '',
+          color: running.project_color || '#7C4DFF',
+        })
+      }
+      if (running.task_id) {
+        setSelectedTask({ id: running.task_id, name: running.task_name || '' })
       }
     } catch (err) {
       console.warn('Timer sync error:', err)
     }
   }
 
-  // Sync on mount
+  // Sync on mount (restore running timer from another device)
   useEffect(() => { syncTimerWithNeon() }, [user?.email])
 
   // Sync when user returns to the app (phone unlock, tab focus)

@@ -393,9 +393,17 @@ export default function Overtime() {
           {/* Team table */}
           <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 90px' : '1fr 120px 120px', padding: '10px 18px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
-              {['Persona', !isMobile && 'Acumulado', 'Debido'].filter(Boolean).map((h, i) => (
-                <span key={i} style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</span>
-              ))}
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Persona</span>
+              {!isMobile && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#3B82F6' }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#3B82F6', display: 'inline-block' }} />
+                  Acumulado
+                </span>
+              )}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#EF4444' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444', display: 'inline-block' }} />
+                Debido
+              </span>
             </div>
 
             {filteredTeam.length === 0 ? (
@@ -478,9 +486,14 @@ function WeekRow({ row, isMobile, isAdmin, onDeleteComp }) {
 
 // ── User row (team view) ──────────────────────────────────────────────────────
 function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
-  const deb = u.debido ?? 0
-  // DEBIDO = undertime hours → red if > 0 (owes hours), green if 0
-  const balanceColor = deb < 0.05 ? '#10B981' : '#EF4444'
+  const deb = u.debido    ?? 0
+  const acu = u.acumulado ?? 0
+
+  // Status dot: red = owes hours, blue = has accumulated, green = neutral
+  const hasDeb = deb > 0.05
+  const hasAcu = acu > 0.05
+  const dotColor = hasDeb ? '#EF4444' : hasAcu ? '#3B82F6' : '#10B981'
+  const dotTitle = hasDeb ? 'Debe horas' : hasAcu ? 'Tiene horas acumuladas' : 'Al día'
 
   return (
     <>
@@ -499,8 +512,21 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
         onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = 'transparent' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#7C4DFF22', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#7C4DFF' }}>{u.name.charAt(0)}</span>
+          {/* Avatar with status dot */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#7C4DFF18', border: `2px solid ${dotColor}44`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#7C4DFF' }}>{u.name.charAt(0)}</span>
+            </div>
+            {/* Status dot */}
+            <span
+              title={dotTitle}
+              style={{
+                position: 'absolute', bottom: 0, right: 0,
+                width: 10, height: 10, borderRadius: '50%',
+                background: dotColor,
+                border: '2px solid var(--c-bg-surface)',
+              }}
+            />
           </div>
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)' }}>{u.name}</div>
@@ -509,12 +535,12 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
           {expanded ? <ChevronUp size={12} color='var(--c-text-4)' /> : <ChevronDown size={12} color='var(--c-text-4)' />}
         </div>
         {!isMobile && (
-          <span style={{ fontSize: 13, color: '#7C4DFF', fontWeight: 600 }}>
-            {u.acumulado > 0 ? fmtHShort(u.acumulado) : '—'}
+          <span style={{ fontSize: 13, color: '#3B82F6', fontWeight: hasAcu ? 700 : 400 }}>
+            {hasAcu ? fmtHShort(acu) : '—'}
           </span>
         )}
-        <span style={{ fontSize: 14, fontWeight: 800, color: balanceColor, letterSpacing: '-0.3px' }}>
-          {fmtHShort(deb)}
+        <span style={{ fontSize: 14, fontWeight: 800, color: hasDeb ? '#EF4444' : '#10B981', letterSpacing: '-0.3px' }}>
+          {hasDeb ? fmtHShort(deb) : '—'}
         </span>
       </div>
 

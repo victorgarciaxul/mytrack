@@ -67,16 +67,25 @@ export default function Calendar() {
     loadEntries(user?.email, current.getFullYear())
   }, [user?.email, current.getFullYear()])
 
-  // Real-time: reload whenever the Tracker saves a new entry
+  // Same-device: reload when Tracker saves an entry
   useEffect(() => {
     function onEntrySaved(e) {
       const year = e.detail?.year || current.getFullYear()
-      if (year === current.getFullYear()) {
-        loadEntries(user?.email, year)
-      }
+      if (year === current.getFullYear()) loadEntries(user?.email, year)
     }
     window.addEventListener('mytrack:entry-saved', onEntrySaved)
     return () => window.removeEventListener('mytrack:entry-saved', onEntrySaved)
+  }, [user?.email, current.getFullYear()])
+
+  // Cross-device: reload when user returns to this tab/app (phone unlock, tab switch)
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === 'visible') {
+        loadEntries(user?.email, current.getFullYear())
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [user?.email, current.getFullYear()])
 
   const monthStart = startOfMonth(current)

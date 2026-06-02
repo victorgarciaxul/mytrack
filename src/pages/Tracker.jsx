@@ -65,7 +65,7 @@ export default function Tracker() {
   }, [description, selectedProject, selectedTask, timer.isRunning])
   const [entries, setEntries] = useState(() => {
     if (!isDemo) return []
-    // Only load cached entries for the Clockify owner — other users load from Neon
+    // Show localStorage cache immediately while Neon loads (any device that has it)
     if (!isClockifyUser(user?.email)) return []
     const cache = loadClockifyCache()
     if (cache?.entries?.length) {
@@ -121,27 +121,48 @@ export default function Tracker() {
       .catch(() => setLoadingTasks(false))
   }, [selectedProject?.id])
 
-  useEffect(() => {
-    if (!syncEnabled) {
-      // Non-Clockify users: load from Neon
-      const year = getSelectedYear()
-      initDB().then(() => dbGetEntries(user.email, year)).then(rows => {
-        setEntries(rows.map(r => ({
-          id: r.id,
-          description: r.description,
-          start_time: r.start_time,
-          end_time: r.end_time,
-          duration: r.duration,
-          projects: r.project_id ? { name: r.project_name, color: r.project_color } : null,
-          tasks: r.task_id ? { name: r.task_name } : null,
-        })))
-      }).catch(console.error)
+  // ── Neon load helper ───────────────────────────────────────────
+  function mapNeonRow(r) {
+    return {
+      id: r.id,
+      description: r.description,
+      start_time: r.start_time,
+      end_time: r.end_time,
+      duration: r.duration,
+      projects: r.project_id ? { name: r.project_name, color: r.project_color } : null,
+      tasks: r.task_id ? { name: r.task_name } : null,
     }
+  }
+
+  function loadFromNeon() {
+    if (!user?.email) return
+    const year = getSelectedYear()
+    initDB()
+      .then(() => dbGetEntries(user.email, year))
+      .then(rows => setEntries(rows.map(mapNeonRow)))
+      .catch(err => console.warn('Tracker Neon load error:', err))
+  }
+
+  // Always load from Neon on mount — works for every device (mobile included)
+  useEffect(() => {
+    loadFromNeon()
   }, [user?.email])
 
-  async function loadEntries() {
-    // kept for compatibility (non-demo Supabase mode - not used currently)
-  }
+  // Cross-device real-time: reload when user returns to this tab/app
+  // (covers: phone unlock, tab switch, desktop↔mobile)
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === 'visible') loadFromNeon()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [user?.email])
+
+  // Same-device cross-component: reload when another component saves an entry
+  useEffect(() => {
+    window.addEventListener('mytrack:entry-saved', loadFromNeon)
+    return () => window.removeEventListener('mytrack:entry-saved', loadFromNeon)
+  }, [user?.email])
 
   const syncEnabled = isClockifyUser(user?.email)
 

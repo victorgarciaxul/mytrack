@@ -210,7 +210,12 @@ export default function Tracker() {
           endTime: entry.end_time,
           duration,
           billable: true,
-        })).catch(err => console.warn('Neon save error:', err.message))
+        })).then(() => {
+          // Notify Calendar (and any other page) to refresh in real time
+          window.dispatchEvent(new CustomEvent('mytrack:entry-saved', {
+            detail: { year: new Date(entry.start_time).getFullYear() }
+          }))
+        }).catch(err => console.warn('Neon save error:', err.message))
         toast.success('✅ Guardado en Clockify')
       } catch (err) {
         toast.error('No se pudo sincronizar con Clockify: ' + err.message)
@@ -245,6 +250,10 @@ export default function Tracker() {
           projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color } : null,
           tasks: selectedTask ? { name: selectedTask.name } : null,
         }, ...prev])
+        // Notify Calendar to refresh in real time
+        window.dispatchEvent(new CustomEvent('mytrack:entry-saved', {
+          detail: { year: new Date().getFullYear() }
+        }))
         toast.success('Tiempo registrado')
       } catch (err) {
         toast.error('Error al guardar: ' + err.message)

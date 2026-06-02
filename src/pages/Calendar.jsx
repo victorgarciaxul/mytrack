@@ -45,29 +45,14 @@ export default function Calendar() {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [modalVisible, setModalVisible] = useState(false)
 
-  useEffect(() => {
-    if (!user?.email) return
-    const year = current.getFullYear()
-
-    // For Clockify users: try localStorage cache first, fall back to Neon DB
-    // (cache only exists on the device where the import was done)
-    if (isClockifyUser(user.email)) {
-      const cache = loadClockifyCache()
-      const all = cache?.entries?.filter(e => e.end_time) || []
-      const cached = all.filter(e => new Date(e.start_time).getFullYear() === year)
-      if (cached.length > 0) {
-        setEntries(cached)
-        return
-      }
-      // Cache empty on this device — fall through to Neon DB
-    }
-
+  // Load entries from Neon — always the source of truth
+  function loadEntries(email, year) {
+    if (!email) return
     setLoading(true)
     initDB()
-      .then(() => dbGetEntries(user.email, year))
+      .then(() => dbGetEntries(email, year))
       .then(rows => setEntries(rows.map(r => ({
         ...r,
-        // Neon stores flat fields; Calendar expects nested { projects: { id, name, color } }
         projects: r.project_id
           ? { id: r.project_id, name: r.project_name || '', color: r.project_color || '#7C4DFF' }
           : null,
@@ -75,6 +60,23 @@ export default function Calendar() {
       }))))
       .catch(err => { console.error('Calendar Neon error:', err); setEntries([]) })
       .finally(() => setLoading(false))
+  }
+
+  // Initial load + reload when year/user changes
+  useEffect(() => {
+    loadEntries(user?.email, current.getFullYear())
+  }, [user?.email, current.getFullYear()])
+
+  // Real-time: reload whenever the Tracker saves a new entry
+  useEffect(() => {
+    function onEntrySaved(e) {
+      const year = e.detail?.year || current.getFullYear()
+      if (year === current.getFullYear()) {
+        loadEntries(user?.email, year)
+      }
+    }
+    window.addEventListener('mytrack:entry-saved', onEntrySaved)
+    return () => window.removeEventListener('mytrack:entry-saved', onEntrySaved)
   }, [user?.email, current.getFullYear()])
 
   const monthStart = startOfMonth(current)

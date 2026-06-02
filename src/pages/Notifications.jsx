@@ -214,7 +214,7 @@ export default function Notifications() {
 function NotifRow({ n, onRead, isLast }) {
   const cfg = TYPE_CONFIG[n.type] || TYPE_CONFIG.default
   const Icon = cfg.icon
-  const ago = formatDistanceToNow(parseISO(n.created_at), { addSuffix: true, locale: es })
+  const ago = formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: es })
 
   return (
     <div

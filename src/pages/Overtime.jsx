@@ -215,7 +215,7 @@ export default function Overtime() {
     // Add comp entries — also filtered by range
     comps.forEach(c => {
       const email = c.user_email
-      const wkDate = parseISO(c.week_start)
+      const wkDate = new Date(c.week_start)
       if (wkDate < rangeBounds.from || wkDate > rangeBounds.to) return
       if (!map[email]) map[email] = { email, weeks: {} }
       map[email].compEntries = map[email].compEntries || []
@@ -399,8 +399,8 @@ export default function Overtime() {
 
           {/* Team table */}
           <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 110px 110px 110px', padding: '10px 18px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
-              {['Persona', 'Acumulado', !isMobile && 'Compensado', 'Debido'].filter(Boolean).map((h, i) => (
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 90px' : '1fr 120px 120px', padding: '10px 18px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+              {['Persona', !isMobile && 'Acumulado', 'Debido'].filter(Boolean).map((h, i) => (
                 <span key={i} style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</span>
               ))}
             </div>
@@ -494,7 +494,7 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
         onClick={onToggle}
         style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 110px 110px 110px',
+          gridTemplateColumns: isMobile ? '1fr 90px' : '1fr 120px 120px',
           padding: '12px 18px',
           borderBottom: '1px solid var(--c-border-light)',
           cursor: 'pointer', alignItems: 'center',
@@ -516,12 +516,7 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
         </div>
         {!isMobile && (
           <span style={{ fontSize: 13, color: '#7C4DFF', fontWeight: 600 }}>
-            {u.totalOvertime > 0 ? fmtHShort(u.totalOvertime) : '—'}
-          </span>
-        )}
-        {!isMobile && (
-          <span style={{ fontSize: 13, color: '#10B981', fontWeight: u.totalCompUsed > 0 ? 600 : 400 }}>
-            {u.totalCompUsed > 0 ? fmtHShort(-u.totalCompUsed) : '—'}
+            {u.acumulado > 0 ? fmtHShort(u.acumulado) : '—'}
           </span>
         )}
         <span style={{ fontSize: 14, fontWeight: 800, color: balanceColor, letterSpacing: '-0.3px' }}>

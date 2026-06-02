@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-import { Play, Square, Plus, ChevronDown, Clock, Zap, Briefcase, Pencil, Trash2, Share2, Check, Smile, X } from 'lucide-react'
+import { Play, Square, Plus, ChevronDown, Clock, Zap, Briefcase, Pencil, Trash2, Share2, Check, Smile, X, RefreshCw } from 'lucide-react'
 import { useTimerContext } from '../context/TimerContext'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -148,8 +148,7 @@ export default function Tracker() {
     loadFromNeon()
   }, [user?.email])
 
-  // Cross-device real-time: reload when user returns to this tab/app
-  // (covers: phone unlock, tab switch, desktop↔mobile)
+  // Cross-device: reload on tab/app focus (visibilitychange)
   useEffect(() => {
     function onVisible() {
       if (document.visibilityState === 'visible') loadFromNeon()
@@ -158,7 +157,16 @@ export default function Tracker() {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [user?.email])
 
-  // Same-device cross-component: reload when another component saves an entry
+  // Cross-device: poll every 60 s while page is visible
+  // Covers iOS Safari where visibilitychange is unreliable
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') loadFromNeon()
+    }, 60_000)
+    return () => clearInterval(id)
+  }, [user?.email])
+
+  // Same-device: reload when another component saves an entry
   useEffect(() => {
     window.addEventListener('mytrack:entry-saved', loadFromNeon)
     return () => window.removeEventListener('mytrack:entry-saved', loadFromNeon)
@@ -691,6 +699,16 @@ export default function Tracker() {
           {/* Recent Activity */}
           <Card color="var(--c-card-b)">
             <CardHeader title="Recent Activity">
+              {/* Manual sync button */}
+              <button
+                onClick={() => loadFromNeon()}
+                title="Sincronizar con servidor"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-4)', display: 'flex', alignItems: 'center', padding: 4, borderRadius: 6, marginRight: 4 }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#7C4DFF'; e.currentTarget.style.background = '#7C4DFF12' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--c-text-4)'; e.currentTarget.style.background = 'none' }}
+              >
+                <RefreshCw size={13} />
+              </button>
               <button
                 onClick={() => setShowAllActivity(p => !p)}
                 style={{ fontSize: 12, color: '#7C4DFF', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}

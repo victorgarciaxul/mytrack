@@ -72,10 +72,19 @@ function normEntry(r) {
 }
 
 // ── Bootstrap: create tables if they don't exist ─────────────
-let _initialized = false
-export async function initDB() {
-  if (_initialized) return
-  _initialized = true
+// Uses a promise cache so concurrent calls share one init.
+// Resets on error so mobile can retry after network failure.
+let _initPromise = null
+export function initDB() {
+  if (_initPromise) return _initPromise
+  _initPromise = _runInitDB().catch(err => {
+    _initPromise = null   // reset → next caller retries
+    console.warn('[initDB] failed, will retry next call:', err.message)
+    throw err
+  })
+  return _initPromise
+}
+async function _runInitDB() {
   const db = sql()
 
   await db`

@@ -9,11 +9,19 @@ import { useMediaQuery } from '../hooks/useMediaQuery'
 import { initDB, sql, dbGetCompensations, dbAddCompensation, dbDeleteCompensation, dbGetWeeklyHours, getWsId } from '../lib/db'
 import {
   format, startOfWeek, endOfWeek, addWeeks, subWeeks,
-  parseISO, startOfYear, endOfYear
+  parseISO, startOfYear, endOfYear, isWithinInterval
 } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 const STANDARD_HOURS = 37.5
+
+const RANGE_OPTIONS = [
+  { label: 'Últimas 4 semanas',   weeks: 4  },
+  { label: 'Últimas 8 semanas',   weeks: 8  },
+  { label: 'Últimas 13 semanas',  weeks: 13 },
+  { label: 'Este año',            weeks: null, yearOnly: true },
+  { label: 'Todo el historial',   weeks: 52 },
+]
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function fmtH(h) {
@@ -155,6 +163,17 @@ export default function Overtime() {
   const [expandedUser, setExpandedUser] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving]       = useState(false)
+  const [rangeIdx, setRangeIdx]   = useState(2)  // default: últimas 13 semanas
+
+  // Compute date bounds for the selected range
+  const rangeBounds = useMemo(() => {
+    const opt = RANGE_OPTIONS[rangeIdx]
+    const to = endOfWeek(new Date(), { weekStartsOn: 1 })
+    if (opt.yearOnly) {
+      return { from: startOfYear(new Date()), to }
+    }
+    return { from: startOfWeek(subWeeks(new Date(), opt.weeks), { weekStartsOn: 1 }), to }
+  }, [rangeIdx])
 
   // Sync viewMode once role is loaded
   useEffect(() => {
@@ -192,23 +211,26 @@ export default function Overtime() {
   const userData = useMemo(() => {
     const map = {}
 
-    // Group weekly hours per user per week
+    // Group weekly hours per user per week — filtered by rangeBounds
     weeklyRaw.forEach(row => {
       const email = row.user_email
       const wk = typeof row.week_start === 'string'
         ? row.week_start.slice(0, 10)
         : format(new Date(row.week_start), 'yyyy-MM-dd')
+      const wkDate = parseISO(wk)
+      if (wkDate < rangeBounds.from || wkDate > rangeBounds.to) return  // outside range
       const h = parseFloat(row.total_seconds) / 3600
 
       if (!map[email]) map[email] = { email, weeks: {} }
       map[email].weeks[wk] = (map[email].weeks[wk] || 0) + h
     })
 
-    // Add comp entries
+    // Add comp entries — also filtered by range
     comps.forEach(c => {
       const email = c.user_email
+      const wkDate = parseISO(c.week_start)
+      if (wkDate < rangeBounds.from || wkDate > rangeBounds.to) return
       if (!map[email]) map[email] = { email, weeks: {} }
-      if (!map[email].compEntries) map[email].compEntries = []
       map[email].compEntries = map[email].compEntries || []
       map[email].compEntries.push(c)
     })
@@ -219,7 +241,6 @@ export default function Overtime() {
       const name = mb?.user_name || email
       const group = mb?.group_name || ''
 
-      // All weeks with hours
       const weekEntries = Object.entries(data.weeks || {}).map(([wk, h]) => {
         const overtime = Math.max(0, h - STANDARD_HOURS)
         const compEntries = (data.compEntries || []).filter(c => c.week_start === wk)
@@ -227,13 +248,18 @@ export default function Overtime() {
         return { wk, h, overtime, compUsed, compEntries, diff: h - STANDARD_HOURS }
       }).sort((a, b) => b.wk.localeCompare(a.wk))
 
-      const totalOvertime = weekEntries.reduce((s, w) => s + w.overtime, 0)
-      const totalCompUsed = (data.compEntries || []).reduce((s, c) => s + parseFloat(c.comp_hours), 0)
-      const balance = totalOvertime - totalCompUsed
+      // ACUMULADO = total extra hours in range
+      const acumulado = weekEntries.reduce((s, w) => s + w.overtime, 0)
+      // COMPENSADO = total comp hours used in range
+      const compensado = (data.compEntries || []).reduce((s, c) => s + parseFloat(c.comp_hours), 0)
+      // DEBIDO = what's still owed (acumulado - compensado)
+      const debido = acumulado - compensado
 
-      return { email, name, group, weekEntries, totalOvertime, totalCompUsed, balance }
-    }).sort((a, b) => b.balance - a.balance)
-  }, [weeklyRaw, comps, members])
+      return { email, name, group, weekEntries, acumulado, compensado, debido,
+        // keep old names for compat
+        totalOvertime: acumulado, totalCompUsed: compensado, balance: debido }
+    }).sort((a, b) => b.debido - a.debido)
+  }, [weeklyRaw, comps, members, rangeBounds])
 
   const myData = useMemo(() => userData.find(u => u.email === myEmail), [userData, myEmail])
 
@@ -286,6 +312,21 @@ export default function Overtime() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Range selector */}
+          <div style={{ position: 'relative' }}>
+            <select
+              value={rangeIdx}
+              onChange={e => setRangeIdx(Number(e.target.value))}
+              style={{
+                padding: '7px 32px 7px 12px', borderRadius: 9, fontSize: 12, fontWeight: 600,
+                border: '1.5px solid var(--c-border)', background: 'var(--c-bg-muted)',
+                color: 'var(--c-text-1)', cursor: 'pointer', appearance: 'none',
+              }}
+            >
+              {RANGE_OPTIONS.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
+            </select>
+            <ChevronDown size={13} style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--c-text-4)', pointerEvents: 'none' }} />
+          </div>
           {/* View toggle admin */}
           {isAdmin && (
             <div style={{ display: 'flex', background: 'var(--c-bg-muted)', borderRadius: 9, padding: 3, gap: 2 }}>
@@ -303,7 +344,6 @@ export default function Overtime() {
               ))}
             </div>
           )}
-          {/* Add comp (admin only) */}
           {isAdmin && (
             <button onClick={() => setShowModal(true)} style={btnPrimary}>
               <Plus size={14} /> Registrar compensación
@@ -315,26 +355,26 @@ export default function Overtime() {
       {/* ── MY VIEW ─────────────────────────────────────────────────────── */}
       {!showTeamView && (
         <>
-          {/* Balance cards */}
+          {/* Balance cards: ACUMULADO / COMPENSADO / DEBIDO */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
             <BalanceCard
-              icon={myData?.balance > 0 ? TrendingUp : myData?.balance < 0 ? TrendingDown : CheckCircle2}
-              label='Saldo actual'
-              value={myData ? fmtHShort(myData.balance) : '0h'}
-              color={!myData || myData.balance === 0 ? '#10B981' : myData.balance > 0 ? '#F59E0B' : '#EF4444'}
-              sub={myData?.balance > 0 ? 'Horas acumuladas pendientes' : myData?.balance < 0 ? 'Por debajo del estándar' : 'Al día'}
-            />
-            <BalanceCard
-              icon={TrendingUp} label='Total horas extra'
-              value={myData ? fmtHShort(myData.totalOvertime) : '0h'}
+              icon={TrendingUp} label='ACUMULADO'
+              value={myData ? fmtHShort(myData.acumulado) : '0h'}
               color='#7C4DFF'
-              sub='Acumuladas históricamente'
+              sub='Horas extra generadas en el período'
             />
             <BalanceCard
-              icon={CheckCircle2} label='Total compensado'
-              value={myData ? fmtHShort(-(myData.totalCompUsed)) : '0h'}
+              icon={CheckCircle2} label='COMPENSADO'
+              value={myData ? fmtHShort(myData.compensado) : '0h'}
               color='#10B981'
-              sub='Horas ya disfrutadas'
+              sub='Horas ya disfrutadas / descontadas'
+            />
+            <BalanceCard
+              icon={myData?.debido > 0 ? TrendingUp : myData?.debido < 0 ? TrendingDown : CheckCircle2}
+              label='DEBIDO'
+              value={myData ? fmtHShort(myData.debido) : '0h'}
+              color={!myData || myData.debido === 0 ? '#10B981' : myData.debido > 0 ? '#F59E0B' : '#EF4444'}
+              sub={myData?.debido > 0 ? 'Pendiente de compensar' : myData?.debido < 0 ? 'Por debajo del estándar' : 'Al día'}
             />
           </div>
 
@@ -378,7 +418,7 @@ export default function Overtime() {
           {/* Team table */}
           <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 110px 110px 110px', padding: '10px 18px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
-              {['Persona', 'Acumulado', !isMobile && 'Compensado', 'Saldo'].filter(Boolean).map((h, i) => (
+              {['Persona', 'Acumulado', !isMobile && 'Compensado', 'Debido'].filter(Boolean).map((h, i) => (
                 <span key={i} style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</span>
               ))}
             </div>

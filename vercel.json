@@ -7,6 +7,10 @@
     {
       "path": "/api/sync-clockify",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/weekly-notifications",
+      "schedule": "0 6 * * 1"
     }
   ]
 }

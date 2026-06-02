@@ -211,31 +211,84 @@ export default function Notifications() {
   )
 }
 
+const PREVIEW_LINES = 4   // lines shown before "Ver más"
+
 function NotifRow({ n, onRead, isLast }) {
   const cfg = TYPE_CONFIG[n.type] || TYPE_CONFIG.default
   const Icon = cfg.icon
   const ago = formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: es })
+  const [expanded, setExpanded] = useState(false)
+
+  const lines = (n.message || '').split('\n')
+  const isLong = lines.length > PREVIEW_LINES
+  const visibleLines = expanded || !isLong ? lines : lines.slice(0, PREVIEW_LINES)
 
   return (
     <div
-      className="flex items-start gap-4 px-4 py-4 cursor-pointer transition-colors"
-      style={{ borderBottom: isLast ? 'none' : '1px solid var(--c-border-light)', background: n.read ? 'transparent' : 'rgba(123,104,238,0.03)' }}
+      style={{
+        borderBottom: isLast ? 'none' : '1px solid var(--c-border-light)',
+        background: n.read ? 'transparent' : 'rgba(123,104,238,0.03)',
+        transition: 'background 0.12s',
+      }}
       onClick={() => !n.read && onRead(n.id)}
       onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
       onMouseLeave={e => e.currentTarget.style.background = n.read ? 'transparent' : 'rgba(123,104,238,0.03)'}
     >
-      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: cfg.bg }}>
-        <Icon size={16} style={{ color: cfg.color }} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-semibold" style={{ color: 'var(--c-text-1)' }}>{n.title}</p>
-          {!n.read && <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ background: cfg.color }} />}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '14px 18px', cursor: 'pointer' }}>
+        {/* Icon */}
+        <div style={{ width: 36, height: 36, borderRadius: 11, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+          <Icon size={16} style={{ color: cfg.color }} />
         </div>
-        {n.message && <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--c-text-2)' }}>{n.message}</p>}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-          {n.sender_name && <span style={{ fontSize: 10, color: 'var(--c-text-4)', fontWeight: 600 }}>de {n.sender_name}</span>}
-          <p className="text-xs" style={{ color: 'var(--c-text-3)' }}>{ago}</p>
+
+        {/* Content */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', lineHeight: 1.4 }}>{n.title}</span>
+            {!n.read && <span style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.color, flexShrink: 0, marginTop: 4 }} />}
+          </div>
+
+          {/* Message — line by line */}
+          {n.message && (
+            <div style={{ marginBottom: 6 }}>
+              {visibleLines.map((line, i) => {
+                if (line.trim() === '') return <div key={i} style={{ height: 6 }} />
+                // Detect "Name: value" lines for team summary → highlight name
+                const colonIdx = line.indexOf(':')
+                const hasEmoji = /^[🟡🟢🔴📅⏱📊]/.test(line.trim())
+                return (
+                  <div key={i} style={{
+                    fontSize: 12, lineHeight: 1.6, color: 'var(--c-text-2)',
+                    display: 'flex', alignItems: 'baseline', gap: 6,
+                  }}>
+                    {hasEmoji ? (
+                      <span style={{ whiteSpace: 'pre-wrap' }}>{line}</span>
+                    ) : (
+                      <span style={{ color: 'var(--c-text-3)' }}>{line}</span>
+                    )}
+                  </div>
+                )
+              })}
+              {isLong && (
+                <button
+                  onClick={e => { e.stopPropagation(); setExpanded(v => !v) }}
+                  style={{
+                    marginTop: 4, fontSize: 11, fontWeight: 600,
+                    color: cfg.color, background: 'none', border: 'none',
+                    cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 3,
+                  }}
+                >
+                  <ChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
+                  {expanded ? 'Ver menos' : `Ver ${lines.length - PREVIEW_LINES} líneas más`}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Footer */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {n.sender_name && <span style={{ fontSize: 10, color: 'var(--c-text-4)', fontWeight: 600 }}>de {n.sender_name}</span>}
+            <span style={{ fontSize: 10, color: 'var(--c-text-4)' }}>{ago}</span>
+          </div>
         </div>
       </div>
     </div>

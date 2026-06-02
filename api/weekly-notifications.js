@@ -90,25 +90,32 @@ export default async function handler(req, res) {
       const summaryLines = []
       const adminIds = members.filter(m => m.role === 'admin').map(m => m.id)
 
+      const over  = []   // members with positive overtime
+      const exact = []   // members exactly on target (±15min)
+      const under = []   // members below target
+
       for (const m of members) {
         const weekH = prevWeekMap[m.user_email] || 0
         const diff  = weekH - STANDARD_HOURS
         const acu   = parseFloat(m.acumulado)
-        const comp  = parseFloat(m.compensado)
         const deb   = parseFloat(m.debido)
 
-        const diffStr = diff >= 0
-          ? `+${fmtH(diff)} sobre el estándar`
-          : `${fmtH(diff)} bajo el estándar`
+        // ── Personal message ───────────────────────────
+        const statusLine = diff >= 0.25
+          ? `✅  ${fmtH(diff)} por encima del estándar`
+          : diff <= -0.25
+          ? `⚠️  ${fmtH(Math.abs(diff))} por debajo del estándar`
+          : `✅  Semana completada al 100%`
 
         const personalMsg = [
-          `📅 Semana: ${wLabel}`,
-          `⏱ Horas registradas: ${fmtH(weekH)} (${diffStr})`,
+          `📅  Semana del ${wLabel}`,
           ``,
-          `📊 Balance acumulado:`,
-          `   Acumulado: ${fmtH(acu)}`,
-          `   Compensado: ${fmtH(comp)}`,
-          `   Debido: ${deb >= 0 ? fmtH(deb) + ' pendiente de compensar' : fmtH(deb) + ' por debajo del estándar'}`,
+          `⏱  Horas registradas: ${fmtH(weekH)} / ${STANDARD_HOURS}h`,
+          statusLine,
+          ``,
+          `📊  Balance acumulado`,
+          `    • Acumulado (extras):  ${fmtH(acu)}`,
+          `    • Debido (deuda):      ${fmtH(deb)}`,
         ].join('\n')
 
         await db`
@@ -123,21 +130,24 @@ export default async function handler(req, res) {
         `
         totalNotifications++
 
-        // Line for admin summary
-        const debSign = deb > 0.5 ? '🟡' : deb < -0.5 ? '🔴' : '🟢'
-        summaryLines.push(
-          `${debSign} ${m.user_name}: ${fmtH(weekH)} esta semana · Debido: ${fmtH(deb)}`
-        )
+        // Group for admin summary
+        if (diff >= 0.25)       over.push({ name: m.user_name, weekH, diff, deb })
+        else if (diff <= -0.25) under.push({ name: m.user_name, weekH, diff, deb })
+        else                    exact.push({ name: m.user_name, weekH })
       }
 
-      // ── 4. Send admin summary notification ───────────────────
-      if (adminIds.length > 0 && summaryLines.length > 0) {
+      // ── 4. Admin summary ─────────────────────────────
+      if (adminIds.length > 0) {
+        const fmtLine = (icon, name, weekH, diff, deb) =>
+          `${icon}  ${name.padEnd(24)} ${fmtH(weekH)}  (${diff >= 0 ? '+' : ''}${fmtH(diff)}${deb > 0.1 ? `  debe: ${fmtH(deb)}` : ''})`
+
         const adminMsg = [
-          `📅 Resumen del equipo — semana ${wLabel}`,
+          `Semana del ${wLabel}  ·  ${members.length} miembros`,
           ``,
-          ...summaryLines,
-          ``,
-          `Total miembros: ${members.length} · Ver detalle en Compensación de horas`,
+          ...(over.length  ? [`── Por encima de ${STANDARD_HOURS}h ─────────────────`, ...over.map(u  => fmtLine('🟢', u.name, u.weekH, u.diff, u.deb)),  ``] : []),
+          ...(exact.length ? [`── Estándar cumplido ────────────────────────`, ...exact.map(u => fmtLine('⚪', u.name, u.weekH, 0, 0)),                    ``] : []),
+          ...(under.length ? [`── Por debajo de ${STANDARD_HOURS}h ──────────────────`, ...under.map(u => fmtLine('🔴', u.name, u.weekH, u.diff, u.deb)), ``] : []),
+          `Ver detalle completo en Compensación de horas`,
         ].join('\n')
 
         for (const adminId of adminIds) {

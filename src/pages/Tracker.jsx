@@ -283,6 +283,10 @@ export default function Tracker() {
 
     if (syncEnabled) {
       setSyncing(true)
+      // Compute fallback times upfront — needed if Clockify fails
+      const endTime   = new Date()
+      const startTime = new Date(endTime.getTime() - secs * 1000)
+
       try {
         const userId = getClockifyUserId()
         const saved = await clockifyStopTimer(userId)
@@ -301,7 +305,7 @@ export default function Tracker() {
           tasks: selectedTask ? { name: selectedTask.name } : null,
         }
         setEntries(prev => [entry, ...prev])
-        // Also save to Neon for centralised storage
+        // Save to Neon
         initDB().then(() => dbInsertEntry({
           id: saved.id,
           userEmail: user.email,
@@ -318,14 +322,38 @@ export default function Tracker() {
           duration,
           billable: true,
         })).then(() => {
-          // Notify Calendar (and any other page) to refresh in real time
           window.dispatchEvent(new CustomEvent('mytrack:entry-saved', {
             detail: { year: new Date(entry.start_time).getFullYear() }
           }))
         }).catch(err => console.warn('Neon save error:', err.message))
-        toast.success('✅ Guardado en Clockify')
+        toast.success('✅ Tiempo registrado')
       } catch (err) {
-        toast.error('No se pudo sincronizar con Clockify: ' + err.message)
+        // Clockify stop failed — ALWAYS save to Neon so the entry is not lost
+        const localEntry = {
+          userEmail:    user.email,
+          workspaceId:  user.workspace_id || 'xul-ws-1',
+          projectId:    selectedProject?.id || null,
+          projectName:  selectedProject?.name || null,
+          projectColor: selectedProject?.color || null,
+          taskId:       selectedTask?.id || null,
+          taskName:     selectedTask?.name || null,
+          description:  description || '(sin descripción)',
+          startTime:    startTime.toISOString(),
+          endTime:      endTime.toISOString(),
+          duration:     secs,
+        }
+        initDB().then(() => dbInsertEntry(localEntry)).then(saved => {
+          if (saved) {
+            setEntries(prev => [{
+              id: saved.id, description: saved.description,
+              start_time: saved.start_time, end_time: saved.end_time, duration: saved.duration,
+              projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color } : null,
+              tasks: selectedTask ? { name: selectedTask.name } : null,
+            }, ...prev])
+            window.dispatchEvent(new CustomEvent('mytrack:entry-saved', { detail: { year: new Date().getFullYear() } }))
+          }
+        }).catch(e => console.warn('Neon fallback error:', e))
+        toast('⏱ Tiempo guardado en MyTrack · Clockify sin sync', { duration: 4000 })
       } finally {
         setSyncing(false)
       }

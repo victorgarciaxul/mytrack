@@ -3,25 +3,18 @@ import {
   Clock, TrendingUp, TrendingDown, AlertCircle, CheckCircle2,
   Plus, Trash2, ChevronDown, ChevronUp, Users, User, X
 } from 'lucide-react'
+import DateRangePicker from '../components/ui/DateRangePicker'
 import { useRole } from '../context/RoleContext'
 import { useAuth } from '../context/AuthContext'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { initDB, sql, dbGetCompensations, dbAddCompensation, dbDeleteCompensation, dbGetWeeklyHours, getWsId } from '../lib/db'
 import {
   format, startOfWeek, endOfWeek, addWeeks, subWeeks,
-  parseISO, startOfYear, endOfYear, isWithinInterval
+  parseISO, startOfYear, endOfYear, startOfDay, endOfDay,
 } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 const STANDARD_HOURS = 37.5
-
-const RANGE_OPTIONS = [
-  { label: 'Últimas 4 semanas',   weeks: 4  },
-  { label: 'Últimas 8 semanas',   weeks: 8  },
-  { label: 'Últimas 13 semanas',  weeks: 13 },
-  { label: 'Este año',            weeks: null, yearOnly: true },
-  { label: 'Todo el historial',   weeks: 52 },
-]
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function fmtH(h) {
@@ -163,17 +156,11 @@ export default function Overtime() {
   const [expandedUser, setExpandedUser] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving]       = useState(false)
-  const [rangeIdx, setRangeIdx]   = useState(2)  // default: últimas 13 semanas
-
-  // Compute date bounds for the selected range
-  const rangeBounds = useMemo(() => {
-    const opt = RANGE_OPTIONS[rangeIdx]
-    const to = endOfWeek(new Date(), { weekStartsOn: 1 })
-    if (opt.yearOnly) {
-      return { from: startOfYear(new Date()), to }
-    }
-    return { from: startOfWeek(subWeeks(new Date(), opt.weeks), { weekStartsOn: 1 }), to }
-  }, [rangeIdx])
+  // Date range — default: last 13 weeks
+  const [rangeBounds, setRangeBounds] = useState(() => ({
+    from: startOfDay(subWeeks(new Date(), 13)),
+    to:   endOfDay(new Date()),
+  }))
 
   // Sync viewMode once role is loaded
   useEffect(() => {
@@ -312,21 +299,12 @@ export default function Overtime() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* Range selector */}
-          <div style={{ position: 'relative' }}>
-            <select
-              value={rangeIdx}
-              onChange={e => setRangeIdx(Number(e.target.value))}
-              style={{
-                padding: '7px 32px 7px 12px', borderRadius: 9, fontSize: 12, fontWeight: 600,
-                border: '1.5px solid var(--c-border)', background: 'var(--c-bg-muted)',
-                color: 'var(--c-text-1)', cursor: 'pointer', appearance: 'none',
-              }}
-            >
-              {RANGE_OPTIONS.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
-            </select>
-            <ChevronDown size={13} style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--c-text-4)', pointerEvents: 'none' }} />
-          </div>
+          {/* Date range picker */}
+          <DateRangePicker
+            from={rangeBounds.from}
+            to={rangeBounds.to}
+            onChange={({ from, to }) => setRangeBounds({ from, to })}
+          />
           {/* View toggle admin */}
           {isAdmin && (
             <div style={{ display: 'flex', background: 'var(--c-bg-muted)', borderRadius: 9, padding: 3, gap: 2 }}>

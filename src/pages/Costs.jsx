@@ -22,7 +22,7 @@ const PRESETS = [
 ]
 const CUSTOM_IDX = 4
 
-// ── DateRangePicker ─────────────────────────────────────────────────────────
+// ── DateRangePicker (inline — Costs uses preset+custom pattern) ──────────────
 const WEEK_DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 
 function DateRangePicker({ from, to, isActive, onActivate, onChange }) {

@@ -154,6 +154,20 @@ export async function initDB() {
     )
   `
   await db`
+    CREATE TABLE IF NOT EXISTS running_timers (
+      user_email    TEXT PRIMARY KEY,
+      workspace_id  TEXT NOT NULL DEFAULT 'xul-ws-1',
+      started_at    TIMESTAMPTZ NOT NULL,
+      description   TEXT,
+      project_id    TEXT,
+      project_name  TEXT,
+      project_color TEXT,
+      task_id       TEXT,
+      task_name     TEXT,
+      updated_at    TIMESTAMPTZ DEFAULT NOW()
+    )
+  `
+  await db`
     CREATE TABLE IF NOT EXISTS tasks (
       id           TEXT PRIMARY KEY,
       workspace_id TEXT DEFAULT 'xul-ws-1',
@@ -960,6 +974,41 @@ export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId
       clockify_user_id = EXCLUDED.clockify_user_id,
       group_name       = EXCLUDED.group_name
   `
+}
+
+// ── Running timer (cross-device sync) ────────────────────────────────────────
+
+export async function dbSaveRunningTimer({ userEmail, workspaceId, startedAt, description, projectId, projectName, projectColor, taskId, taskName }) {
+  const db = sql()
+  await db`
+    INSERT INTO running_timers
+      (user_email, workspace_id, started_at, description, project_id, project_name, project_color, task_id, task_name)
+    VALUES
+      (${userEmail}, ${workspaceId || 'xul-ws-1'}, ${startedAt}, ${description || null},
+       ${projectId || null}, ${projectName || null}, ${projectColor || null},
+       ${taskId || null}, ${taskName || null})
+    ON CONFLICT (user_email) DO UPDATE SET
+      workspace_id  = EXCLUDED.workspace_id,
+      started_at    = EXCLUDED.started_at,
+      description   = EXCLUDED.description,
+      project_id    = EXCLUDED.project_id,
+      project_name  = EXCLUDED.project_name,
+      project_color = EXCLUDED.project_color,
+      task_id       = EXCLUDED.task_id,
+      task_name     = EXCLUDED.task_name,
+      updated_at    = NOW()
+  `
+}
+
+export async function dbGetRunningTimer(userEmail) {
+  const db = sql()
+  const rows = await db`SELECT * FROM running_timers WHERE user_email = ${userEmail}`
+  return rows[0] || null
+}
+
+export async function dbDeleteRunningTimer(userEmail) {
+  const db = sql()
+  await db`DELETE FROM running_timers WHERE user_email = ${userEmail}`
 }
 
 export async function dbDeleteMember(userEmail) {

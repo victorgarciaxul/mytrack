@@ -54,12 +54,13 @@ export function TimerProvider({ children }) {
     return () => clearInterval(intervalRef.current)
   }, [isRunning])
 
-  function start() {
-    const now = Date.now()
+  function start(customStartedAt) {
+    const now = customStartedAt ? new Date(customStartedAt).getTime() : Date.now()
     startedAtRef.current = now
     saveTimerState({ startedAt: now })
     setIsRunning(true)
-    setElapsed(0)
+    // If restoring from Neon (cross-device), compute correct elapsed time
+    setElapsed(Math.floor((Date.now() - now) / 1000))
   }
 
   function stop() {

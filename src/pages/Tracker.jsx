@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { loadClockifyCache, clockifyStartTimer, clockifyStopTimer, clockifyDeleteEntry, getClockifyUserId, isClockifyUser, clockifyGetProjectTasks } from '../lib/clockify'
 import { getSelectedYear } from '../components/layout/TopBar'
-import { initDB, dbGetEntries, dbInsertEntry, dbDeleteEntry, dbGetMyNotes, dbSaveNote, dbShareNote, dbGetSharedNotes, dbGetAllMembers, dbUpdateNoteContent, dbUnshareNote, dbToggleReaction, ensureReactionsColumn, dbDeleteNote, getWsId } from '../lib/db'
+import { initDB, dbGetEntries, dbInsertEntry, dbDeleteEntry, dbGetMyNotes, dbSaveNote, dbShareNote, dbGetSharedNotes, dbGetAllMembers, dbUpdateNoteContent, dbUnshareNote, dbToggleReaction, ensureReactionsColumn, dbDeleteNote, getWsId, dbSaveRunningTimer, dbGetRunningTimer, dbDeleteRunningTimer } from '../lib/db'
 import { format, parseISO, isToday, isYesterday, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -166,6 +166,54 @@ export default function Tracker() {
 
   const syncEnabled = isClockifyUser(user?.email)
 
+  // ── Cross-device timer sync ──────────────────────────────────
+  async function syncTimerWithNeon() {
+    if (!user?.email) return
+    try {
+      await initDB()
+      const running = await dbGetRunningTimer(user.email)
+      if (running) {
+        // Timer active on another device — restore it here
+        if (!timer.isRunning) {
+          timer.start(running.started_at)  // restores correct elapsed time
+          setDescription(running.description || '')
+          if (running.project_id) {
+            setSelectedProject({
+              id: running.project_id,
+              name: running.project_name || '',
+              color: running.project_color || '#7C4DFF',
+            })
+          }
+          if (running.task_id) {
+            setSelectedTask({ id: running.task_id, name: running.task_name || '' })
+          }
+        }
+      } else {
+        // No active timer in Neon — if we're running locally, something stopped it elsewhere
+        if (timer.isRunning) {
+          timer.reset()
+          setDescription('')
+          setSelectedProject(null)
+          setSelectedTask(null)
+        }
+      }
+    } catch (err) {
+      console.warn('Timer sync error:', err)
+    }
+  }
+
+  // Sync on mount
+  useEffect(() => { syncTimerWithNeon() }, [user?.email])
+
+  // Sync when user returns to the app (phone unlock, tab focus)
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === 'visible') syncTimerWithNeon()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [user?.email])
+
   async function handleStart() {
     if (syncEnabled) {
       if (!selectedProject) {
@@ -179,7 +227,20 @@ export default function Tracker() {
           projectId: selectedProject?.id || null,
           taskId: selectedTask?.id || null,
         })
+        const startedAt = new Date().toISOString()
         timer.start()
+        // Save to Neon so other devices can see the running timer
+        dbSaveRunningTimer({
+          userEmail: user.email,
+          workspaceId: user.workspace_id || 'xul-ws-1',
+          startedAt,
+          description: description || '',
+          projectId: selectedProject?.id || null,
+          projectName: selectedProject?.name || null,
+          projectColor: selectedProject?.color || null,
+          taskId: selectedTask?.id || null,
+          taskName: selectedTask?.name || null,
+        }).catch(err => console.warn('Save running timer error:', err))
         toast.success('⏱ Timer iniciado en Clockify')
       } catch (err) {
         toast.error('Error al iniciar en Clockify: ' + err.message)
@@ -187,12 +248,27 @@ export default function Tracker() {
         setSyncing(false)
       }
     } else {
+      const startedAt = new Date().toISOString()
       timer.start()
+      // Save to Neon so other devices can see the running timer
+      dbSaveRunningTimer({
+        userEmail: user.email,
+        workspaceId: user.workspace_id || 'xul-ws-1',
+        startedAt,
+        description: description || '',
+        projectId: selectedProject?.id || null,
+        projectName: selectedProject?.name || null,
+        projectColor: selectedProject?.color || null,
+        taskId: selectedTask?.id || null,
+        taskName: selectedTask?.name || null,
+      }).catch(err => console.warn('Save running timer error:', err))
     }
   }
 
   async function handleStop() {
     const secs = timer.stop()
+    // Always clear the running timer from Neon (cross-device cleanup)
+    dbDeleteRunningTimer(user.email).catch(err => console.warn('Delete running timer error:', err))
     if (secs < 5) { timer.reset(); return }
 
     if (syncEnabled) {

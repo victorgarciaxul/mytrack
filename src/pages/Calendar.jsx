@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, ChevronRight, Clock, Pencil, Trash2, TrendingUp, CalendarDays, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, Pencil, Trash2, TrendingUp, CalendarDays, X, Radio } from 'lucide-react'
 import EditEntryModal from '../components/timer/EditEntryModal'
 import { initDB as _initDB, dbDeleteEntry } from '../lib/db'
 import toast from 'react-hot-toast'
@@ -14,6 +14,9 @@ import { es } from 'date-fns/locale'
 import { useAuth } from '../context/AuthContext'
 import { loadClockifyCache, isClockifyUser } from '../lib/clockify'
 import { initDB, dbGetEntries } from '../lib/db'
+import { useTimerContext } from '../context/TimerContext'
+
+const ACTIVE_KEY = 'mytrack-active-entry'
 
 const DAY_LABELS     = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 const DAY_LABELS_MOB = ['L',   'M',   'X',   'J',   'V',   'S',   'D']
@@ -37,6 +40,7 @@ function secsToHMFull(secs) {
 export default function Calendar() {
   const isMobile = useMediaQuery('(max-width: 768px)')
   const { user, isDemo } = useAuth()
+  const timer = useTimerContext()
   const [current, setCurrent] = useState(new Date())
   const [selected, setSelected] = useState(null)
   const [entries, setEntries] = useState([])
@@ -44,6 +48,12 @@ export default function Calendar() {
   const [editingEntry, setEditingEntry] = useState(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [modalVisible, setModalVisible] = useState(false)
+
+  // Live entry — running timer shown in today's modal
+  const activeEntry = useMemo(() => {
+    if (!timer.isRunning) return null
+    try { return JSON.parse(localStorage.getItem(ACTIVE_KEY)) || null } catch { return null }
+  }, [timer.isRunning])
 
   // Load entries from Neon — always the source of truth
   function loadEntries(email, year) {
@@ -120,6 +130,8 @@ export default function Calendar() {
     new Set(monthEntries.map(e => format(parseISO(e.start_time), 'yyyy-MM-dd'))).size, [monthEntries])
 
   const selectedEntries = selected ? (byDay[format(selected, 'yyyy-MM-dd')] || []) : []
+  // Show live timer card only when modal is open for TODAY
+  const liveEntry = selected && isToday(selected) && timer.isRunning ? activeEntry : null
 
   function openModal(day) {
     setSelected(day)
@@ -174,6 +186,7 @@ export default function Calendar() {
     <>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes pulse { 0%,100% { box-shadow: 0 0 0 4px #22C55E30 } 50% { box-shadow: 0 0 0 8px #22C55E15 } }
         @keyframes slideInUp {
           from { opacity: 0; transform: translateY(20px) scale(0.97) }
           to   { opacity: 1; transform: translateY(0) scale(1) }
@@ -564,7 +577,7 @@ export default function Calendar() {
                 }}>
                   <Clock size={13} color="rgba(255,255,255,0.8)" />
                   <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
-                    {secsToHMFull(selectedEntries.reduce((s, e) => s + (e.duration || 0), 0))}
+                    {secsToHMFull(selectedEntries.reduce((s, e) => s + (e.duration || 0), 0) + (liveEntry ? timer.elapsed : 0))}
                   </span>
                 </div>
                 <div style={{
@@ -573,10 +586,10 @@ export default function Calendar() {
                   borderRadius: 10, padding: '7px 12px',
                 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)' }}>
-                    {selectedEntries.length}
+                    {selectedEntries.length + (liveEntry ? 1 : 0)}
                   </span>
                   <span style={{ fontSize: 12, color: 'var(--c-text-3)', fontWeight: 400 }}>
-                    {selectedEntries.length === 1 ? 'entrada' : 'entradas'}
+                    {(selectedEntries.length + (liveEntry ? 1 : 0)) === 1 ? 'entrada' : 'entradas'}
                   </span>
                 </div>
 
@@ -601,7 +614,67 @@ export default function Calendar() {
 
             {/* ── Timeline entries ── */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 24px' }}>
-              {selectedEntries.length === 0 ? (
+
+              {/* ── Live timer card — only on today ── */}
+              {liveEntry && (
+                <div style={{
+                  display: 'flex', gap: 14, marginBottom: 10,
+                }}>
+                  {/* Spine dot */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 14, flexShrink: 0 }}>
+                    <div style={{
+                      width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+                      background: '#22C55E', boxShadow: '0 0 0 4px #22C55E30',
+                      animation: 'pulse 1.5s ease-in-out infinite',
+                    }} />
+                  </div>
+                  {/* Card */}
+                  <div style={{
+                    flex: 1, borderRadius: 14,
+                    background: 'linear-gradient(135deg, #22C55E0A, #10B9810A)',
+                    border: '1.5px solid #22C55E40',
+                    padding: '12px 14px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                      <p style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)', margin: 0 }}>
+                        {liveEntry.description || <span style={{ color: 'var(--c-text-4)', fontStyle: 'italic' }}>Sin descripción</span>}
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                        <Radio size={11} color="#22C55E" />
+                        <span style={{ fontSize: 13, fontWeight: 800, color: '#22C55E', fontVariantNumeric: 'tabular-nums' }}>
+                          {timer.formatted}
+                        </span>
+                      </div>
+                    </div>
+                    {liveEntry.project && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          background: (liveEntry.project.color || '#7C4DFF') + '15',
+                          border: `1px solid ${liveEntry.project.color || '#7C4DFF'}28`,
+                          borderRadius: 6, padding: '2px 7px',
+                        }}>
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: liveEntry.project.color || '#7C4DFF', flexShrink: 0 }} />
+                          <span style={{ fontSize: 11, fontWeight: 600, color: liveEntry.project.color || '#7C4DFF' }}>
+                            {liveEntry.project.name}
+                          </span>
+                        </div>
+                        {liveEntry.task && (
+                          <span style={{ fontSize: 11, color: 'var(--c-text-4)', fontWeight: 500 }}>› {liveEntry.task.name}</span>
+                        )}
+                      </div>
+                    )}
+                    <div style={{ marginTop: 6 }}>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em',
+                        color: '#22C55E', background: '#22C55E15', borderRadius: 4, padding: '2px 6px',
+                      }}>En curso</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {selectedEntries.length === 0 && !liveEntry ? (
                 <div style={{
                   display: 'flex', flexDirection: 'column',
                   alignItems: 'center', justifyContent: 'center',

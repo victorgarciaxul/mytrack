@@ -112,13 +112,25 @@ export default function Tracker() {
       .catch(console.error)
   }, [user?.email])
 
-  // Load tasks when project changes
+  // Load tasks when project changes — merge Clockify API tasks + local workspace tasks
   useEffect(() => {
     if (!selectedProject) { setProjectTasks([]); return }
     setLoadingTasks(true)
+    const localTasks = getTasksForProject(selectedProject.id).map(t => ({
+      id: t.id, name: t.name,
+    }))
     clockifyGetProjectTasks(selectedProject.id)
-      .then(tasks => { setProjectTasks(tasks); setLoadingTasks(false) })
-      .catch(() => setLoadingTasks(false))
+      .then(apiTasks => {
+        // Merge: local tasks first, then any Clockify tasks not already in local
+        const localIds = new Set(localTasks.map(t => t.id))
+        const merged = [...localTasks, ...apiTasks.filter(t => !localIds.has(t.id))]
+        setProjectTasks(merged.length > 0 ? merged : apiTasks)
+        setLoadingTasks(false)
+      })
+      .catch(() => {
+        setProjectTasks(localTasks)
+        setLoadingTasks(false)
+      })
   }, [selectedProject?.id])
 
   // ── Neon load helper ───────────────────────────────────────────
@@ -157,12 +169,14 @@ export default function Tracker() {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [user?.email])
 
-  // Cross-device: poll every 60 s while page is visible
-  // Covers iOS Safari where visibilitychange is unreliable
+  // Cross-device: poll every 30 s while page is visible
+  // Also syncs running-timer state so a stop on another device is detected quickly
   useEffect(() => {
     const id = setInterval(() => {
-      if (document.visibilityState === 'visible') loadFromNeon()
-    }, 60_000)
+      if (document.visibilityState !== 'visible') return
+      loadFromNeon()
+      syncTimerWithNeon()
+    }, 30_000)
     return () => clearInterval(id)
   }, [user?.email])
 
@@ -179,11 +193,20 @@ export default function Tracker() {
   // This avoids race conditions where Neon hasn't saved yet but local is already running.
   async function syncTimerWithNeon() {
     if (!user?.email) return
-    if (timer.isRunning) return   // local timer is active — don't touch it
     try {
       await initDB()
       const running = await dbGetRunningTimer(user.email)
-      if (!running) return        // nothing to restore
+      if (timer.isRunning && !running) {
+        // Timer was stopped on another device — stop here too
+        timer.reset()
+        setDescription('')
+        setSelectedProject(null)
+        setSelectedTask(null)
+        localStorage.removeItem(ACTIVE_KEY)
+        return
+      }
+      if (timer.isRunning) return  // local timer running and Neon confirms it — leave it
+      if (!running) return          // nothing to restore
       // Timer was started on another device — restore here
       timer.start(running.started_at)
       setDescription(running.description || '')
@@ -215,15 +238,15 @@ export default function Tracker() {
   }, [user?.email])
 
   async function handleStart() {
+    if (!selectedProject) {
+      toast.error('Selecciona un proyecto antes de iniciar')
+      return
+    }
+    if (!selectedTask) {
+      toast.error('Selecciona una tarea antes de iniciar')
+      return
+    }
     if (syncEnabled) {
-      if (!selectedProject) {
-        toast.error('Selecciona un proyecto antes de iniciar')
-        return
-      }
-      if (!selectedTask) {
-        toast.error('Selecciona una tarea antes de iniciar')
-        return
-      }
       setSyncing(true)
       // ── Timer ALWAYS starts in MyTrack — Clockify sync is best-effort ──
       const startedAt = new Date().toISOString()
@@ -670,7 +693,7 @@ export default function Tracker() {
                     setSelectedTask(null)
                   }}
                   options={projects.filter(p => !p.archived).map(p => ({ value: p.id, label: p.name, color: p.color }))}
-                  placeholder={syncEnabled && !selectedProject ? '⚠️ Proyecto requerido' : 'Proyecto'}
+                  placeholder={!selectedProject ? '⚠️ Proyecto requerido' : 'Proyecto'}
                   clearLabel="Sin proyecto"
                   style={{ fontSize: 12 }}
                 />
@@ -686,7 +709,7 @@ export default function Tracker() {
                       setSelectedTask(t || null)
                     }}
                     options={projectTasks.map(t => ({ value: t.id, label: t.name, color: '#7C4DFF' }))}
-                    placeholder={loadingTasks ? 'Cargando…' : 'Tarea'}
+                    placeholder={loadingTasks ? 'Cargando…' : !selectedTask ? '⚠️ Tarea requerida' : 'Tarea'}
                     clearLabel="Sin tarea"
                     disabled={loadingTasks}
                     style={{ fontSize: 12 }}

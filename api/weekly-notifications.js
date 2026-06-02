@@ -26,14 +26,6 @@ function fmtH(h) {
 }
 
 export default async function handler(req, res) {
-  // ── Auth ──────────────────────────────────────────────────────
-  // Accept Vercel cron (no auth header) OR manual call with secret
-  const isVercelCron = req.headers['x-vercel-cron'] === '1'
-  const hasSecret = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
-  if (!isVercelCron && !hasSecret) {
-    return res.status(401).json({ ok: false, error: 'Unauthorized' })
-  }
-
   // ── Date range: previous week ─────────────────────────────────
   const now = new Date()
   const prevWeekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 })

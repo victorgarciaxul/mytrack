@@ -214,14 +214,32 @@ export default function Tracker() {
       }
       setSyncing(true)
       try {
-        await clockifyStartTimer({
-          description: description || '',
-          projectId: selectedProject?.id || null,
-          taskId: selectedTask?.id || null,
-        })
+        // Try with task first; if Clockify rejects it (completed/required), retry without
+        let taskIdToSend = selectedTask?.id || null
+        try {
+          await clockifyStartTimer({
+            description: description || '',
+            projectId: selectedProject?.id || null,
+            taskId: taskIdToSend,
+          })
+        } catch (firstErr) {
+          const msg = firstErr.message || ''
+          if (taskIdToSend && (msg.includes('Task') || msg.includes('task') || msg.includes('501'))) {
+            // Task completed/required error — retry without task
+            taskIdToSend = null
+            setSelectedTask(null)
+            await clockifyStartTimer({
+              description: description || '',
+              projectId: selectedProject?.id || null,
+              taskId: null,
+            })
+            toast('⚠️ La tarea estaba completada en Clockify, timer iniciado sin tarea', { duration: 4000 })
+          } else {
+            throw firstErr   // re-throw unrelated errors
+          }
+        }
         const startedAt = new Date().toISOString()
         timer.start()
-        // Save to Neon so other devices can see the running timer
         dbSaveRunningTimer({
           userEmail: user.email,
           workspaceId: user.workspace_id || 'xul-ws-1',
@@ -230,10 +248,10 @@ export default function Tracker() {
           projectId: selectedProject?.id || null,
           projectName: selectedProject?.name || null,
           projectColor: selectedProject?.color || null,
-          taskId: selectedTask?.id || null,
-          taskName: selectedTask?.name || null,
+          taskId: taskIdToSend,
+          taskName: taskIdToSend ? selectedTask?.name || null : null,
         }).catch(err => console.warn('Save running timer error:', err))
-        toast.success('⏱ Timer iniciado en Clockify')
+        if (taskIdToSend) toast.success('⏱ Timer iniciado en Clockify')
       } catch (err) {
         toast.error('Error al iniciar en Clockify: ' + err.message)
       } finally {
@@ -399,11 +417,28 @@ export default function Tracker() {
     if (syncEnabled) {
       setSyncing(true)
       try {
-        await clockifyStartTimer({
-          description: e.description || '',
-          projectId: proj?.id || null,   // use the live project id, not the archived one
-          taskId: e.task_id || null,
-        })
+        let taskIdToSend = e.task_id || null
+        try {
+          await clockifyStartTimer({
+            description: e.description || '',
+            projectId: proj?.id || null,
+            taskId: taskIdToSend,
+          })
+        } catch (firstErr) {
+          const msg = firstErr.message || ''
+          if (taskIdToSend && (msg.includes('Task') || msg.includes('task') || msg.includes('501'))) {
+            taskIdToSend = null
+            setSelectedTask(null)
+            await clockifyStartTimer({
+              description: e.description || '',
+              projectId: proj?.id || null,
+              taskId: null,
+            })
+            toast('⚠️ La tarea estaba completada en Clockify, timer reactivado sin tarea', { duration: 4000 })
+          } else {
+            throw firstErr
+          }
+        }
         const startedAt = new Date().toISOString()
         timer.start()
         dbSaveRunningTimer({
@@ -414,12 +449,12 @@ export default function Tracker() {
           projectId: proj?.id || null,
           projectName: proj?.name || null,
           projectColor: proj?.color || null,
-          taskId: e.task_id || null,
-          taskName: e.tasks?.name || null,
+          taskId: taskIdToSend,
+          taskName: taskIdToSend ? e.tasks?.name || null : null,
         }).catch(() => {})
-        toast.success('⏱ Timer reactivado en Clockify')
+        if (taskIdToSend) toast.success('⏱ Timer reactivado en Clockify')
       } catch (err) {
-        // Clockify rejected it (archived project, workspace rule, etc.) — start locally
+        // Clockify rejected (archived project, workspace rule…) — start locally
         const startedAt = new Date().toISOString()
         timer.start()
         dbSaveRunningTimer({
@@ -431,7 +466,7 @@ export default function Tracker() {
           projectName: proj?.name || null,
           projectColor: proj?.color || null,
         }).catch(() => {})
-        toast(`⚠️ Clockify rechazó el inicio (${err.message.slice(0, 60)}…). Timer iniciado localmente.`, { duration: 5000 })
+        toast(`⚠️ Clockify rechazó el inicio. Timer iniciado localmente.`, { duration: 4000 })
       } finally {
         setSyncing(false)
       }

@@ -384,35 +384,79 @@ export default function Tracker() {
       toast.error('Para el timer actual antes de reactivar')
       return
     }
-    // Restore description, project and task from the entry
+
+    // Always restore description
     setDescription(e.description || '')
+
+    // Find the project in the active (non-archived) projects list
     const proj = e.projects?.name
       ? projects.find(p => p.name === e.projects.name && !p.archived) || null
       : null
+
     if (e.projects?.name && !proj) {
-      toast.error(`El proyecto "${e.projects.name}" está archivado y no se puede reactivar`)
+      // Project is archived — pre-fill description, clear project, let user pick a new one
+      setSelectedProject(null)
+      setSelectedTask(null)
+      toast(`📋 Descripción restaurada. El proyecto "${e.projects.name}" está archivado — elige uno activo y pulsa ▶`, { duration: 5000 })
       return
     }
+
     setSelectedProject(proj || null)
     setSelectedTask(e.tasks?.name ? { name: e.tasks.name, id: e.task_id } : null)
-    // Start timer
+
     if (syncEnabled) {
       setSyncing(true)
       try {
         await clockifyStartTimer({
           description: e.description || '',
-          projectId: e.project_id || null,
+          projectId: proj?.id || null,   // use the live project id, not the archived one
           taskId: e.task_id || null,
         })
+        const startedAt = new Date().toISOString()
         timer.start()
+        dbSaveRunningTimer({
+          userEmail: user.email,
+          workspaceId: user.workspace_id || 'xul-ws-1',
+          startedAt,
+          description: e.description || '',
+          projectId: proj?.id || null,
+          projectName: proj?.name || null,
+          projectColor: proj?.color || null,
+          taskId: e.task_id || null,
+          taskName: e.tasks?.name || null,
+        }).catch(() => {})
         toast.success('⏱ Timer reactivado en Clockify')
       } catch (err) {
-        toast.error('Error al reactivar: ' + err.message)
+        // Clockify rejected it (archived project, workspace rule, etc.) — start locally
+        const startedAt = new Date().toISOString()
+        timer.start()
+        dbSaveRunningTimer({
+          userEmail: user.email,
+          workspaceId: user.workspace_id || 'xul-ws-1',
+          startedAt,
+          description: e.description || '',
+          projectId: proj?.id || null,
+          projectName: proj?.name || null,
+          projectColor: proj?.color || null,
+        }).catch(() => {})
+        toast(`⚠️ Clockify rechazó el inicio (${err.message.slice(0, 60)}…). Timer iniciado localmente.`, { duration: 5000 })
       } finally {
         setSyncing(false)
       }
     } else {
+      const startedAt = new Date().toISOString()
       timer.start()
+      dbSaveRunningTimer({
+        userEmail: user.email,
+        workspaceId: user.workspace_id || 'xul-ws-1',
+        startedAt,
+        description: e.description || '',
+        projectId: proj?.id || null,
+        projectName: proj?.name || null,
+        projectColor: proj?.color || null,
+        taskId: e.task_id || null,
+        taskName: e.tasks?.name || null,
+      }).catch(() => {})
       toast.success('⏱ Timer reactivado')
     }
   }

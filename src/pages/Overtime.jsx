@@ -485,10 +485,64 @@ function WeekRow({ row, isMobile, isAdmin, onDeleteComp }) {
   )
 }
 
+// ── Week task breakdown (lazy load) ──────────────────────────────────────────
+function WeekTaskBreakdown({ userEmail, wk }) {
+  const [tasks, setTasks] = useState(null)
+
+  useEffect(() => {
+    const from = wk + 'T00:00:00.000Z'
+    const to   = format(endOfWeek(parseISO(wk), { weekStartsOn: 1 }), 'yyyy-MM-dd') + 'T23:59:59.999Z'
+    sql()`
+      SELECT
+        COALESCE(project_name, 'Sin proyecto') AS project_name,
+        project_color,
+        ROUND(SUM(duration) / 3600.0, 2) AS hours
+      FROM time_entries
+      WHERE user_email    = ${userEmail}
+        AND workspace_id  = ${getWsId()}
+        AND duration > 0
+        AND start_time   >= ${from}
+        AND start_time   <= ${to}
+      GROUP BY project_name, project_color
+      ORDER BY hours DESC
+    `.then(rows => setTasks(rows)).catch(() => setTasks([]))
+  }, [userEmail, wk])
+
+  if (!tasks) return (
+    <div style={{ padding: '6px 0', fontSize: 11, color: 'var(--c-text-4)' }}>Cargando proyectos…</div>
+  )
+  if (tasks.length === 0) return (
+    <div style={{ padding: '6px 0', fontSize: 11, color: 'var(--c-text-4)' }}>Sin entradas registradas</div>
+  )
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 4 }}>
+      {tasks.map(p => {
+        const color = p.project_color || '#7C4DFF'
+        const h = parseFloat(p.hours)
+        return (
+          <div key={p.project_name} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '3px 10px', borderRadius: 20,
+            background: color + '18', border: `1px solid ${color}33`,
+          }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
+            <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--c-text-2)' }}>{p.project_name}</span>
+            <span style={{ fontSize: 11, color: 'var(--c-text-4)', fontWeight: 600 }}>
+              {Math.floor(h)}h {Math.round((h % 1) * 60).toString().padStart(2, '0')}m
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── User row (team view) ──────────────────────────────────────────────────────
 function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
   const deb = u.debido    ?? 0
   const acu = u.acumulado ?? 0
+  const [openWeeks, setOpenWeeks] = useState({})
+  function toggleWeek(wk) { setOpenWeeks(p => ({ ...p, [wk]: !p[wk] })) }
 
   // Status dot: red = owes hours, blue = has accumulated, green = neutral
   const hasDeb = deb > 0.05
@@ -557,44 +611,69 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
           {u.weekEntries.length === 0 ? (
             <div style={{ padding: '16px 32px', color: 'var(--c-text-4)', fontSize: 12 }}>Sin horas registradas</div>
           ) : u.weekEntries.slice(0, 12).map(row => {
-            const isOver = row.diff > 0.1
+            const isOver  = row.diff > 0.1
             const hasComp = row.compUsed > 0
+            const wkOpen  = openWeeks[row.wk]
             return (
-              <div key={row.wk} style={{
-                display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr 60px 60px' : '180px 80px 80px 80px 1fr',
-                padding: '8px 32px',
-                borderBottom: '1px solid var(--c-border-light)',
-                alignItems: 'center',
-                background: isOver ? '#F59E0B06' : hasComp ? '#10B98106' : 'transparent',
-              }}>
-                <span style={{ fontSize: 12, color: 'var(--c-text-3)' }}>{weekLabel(row.wk)}</span>
-                <span style={{ fontSize: 12, color: 'var(--c-text-2)', fontWeight: 600 }}>{fmtH(row.h)}</span>
-                {!isMobile && (
-                  <span style={{ fontSize: 12, fontWeight: 600, color: isOver ? '#F59E0B' : '#10B981' }}>
-                    {isOver ? '+' : ''}{fmtH(row.diff)}
-                  </span>
-                )}
-                {!isMobile && (
-                  <span style={{ fontSize: 12, color: '#10B981' }}>
-                    {hasComp ? `-${fmtH(row.compUsed)}` : '—'}
-                  </span>
-                )}
-                {!isMobile && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {row.compEntries.map(c => (
-                      <span key={c.id} style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        fontSize: 11, background: '#10B98118', color: '#10B981',
-                        borderRadius: 6, padding: '2px 7px',
-                      }}>
-                        -{c.comp_hours}h {c.notes && `· ${c.notes}`}
-                        <button onClick={e => { e.stopPropagation(); onDeleteComp(c.id) }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#10B981', display: 'flex', padding: 0, opacity: 0.7 }}>
-                          <X size={10} />
-                        </button>
-                      </span>
-                    ))}
+              <div key={row.wk}>
+                {/* Week summary row — click to toggle project breakdown */}
+                <div
+                  onClick={() => toggleWeek(row.wk)}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: isMobile ? '1fr 60px 60px' : '180px 80px 80px 80px 1fr',
+                    padding: '8px 32px',
+                    borderBottom: wkOpen ? 'none' : '1px solid var(--c-border-light)',
+                    alignItems: 'center', cursor: 'pointer',
+                    background: wkOpen ? '#7C4DFF08' : isOver ? '#F59E0B06' : hasComp ? '#10B98106' : 'transparent',
+                  }}
+                  onMouseEnter={e => { if (!wkOpen) e.currentTarget.style.background = 'var(--c-bg-muted)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = wkOpen ? '#7C4DFF08' : isOver ? '#F59E0B06' : hasComp ? '#10B98106' : 'transparent' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {wkOpen
+                      ? <ChevronUp size={11} color='#7C4DFF' />
+                      : <ChevronDown size={11} color='var(--c-text-4)' />}
+                    <span style={{ fontSize: 12, color: 'var(--c-text-3)' }}>{weekLabel(row.wk)}</span>
+                  </div>
+                  <span style={{ fontSize: 12, color: 'var(--c-text-2)', fontWeight: 600 }}>{fmtH(row.h)}</span>
+                  {!isMobile && (
+                    <span style={{ fontSize: 12, fontWeight: 600, color: isOver ? '#F59E0B' : '#10B981' }}>
+                      {isOver ? '+' : ''}{fmtH(row.diff)}
+                    </span>
+                  )}
+                  {!isMobile && (
+                    <span style={{ fontSize: 12, color: '#10B981' }}>
+                      {hasComp ? `-${fmtH(row.compUsed)}` : '—'}
+                    </span>
+                  )}
+                  {!isMobile && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {row.compEntries.map(c => (
+                        <span key={c.id} style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          fontSize: 11, background: '#10B98118', color: '#10B981',
+                          borderRadius: 6, padding: '2px 7px',
+                        }}>
+                          -{c.comp_hours}h {c.notes && `· ${c.notes}`}
+                          <button onClick={e => { e.stopPropagation(); onDeleteComp(c.id) }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#10B981', display: 'flex', padding: 0, opacity: 0.7 }}>
+                            <X size={10} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Project breakdown — shown when week row is expanded */}
+                {wkOpen && (
+                  <div style={{
+                    padding: '8px 32px 12px 52px',
+                    borderBottom: '1px solid var(--c-border-light)',
+                    background: '#7C4DFF06',
+                  }}>
+                    <WeekTaskBreakdown userEmail={u.email} wk={row.wk} />
                   </div>
                 )}
               </div>

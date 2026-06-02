@@ -144,9 +144,9 @@ export default async function handler(req, res) {
         const adminMsg = [
           `Semana del ${wLabel}  ·  ${members.length} miembros`,
           ``,
-          ...(over.length  ? [`── Por encima de ${STANDARD_HOURS}h ─────────────────`, ...over.map(u  => fmtLine('🟢', u.name, u.weekH, u.diff, u.deb)),  ``] : []),
-          ...(exact.length ? [`── Estándar cumplido ────────────────────────`, ...exact.map(u => fmtLine('⚪', u.name, u.weekH, 0, 0)),                    ``] : []),
-          ...(under.length ? [`── Por debajo de ${STANDARD_HOURS}h ──────────────────`, ...under.map(u => fmtLine('🔴', u.name, u.weekH, u.diff, u.deb)), ``] : []),
+          ...(over.length  ? [`🔵 Por encima de ${STANDARD_HOURS}h ──────────────────`, ...over.map(u  => fmtLine('🔵', u.name, u.weekH, u.diff, u.deb)),  ``] : []),
+          ...(exact.length ? [`🟢 Estándar cumplido ─────────────────────────`, ...exact.map(u => fmtLine('🟢', u.name, u.weekH, 0, 0)),                    ``] : []),
+          ...(under.length ? [`🔴 Por debajo de ${STANDARD_HOURS}h ───────────────────`, ...under.map(u => fmtLine('🔴', u.name, u.weekH, u.diff, u.deb)), ``] : []),
           `Ver detalle completo en Compensación de horas`,
         ].join('\n')
 

@@ -156,11 +156,12 @@ export default function Overtime() {
   const [expandedUser, setExpandedUser] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving]       = useState(false)
-  // Date range — default: last 13 weeks
-  const [rangeBounds, setRangeBounds] = useState(() => ({
-    from: startOfDay(subWeeks(new Date(), 13)),
-    to:   endOfDay(new Date()),
-  }))
+  // Date range — default: last complete week (Mon–Sun)
+  const [rangeBounds, setRangeBounds] = useState(() => {
+    const lastWeekStart = startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 })
+    const lastWeekEnd   = endOfWeek(subWeeks(new Date(), 1),   { weekStartsOn: 1 })
+    return { from: lastWeekStart, to: lastWeekEnd }
+  })
 
   // Sync viewMode once role is loaded
   useEffect(() => {

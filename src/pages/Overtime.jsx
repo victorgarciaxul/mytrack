@@ -229,22 +229,20 @@ export default function Overtime() {
       const group = mb?.group_name || ''
 
       const weekEntries = Object.entries(data.weeks || {}).map(([wk, h]) => {
-        const diff      = h - STANDARD_HOURS                   // net for this week (± )
-        const overtime  = Math.max(0, diff)                    // positive contribution
-        const undertime = Math.max(0, -diff)                   // negative contribution
+        const diff      = h - STANDARD_HOURS
+        const overtime  = Math.max(0, diff)    // hours ABOVE 37.5h → ACUMULADO
+        const undertime = Math.max(0, -diff)   // hours BELOW 37.5h → DEBIDO
         const compEntries = (data.compEntries || []).filter(c => c.week_start === wk)
         const compUsed = compEntries.reduce((s, c) => s + parseFloat(c.comp_hours), 0)
         return { wk, h, overtime, undertime, compUsed, compEntries, diff }
       }).sort((a, b) => b.wk.localeCompare(a.wk))
 
-      // ACUMULADO = overtime bank (only weeks above 37.5h)
-      const acumulado = weekEntries.reduce((s, w) => s + w.overtime, 0)
-      // COMPENSADO = time already taken as comp leave
+      // ACUMULADO = sum of hours worked above 37.5h/week
+      const acumulado  = weekEntries.reduce((s, w) => s + w.overtime, 0)
+      // DEBIDO = sum of hours worked below 37.5h/week (hours owed to employer)
+      const debido     = weekEntries.reduce((s, w) => s + w.undertime, 0)
+      // COMPENSADO = comp hours taken (kept for compat / cards)
       const compensado = (data.compEntries || []).reduce((s, c) => s + parseFloat(c.comp_hours), 0)
-      // Total undertime = weeks worked below 37.5h (deficits)
-      const totalUndertime = weekEntries.reduce((s, w) => s + w.undertime, 0)
-      // DEBIDO = true net balance: overtime earned − undertime owed − comp taken
-      const debido = acumulado - totalUndertime - compensado
 
       return { email, name, group, weekEntries, acumulado, compensado, debido,
         // keep old names for compat
@@ -303,11 +301,12 @@ export default function Overtime() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* Date range picker */}
+          {/* Date range picker — week mode: snaps to Mon–Sun */}
           <DateRangePicker
             from={rangeBounds.from}
             to={rangeBounds.to}
             onChange={({ from, to }) => setRangeBounds({ from, to })}
+            weekMode
           />
           {/* View toggle admin */}
           {isAdmin && (
@@ -343,20 +342,14 @@ export default function Overtime() {
               icon={TrendingUp} label='ACUMULADO'
               value={myData ? fmtHShort(myData.acumulado) : '0h'}
               color='#7C4DFF'
-              sub='Horas extra generadas en el período'
+              sub='Semanas por encima de 37,5h'
             />
             <BalanceCard
-              icon={CheckCircle2} label='COMPENSADO'
-              value={myData ? fmtHShort(myData.compensado) : '0h'}
-              color='#10B981'
-              sub='Horas ya disfrutadas / descontadas'
-            />
-            <BalanceCard
-              icon={myData?.debido > 0.05 ? TrendingUp : myData?.debido < -0.05 ? TrendingDown : CheckCircle2}
+              icon={myData?.debido > 0.05 ? TrendingDown : CheckCircle2}
               label='DEBIDO'
               value={myData ? fmtHShort(myData.debido) : '0h'}
-              color={!myData || Math.abs(myData.debido) < 0.05 ? '#10B981' : myData.debido > 0 ? '#F59E0B' : '#EF4444'}
-              sub={myData?.debido > 0.05 ? 'La empresa te debe este tiempo' : myData?.debido < -0.05 ? 'Debes estas horas a la empresa' : 'Al día'}
+              color={!myData || myData.debido < 0.05 ? '#10B981' : '#EF4444'}
+              sub={myData?.debido > 0.05 ? 'Horas por debajo del estándar' : 'Sin horas pendientes'}
             />
           </div>
 
@@ -485,8 +478,9 @@ function WeekRow({ row, isMobile, isAdmin, onDeleteComp }) {
 
 // ── User row (team view) ──────────────────────────────────────────────────────
 function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
-  const deb = u.debido ?? u.balance
-  const balanceColor = Math.abs(deb) < 0.05 ? '#10B981' : deb > 0 ? '#F59E0B' : '#EF4444'
+  const deb = u.debido ?? 0
+  // DEBIDO = undertime hours → red if > 0 (owes hours), green if 0
+  const balanceColor = deb < 0.05 ? '#10B981' : '#EF4444'
 
   return (
     <>

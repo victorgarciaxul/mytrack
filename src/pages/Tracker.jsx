@@ -212,6 +212,10 @@ export default function Tracker() {
         toast.error('Selecciona un proyecto antes de iniciar')
         return
       }
+      if (!selectedTask) {
+        toast.error('Selecciona una tarea antes de iniciar')
+        return
+      }
       setSyncing(true)
       // ── Timer ALWAYS starts in MyTrack — Clockify sync is best-effort ──
       const startedAt = new Date().toISOString()

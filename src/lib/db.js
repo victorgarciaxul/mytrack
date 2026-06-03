@@ -275,6 +275,47 @@ async function _runInitDB() {
 
   // Migrate existing tables (safe to run repeatedly)
   await db`ALTER TABLE workspace_members ADD COLUMN IF NOT EXISTS group_name TEXT`
+
+  // Seed hourly rates from the team spreadsheet — only sets rate when it's 0 (never overwrites)
+  await db`
+    UPDATE workspace_members SET hourly_rate = v.rate
+    FROM (VALUES
+      ('aitorrecalde@xul.es',    25.00),
+      ('alejandraperea@xul.es',  18.00),
+      ('asuncionblanco@xul.es',  20.00),
+      ('auximazuecos@xul.es',    21.00),
+      ('carlagarcia@xul.es',     31.50),
+      ('elenarojo@xul.es',       23.00),
+      ('inmaosuna@xul.es',       25.00),
+      ('inmaculadaosuna@xul.es', 25.00),
+      ('irenezurita@xul.es',     18.00),
+      ('javierdura@xul.es',      18.00),
+      ('javierramirez@xul.es',   31.50),
+      ('jesusmije@xul.es',       16.00),
+      ('jorgemelo@xul.es',       23.00),
+      ('joseluisacedo@xul.es',   23.00),
+      ('josemitoribio@xul.es',   20.00),
+      ('lolagravan@xul.es',      20.00),
+      ('cristinafernandez@xul.es',20.00),
+      ('mariopulido@xul.es',     21.00),
+      ('martagarcia@xul.es',     20.00),
+      ('miguelperez@xul.es',     21.00),
+      ('olgaalba@xul.es',        20.00),
+      ('pablohernandez@xul.es',  21.00),
+      ('pepegomez@xul.es',       29.00),
+      ('pilarsalles@xul.es',     20.00),
+      ('rociohernandez@xul.es',  29.00),
+      ('sandravinas@xul.es',     20.00),
+      ('saracliment@xul.es',     20.00),
+      ('saramoran@xul.es',       20.00),
+      ('sarasanchez@xul.es',     21.00),
+      ('silviamunoz@xul.es',     21.00),
+      ('teresamarcos@xul.es',    24.00),
+      ('victorgarcia@xul.es',    25.00)
+    ) AS v(email, rate)
+    WHERE workspace_members.user_email = v.email
+      AND (workspace_members.hourly_rate IS NULL OR workspace_members.hourly_rate = 0)
+  `
   await db`ALTER TABLE workspace_members ADD COLUMN IF NOT EXISTS weekly_hours NUMERIC DEFAULT 37.5`
   // Set individual weekly hours for part-time profiles
   await db`UPDATE workspace_members SET weekly_hours = 10   WHERE user_email = 'saracliment@xul.es'   AND weekly_hours = 37.5`

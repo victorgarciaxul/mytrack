@@ -483,8 +483,22 @@ export default function Tracker() {
       return
     }
 
-    setSelectedProject(proj || null)
-    setSelectedTask(e.tasks?.name ? { name: e.tasks.name, id: e.task_id } : null)
+    // Validate: project + task required
+    if (!proj) {
+      setSelectedProject(null)
+      setSelectedTask(null)
+      toast.error('Esta entrada no tiene proyecto — selecciona uno y pulsa ▶')
+      return
+    }
+    if (!e.tasks?.name) {
+      setSelectedProject(proj)
+      setSelectedTask(null)
+      toast.error('Esta entrada no tiene tarea — selecciona una y pulsa ▶')
+      return
+    }
+
+    setSelectedProject(proj)
+    setSelectedTask({ name: e.tasks.name, id: e.task_id })
 
     if (syncEnabled) {
       setSyncing(true)

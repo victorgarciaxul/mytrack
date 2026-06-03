@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { DollarSign, ChevronDown, ChevronUp, TrendingUp, Users, Briefcase, Filter, CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useRole } from '../context/RoleContext'
 import { useNavigate } from 'react-router-dom'
-import { sql, getWsId } from '../lib/db'
+import { sql, getWsId, initDB } from '../lib/db'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, addMonths, isSameDay, getDaysInMonth, getDay, startOfDay, endOfDay } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -265,6 +265,8 @@ export default function Costs() {
     async function load() {
       setLoading(true)
       try {
+        // Ensure migration has run (adds monthly_cost, weekly_hours, etc.)
+        await initDB()
         const db = sql()
         const [mems, ents] = await Promise.all([
           db`SELECT id, user_name, user_email, hourly_rate, group_name, COALESCE(monthly_cost, 0) AS monthly_cost

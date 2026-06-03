@@ -108,7 +108,7 @@ function DateRangePicker({ from, to, isActive, onActivate, onChange }) {
           transition: 'all 0.15s', whiteSpace: 'nowrap',
         }}
       >
-        <CalendarRange size={13} />
+        <CalendarPange size={13} />
         {triggerLabel}
       </button>
 
@@ -365,19 +365,24 @@ export default function Costs() {
       const rate = rateMap[e.user_email] || 0
       if (!rate) return
       const mc   = monthlyCostMap[e.user_email] || 0
-      const personTotal = personTotalSecs[e.user_email] || e.duration // fallback = this entry
-      // Cap at 160h for cost — if worked more, monthly_cost is already 100% used
+      const personTotal = personTotalSecs[e.user_email] || e.duration
       const cappedTotal = Math.max(personTotal, CAPACITY_HOURS * 3600)
       const projId = e.project_id || '__none__'
       if (!map[projId]) map[projId] = {
         id: projId, name: e.project_name || 'Sin proyecto', color: e.project_color || '#888',
-        totalSecs: 0, totalCost: 0, totalImputCost: 0, people: {},
+        totalSecs: 0, totalCost: 0, totalImputCost: 0,
+        imputBudgets: {},  // email → effective budget (counted once per person)
+        people: {},
       }
       const cost      = (e.duration / 3600) * rate
-      const imputCost = (e.duration / cappedTotal) * mc        // cost: capped at 160h
+      const imputCost = (e.duration / cappedTotal) * mc
       map[projId].totalSecs += e.duration
       map[projId].totalCost += cost
       map[projId].totalImputCost += imputCost
+      // Accumulate each person's effective budget once per project
+      if (mc > 0 && !map[projId].imputBudgets[e.user_email]) {
+        map[projId].imputBudgets[e.user_email] = mc * Math.min(personTotal / (CAPACITY_HOURS * 3600), 1)
+      }
       const mb   = members.find(m => m.user_email === e.user_email)
       const pKey = e.user_email
       if (!map[projId].people[pKey]) map[projId].people[pKey] = {
@@ -387,6 +392,10 @@ export default function Costs() {
       map[projId].people[pKey].secs      += e.duration
       map[projId].people[pKey].cost      += cost
       map[projId].people[pKey].imputCost += imputCost
+    })
+    // Compute totalImputBudget = Σ effective budgets of people in project
+    Object.values(map).forEach(proj => {
+      proj.totalImputBudget = Object.values(proj.imputBudgets).reduce((s, b) => s + b, 0)
     })
     return Object.values(map).sort((a, b) => {
       const v = sortCol === 'cost' ? b.totalCost - a.totalCost
@@ -439,10 +448,20 @@ export default function Costs() {
   }, [filtered, rateMap, monthlyCostMap, personTotalSecs, members, sortCol, sortDir])
 
   // Totals
-  const totalCost       = useMemo(() => byProject.reduce((s, p) => s + p.totalCost, 0), [byProject])
-  const totalSecs       = useMemo(() => byProject.reduce((s, p) => s + p.totalSecs, 0), [byProject])
-  const totalImputCost  = useMemo(() => byProject.reduce((s, p) => s + p.totalImputCost, 0), [byProject])
-  const totalPeople     = useMemo(() => new Set(filtered.filter(e => rateMap[e.user_email] > 0).map(e => e.user_email)).size, [filtered, rateMap])
+  const totalCost         = useMemo(() => byProject.reduce((s, p) => s + p.totalCost, 0), [byProject])
+  const totalSecs         = useMemo(() => byProject.reduce((s, p) => s + p.totalSecs, 0), [byProject])
+  const totalImputCost    = useMemo(() => byProject.reduce((s, p) => s + p.totalImputCost, 0), [byProject])
+  // Budget = unique per person across all projects (avoid double-counting)
+  const totalImputBudget  = useMemo(() => {
+    const seen = {}
+    byProject.forEach(proj => {
+      Object.entries(proj.imputBudgets || {}).forEach(([email, budget]) => {
+        if (!seen[email]) seen[email] = budget
+      })
+    })
+    return Object.values(seen).reduce((s, b) => s + b, 0)
+  }, [byProject])
+  const totalPeople       = useMemo(() => new Set(filtered.filter(e => rateMap[e.user_email] > 0).map(e => e.user_email)).size, [filtered, rateMap])
 
   function toggleSort(col) {
     if (sortCol === col) setSortDir(d => d === 'desc' ? 'asc' : 'desc')
@@ -639,7 +658,9 @@ export default function Costs() {
             {!isMobile && <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-2)' }}>{fmtH(totalSecs)}</span>}
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', textAlign: isMobile ? 'right' : 'left' }}>{fmtEUR(totalCost)}</span>
             {!isMobile && <span />}
-            {!isMobile && <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>—</span>}
+            {!isMobile && <span style={{ fontSize: 13, fontWeight: 700, color: '#8B5CF6' }}>
+              {totalImputBudget > 0 ? fmtPct(totalImputCost / totalImputBudget * 100) : '—'}
+            </span>}
             {!isMobile && <span style={{ fontSize: 13, fontWeight: 700, color: '#8B5CF6' }}>{fmtEUR(totalImputCost)}</span>}
           </div>
         )}
@@ -677,7 +698,9 @@ function ProjectRow({ proj, isMobile, expanded, onToggle }) {
         {!isMobile && <span style={{ fontSize: 13, color: 'var(--c-text-2)' }}>{fmtH(proj.totalSecs)}</span>}
         <span style={{ fontSize: 13, fontWeight: 700, color: '#7C4DFF' }}>{fmtEUR(proj.totalCost)}</span>
         {!isMobile && <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{people.length > 1 ? `${people.length} tarifas` : people[0] ? `${people[0].rate} €/h` : ''}</span>}
-        {!isMobile && <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>—</span>}
+        {!isMobile && <span style={{ fontSize: 12, fontWeight: 600, color: '#8B5CF6' }}>
+          {proj.totalImputBudget > 0 ? fmtPct(proj.totalImputCost / proj.totalImputBudget * 100) : '—'}
+        </span>}
         {!isMobile && <span style={{ fontSize: 12, fontWeight: 700, color: '#8B5CF6' }}>{fmtEUR(proj.totalImputCost)}</span>}
       </div>
 

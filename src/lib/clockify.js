@@ -234,15 +234,22 @@ export async function importFromClockify(onStatus, since = null) {
       }
     })
 
+  // Load deleted IDs from localStorage blocklist — keeps cache coherent with MyTrack deletions
+  let deletedCacheIds = new Set()
+  try {
+    const raw = localStorage.getItem('mytrack-deleted-entry-ids')
+    if (raw) deletedCacheIds = new Set(JSON.parse(raw))
+  } catch {}
+
   let entries
   if (isIncremental && existingCache?.entries?.length) {
     // Merge: keep existing, upsert new ones (replace by id if already exists)
     const newIds = new Set(newVictorEntries.map(e => e.id))
-    const kept = existingCache.entries.filter(e => !newIds.has(e.id))
-    entries = [...newVictorEntries, ...kept]
+    const kept = existingCache.entries.filter(e => !newIds.has(e.id) && !deletedCacheIds.has(e.id))
+    entries = [...newVictorEntries.filter(e => !deletedCacheIds.has(e.id)), ...kept]
       .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
   } else {
-    entries = newVictorEntries
+    entries = newVictorEntries.filter(e => !deletedCacheIds.has(e.id))
   }
 
   // allEntriesForNeon = only new/changed entries (Neon handles upserts)

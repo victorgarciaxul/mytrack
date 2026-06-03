@@ -266,6 +266,13 @@ async function _runInitDB() {
     )
   `
 
+  await db`
+    CREATE TABLE IF NOT EXISTS deleted_entries (
+      id         TEXT PRIMARY KEY,
+      deleted_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `
+
   // Migrate existing tables (safe to run repeatedly)
   await db`ALTER TABLE workspace_members ADD COLUMN IF NOT EXISTS group_name TEXT`
   await db`ALTER TABLE projects ADD COLUMN IF NOT EXISTS access TEXT DEFAULT 'PRIVATE'`
@@ -536,10 +543,17 @@ async function _upsertEntry(db, id, wsId, e) {
  *     (even if tracked by a XUL user), using a suffixed ID to avoid PK conflicts. */
 export async function dbUpsertEntries(entries, onProgress) {
   const db = sql()
+
+  // Load deleted IDs once — skip any entry the user explicitly removed in MyTrack
+  const deletedRows = await db`SELECT id FROM deleted_entries`
+  const deletedIds = new Set(deletedRows.map(r => r.id))
+
+  const toInsert = entries.filter(e => !deletedIds.has(e.id))
+
   const BATCH = 50
   let done = 0
-  for (let i = 0; i < entries.length; i += BATCH) {
-    const batch = entries.slice(i, i + BATCH)
+  for (let i = 0; i < toInsert.length; i += BATCH) {
+    const batch = toInsert.slice(i, i + BATCH)
     for (const e of batch) {
       const ownerWsId = getWsIdForEmail(e.user_email)
 
@@ -549,17 +563,36 @@ export async function dbUpsertEntries(entries, onProgress) {
       // 2. Fundación client entries also land in fundacion-ws-1
       //    Skip if already routed there (avoids double-writing @fundacionxul.org entries)
       if (isFundacionEntry(e) && ownerWsId !== 'fundacion-ws-1') {
-        await _upsertEntry(db, `${e.id}__f`, 'fundacion-ws-1', e)
+        const mirrorId = `${e.id}__f`
+        if (!deletedIds.has(mirrorId)) {
+          await _upsertEntry(db, mirrorId, 'fundacion-ws-1', e)
+        }
       }
     }
     done += batch.length
-    onProgress?.(done, entries.length)
+    onProgress?.(done, toInsert.length)
   }
+}
+
+const DELETED_CACHE_KEY = 'mytrack-deleted-entry-ids'
+
+function _addToLocalDeletedList(id) {
+  try {
+    const raw = localStorage.getItem(DELETED_CACHE_KEY)
+    const ids = raw ? JSON.parse(raw) : []
+    if (!ids.includes(id)) ids.push(id)
+    localStorage.setItem(DELETED_CACHE_KEY, JSON.stringify(ids))
+  } catch {}
 }
 
 export async function dbDeleteEntry(id) {
   const db = sql()
-  await db`DELETE FROM time_entries WHERE id = ${id}`
+  // Register in localStorage blocklist — clockify.js reads this during cache merge
+  _addToLocalDeletedList(id)
+  // Register in Neon — dbUpsertEntries reads this during full import
+  await db`INSERT INTO deleted_entries (id) VALUES (${id}) ON CONFLICT (id) DO NOTHING`
+  await db`INSERT INTO deleted_entries (id) VALUES (${id + '__f'}) ON CONFLICT (id) DO NOTHING`
+  await db`DELETE FROM time_entries WHERE id = ${id} OR id = ${id + '__f'}`
 }
 
 // ── Members ───────────────────────────────────────────────────

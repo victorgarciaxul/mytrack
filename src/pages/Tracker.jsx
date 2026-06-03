@@ -208,18 +208,27 @@ export default function Tracker() {
       if (timer.isRunning) return  // local timer running and Neon confirms it — leave it
       if (!running) return          // nothing to restore
       // Timer was started on another device — restore here
-      timer.start(running.started_at)
-      setDescription(running.description || '')
-      if (running.project_id) {
-        setSelectedProject({
-          id: running.project_id,
-          name: running.project_name || '',
-          color: running.project_color || '#7C4DFF',
-        })
-      }
-      if (running.task_id) {
-        setSelectedTask({ id: running.task_id, name: running.task_name || '' })
-      }
+      // started_at is normalized to ISO string by dbGetRunningTimer
+      const startedAt = running.started_at
+      timer.start(startedAt)
+
+      const desc = running.description || ''
+      setDescription(desc)
+
+      const proj = running.project_id
+        ? { id: running.project_id, name: running.project_name || '', color: running.project_color || '#7C4DFF' }
+        : null
+      const task = running.task_id
+        ? { id: running.task_id, name: running.task_name || '' }
+        : null
+
+      setSelectedProject(proj)
+      setSelectedTask(task)
+
+      // Persist to localStorage so mobile keeps context after a reload
+      localStorage.setItem(ACTIVE_KEY, JSON.stringify({
+        description: desc, project: proj, task,
+      }))
     } catch (err) {
       console.warn('Timer sync error:', err)
     }

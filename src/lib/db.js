@@ -1045,7 +1045,14 @@ export async function dbSaveRunningTimer({ userEmail, workspaceId, startedAt, de
 export async function dbGetRunningTimer(userEmail) {
   const db = sql()
   const rows = await db`SELECT * FROM running_timers WHERE user_email = ${userEmail}`
-  return rows[0] || null
+  if (!rows[0]) return null
+  const r = rows[0]
+  // Neon returns TIMESTAMPTZ as Date objects — normalize to ISO strings
+  return {
+    ...r,
+    started_at: toISO(r.started_at),
+    updated_at: toISO(r.updated_at),
+  }
 }
 
 export async function dbDeleteRunningTimer(userEmail) {

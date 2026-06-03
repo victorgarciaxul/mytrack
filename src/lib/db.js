@@ -275,6 +275,11 @@ async function _runInitDB() {
 
   // Migrate existing tables (safe to run repeatedly)
   await db`ALTER TABLE workspace_members ADD COLUMN IF NOT EXISTS group_name TEXT`
+  await db`ALTER TABLE workspace_members ADD COLUMN IF NOT EXISTS weekly_hours NUMERIC DEFAULT 37.5`
+  // Set individual weekly hours for part-time profiles
+  await db`UPDATE workspace_members SET weekly_hours = 10   WHERE user_email = 'saracliment@xul.es'   AND weekly_hours = 37.5`
+  await db`UPDATE workspace_members SET weekly_hours = 12.5 WHERE user_email = 'saramoran@xul.es'     AND weekly_hours = 37.5`
+  await db`UPDATE workspace_members SET weekly_hours = 30   WHERE user_email = 'martagarcia@xul.es'   AND weekly_hours = 37.5`
   await db`ALTER TABLE projects ADD COLUMN IF NOT EXISTS access TEXT DEFAULT 'PRIVATE'`
   await db`ALTER TABLE clients ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false`
 

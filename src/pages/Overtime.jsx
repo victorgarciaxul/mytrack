@@ -175,7 +175,7 @@ export default function Overtime() {
       await initDB()
       const db = sql()
       const [mems, compsAll] = await Promise.all([
-        db`SELECT id, user_name, user_email, group_name FROM workspace_members WHERE workspace_id = ${getWsId()} ORDER BY user_name`,
+        db`SELECT id, user_name, user_email, group_name, COALESCE(weekly_hours, 37.5) AS weekly_hours FROM workspace_members WHERE workspace_id = ${getWsId()} ORDER BY user_name`,
         dbGetCompensations(null), // all users
       ])
       setMembers(mems)
@@ -228,11 +228,12 @@ export default function Overtime() {
       const mb = members.find(m => m.user_email === email)
       const name = mb?.user_name || email
       const group = mb?.group_name || ''
+      const stdHours = parseFloat(mb?.weekly_hours ?? STANDARD_HOURS)
 
       const weekEntries = Object.entries(data.weeks || {}).map(([wk, h]) => {
-        const diff      = h - STANDARD_HOURS
-        const overtime  = Math.max(0, diff)    // hours ABOVE 37.5h → ACUMULADO
-        const undertime = Math.max(0, -diff)   // hours BELOW 37.5h → DEBIDO
+        const diff      = h - stdHours
+        const overtime  = Math.max(0, diff)    // hours ABOVE weekly target → ACUMULADO
+        const undertime = Math.max(0, -diff)   // hours BELOW weekly target → DEBIDO
         const compEntries = (data.compEntries || []).filter(c => c.week_start === wk)
         const compUsed = compEntries.reduce((s, c) => s + parseFloat(c.comp_hours), 0)
         return { wk, h, overtime, undertime, compUsed, compEntries, diff }
@@ -245,7 +246,7 @@ export default function Overtime() {
       // COMPENSADO = comp hours taken (kept for compat / cards)
       const compensado = (data.compEntries || []).reduce((s, c) => s + parseFloat(c.comp_hours), 0)
 
-      return { email, name, group, weekEntries, acumulado, compensado, debido,
+      return { email, name, group, stdHours, weekEntries, acumulado, compensado, debido,
         // keep old names for compat
         totalOvertime: acumulado, totalCompUsed: compensado, balance: debido }
     }).sort((a, b) => b.debido - a.debido)
@@ -298,7 +299,7 @@ export default function Overtime() {
             Compensación de horas
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--c-text-4)' }}>
-            Semana estándar: {STANDARD_HOURS}h · Las horas extra se acumulan y pueden compensarse
+            Jornada estándar: {STANDARD_HOURS}h · Jornadas individuales aplicadas según perfil
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -373,7 +374,7 @@ export default function Overtime() {
                 No hay registros de horas aún
               </div>
             ) : myData.weekEntries.slice(0, 20).map(row => (
-              <WeekRow key={row.wk} row={row} isMobile={isMobile} isAdmin={isAdmin} onDeleteComp={handleDeleteComp} />
+              <WeekRow key={row.wk} row={row} stdHours={myData.stdHours} isMobile={isMobile} isAdmin={isAdmin} onDeleteComp={handleDeleteComp} />
             ))}
           </div>
         </>
@@ -435,7 +436,7 @@ export default function Overtime() {
 }
 
 // ── Week row (my view) ────────────────────────────────────────────────────────
-function WeekRow({ row, isMobile, isAdmin, onDeleteComp }) {
+function WeekRow({ row, stdHours, isMobile, isAdmin, onDeleteComp }) {
   const isOver = row.diff > 0.1
   const isUnder = row.diff < -0.1
   const hasComp = row.compUsed > 0
@@ -451,7 +452,7 @@ function WeekRow({ row, isMobile, isAdmin, onDeleteComp }) {
     }}>
       <span style={{ fontSize: 13, color: 'var(--c-text-2)', fontWeight: 500 }}>{weekLabel(row.wk)}</span>
       <span style={{ fontSize: 13, color: 'var(--c-text-1)', fontWeight: 600 }}>{fmtH(row.h)}</span>
-      {!isMobile && <span style={{ fontSize: 12, color: 'var(--c-text-4)' }}>{STANDARD_HOURS}h</span>}
+      {!isMobile && <span style={{ fontSize: 12, color: 'var(--c-text-4)' }}>{stdHours ?? STANDARD_HOURS}h</span>}
       <span style={{
         fontSize: 13, fontWeight: 700,
         color: isOver ? '#F59E0B' : isUnder ? '#EF4444' : '#10B981',
@@ -585,7 +586,9 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
           </div>
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)' }}>{u.name}</div>
-            {u.group && !isMobile && <div style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{u.group}</div>}
+            <div style={{ fontSize: 11, color: 'var(--c-text-4)' }}>
+              {u.group && !isMobile ? `${u.group} · ` : ''}{u.stdHours}h/sem
+            </div>
           </div>
           {expanded ? <ChevronUp size={12} color='var(--c-text-4)' /> : <ChevronDown size={12} color='var(--c-text-4)' />}
         </div>

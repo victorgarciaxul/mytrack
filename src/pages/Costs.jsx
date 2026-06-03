@@ -698,10 +698,8 @@ function ProjectRow({ proj, isMobile, expanded, onToggle }) {
         {!isMobile && <span style={{ fontSize: 13, color: 'var(--c-text-2)' }}>{fmtH(proj.totalSecs)}</span>}
         <span style={{ fontSize: 13, fontWeight: 700, color: '#7C4DFF' }}>{fmtEUR(proj.totalCost)}</span>
         {!isMobile && <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{people.length > 1 ? `${people.length} tarifas` : people[0] ? `${people[0].rate} €/h` : ''}</span>}
-        {!isMobile && <span style={{ fontSize: 12, fontWeight: 600, color: '#8B5CF6' }}>
-          {proj.totalImputBudget > 0 ? fmtPct(proj.totalImputCost / proj.totalImputBudget * 100) : '—'}
-        </span>}
-        {!isMobile && <span style={{ fontSize: 12, fontWeight: 700, color: '#8B5CF6' }}>{fmtEUR(proj.totalImputCost)}</span>}
+        {!isMobile && <span />}
+        {!isMobile && <span />}
       </div>
 
       {/* Expanded: people breakdown */}

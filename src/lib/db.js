@@ -280,6 +280,43 @@ async function _runInitDB() {
   await db`UPDATE workspace_members SET weekly_hours = 10   WHERE user_email = 'saracliment@xul.es'   AND weekly_hours = 37.5`
   await db`UPDATE workspace_members SET weekly_hours = 12.5 WHERE user_email = 'saramoran@xul.es'     AND weekly_hours = 37.5`
   await db`UPDATE workspace_members SET weekly_hours = 30   WHERE user_email = 'martagarcia@xul.es'   AND weekly_hours = 37.5`
+
+  // Monthly fixed employment cost (salary + SS) used for imputation calculations
+  await db`ALTER TABLE workspace_members ADD COLUMN IF NOT EXISTS monthly_cost NUMERIC DEFAULT 0`
+  await db`
+    UPDATE workspace_members SET monthly_cost = v.mc
+    FROM (VALUES
+      ('aitorrecalde@xul.es',    3460.42),
+      ('alejandraperea@xul.es',  2454.52),
+      ('asuncionblanco@xul.es',  2559.65),
+      ('auximazuecos@xul.es',    2895.18),
+      ('carlagarcia@xul.es',     4246.68),
+      ('elenarojo@xul.es',       3112.99),
+      ('inmaculadaosuna@xul.es', 3201.56),
+      ('irenezurita@xul.es',     2454.52),
+      ('javierdura@xul.es',      2379.54),
+      ('javierramirez@xul.es',   4360.76),
+      ('jesusmije@xul.es',       2177.95),
+      ('jorgemelo@xul.es',       3070.20),
+      ('joseluisacedo@xul.es',   3189.13),
+      ('josemitoribio@xul.es',   2673.80),
+      ('lolagravan@xul.es',      2782.13),
+      ('mariopulido@xul.es',     2895.18),
+      ('martagarcia@xul.es',     2120.38),
+      ('miguelperez@xul.es',     2760.06),
+      ('olgaalba@xul.es',        2568.41),
+      ('pablohernandez@xul.es',  2895.18),
+      ('pepegomez@xul.es',       3975.94),
+      ('pilarsalles@xul.es',     2649.78),
+      ('rociohernandez@xul.es',  3975.94),
+      ('sandravinas@xul.es',     2715.94),
+      ('saramoran@xul.es',        861.83),
+      ('sarasanchez@xul.es',     2826.24),
+      ('silviamunoz@xul.es',     2826.24),
+      ('victorgarcia@xul.es',    3421.81)
+    ) AS v(email, mc)
+    WHERE workspace_members.user_email = v.email AND workspace_members.monthly_cost = 0
+  `
   await db`ALTER TABLE projects ADD COLUMN IF NOT EXISTS access TEXT DEFAULT 'PRIVATE'`
   await db`ALTER TABLE clients ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false`
 

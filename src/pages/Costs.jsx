@@ -207,6 +207,11 @@ function fmtH(secs) {
   const m = Math.floor((secs % 3600) / 60)
   return `${h}h ${m.toString().padStart(2, '0')}m`
 }
+function fmtPct(n) {
+  return n.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'
+}
+// Capacity reference: standard monthly hours
+const CAPACITY_HOURS = 160
 
 // ── Stat card ───────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value, color, isMobile }) {
@@ -262,7 +267,7 @@ export default function Costs() {
       try {
         const db = sql()
         const [mems, ents] = await Promise.all([
-          db`SELECT id, user_name, user_email, hourly_rate, group_name
+          db`SELECT id, user_name, user_email, hourly_rate, group_name, COALESCE(monthly_cost, 0) AS monthly_cost
              FROM workspace_members
              WHERE workspace_id = ${getWsId()} AND hourly_rate > 0
              ORDER BY user_name`,
@@ -306,6 +311,13 @@ export default function Costs() {
     return m
   }, [members])
 
+  // Build monthly cost map: email -> monthly_cost (for imputation)
+  const monthlyCostMap = useMemo(() => {
+    const m = {}
+    members.forEach(mb => { m[mb.user_email] = parseFloat(mb.monthly_cost) || 0 })
+    return m
+  }, [members])
+
   // All unique projects
   const allProjects = useMemo(() => {
     const map = {}
@@ -339,19 +351,23 @@ export default function Costs() {
     filtered.forEach(e => {
       const rate = rateMap[e.user_email] || 0
       if (!rate) return
+      const mc = monthlyCostMap[e.user_email] || 0
       const projId = e.project_id || '__none__'
       if (!map[projId]) map[projId] = {
         id: projId, name: e.project_name || 'Sin proyecto', color: e.project_color || '#888',
-        totalSecs: 0, totalCost: 0, people: {},
+        totalSecs: 0, totalCost: 0, totalImputCost: 0, people: {},
       }
       const cost = (e.duration / 3600) * rate
+      const imputCost = (e.duration / 3600 / CAPACITY_HOURS) * mc
       map[projId].totalSecs += e.duration
       map[projId].totalCost += cost
+      map[projId].totalImputCost += imputCost
       const mb = members.find(m => m.user_email === e.user_email)
       const pKey = e.user_email
-      if (!map[projId].people[pKey]) map[projId].people[pKey] = { name: mb?.user_name || e.user_email, email: e.user_email, rate, secs: 0, cost: 0 }
+      if (!map[projId].people[pKey]) map[projId].people[pKey] = { name: mb?.user_name || e.user_email, email: e.user_email, rate, mc, secs: 0, cost: 0, imputCost: 0 }
       map[projId].people[pKey].secs += e.duration
       map[projId].people[pKey].cost += cost
+      map[projId].people[pKey].imputCost += imputCost
     })
     return Object.values(map).sort((a, b) => {
       const v = sortCol === 'cost' ? b.totalCost - a.totalCost
@@ -359,7 +375,7 @@ export default function Costs() {
               : a.name.localeCompare(b.name)
       return sortDir === 'asc' ? -v : v
     })
-  }, [filtered, rateMap, members, sortCol, sortDir])
+  }, [filtered, rateMap, monthlyCostMap, members, sortCol, sortDir])
 
   // ── VIEW: by person ────────────────────────────────────────────────────────
   const byPerson = useMemo(() => {
@@ -367,18 +383,22 @@ export default function Costs() {
     filtered.forEach(e => {
       const rate = rateMap[e.user_email] || 0
       if (!rate) return
+      const mc = monthlyCostMap[e.user_email] || 0
       const key = e.user_email
       if (!map[key]) {
         const mb = members.find(m => m.user_email === e.user_email)
-        map[key] = { email: key, name: mb?.user_name || key, rate, group: mb?.group_name || '', totalSecs: 0, totalCost: 0, projects: {} }
+        map[key] = { email: key, name: mb?.user_name || key, rate, mc, group: mb?.group_name || '', totalSecs: 0, totalCost: 0, totalImputCost: 0, projects: {} }
       }
       const cost = (e.duration / 3600) * rate
+      const imputCost = (e.duration / 3600 / CAPACITY_HOURS) * mc
       map[key].totalSecs += e.duration
       map[key].totalCost += cost
+      map[key].totalImputCost += imputCost
       const projId = e.project_id || '__none__'
-      if (!map[key].projects[projId]) map[key].projects[projId] = { name: e.project_name || 'Sin proyecto', color: e.project_color || '#888', secs: 0, cost: 0 }
+      if (!map[key].projects[projId]) map[key].projects[projId] = { name: e.project_name || 'Sin proyecto', color: e.project_color || '#888', secs: 0, cost: 0, imputCost: 0 }
       map[key].projects[projId].secs += e.duration
       map[key].projects[projId].cost += cost
+      map[key].projects[projId].imputCost += imputCost
     })
     return Object.values(map).sort((a, b) => {
       const v = sortCol === 'cost' ? b.totalCost - a.totalCost
@@ -386,11 +406,13 @@ export default function Costs() {
               : a.name.localeCompare(b.name)
       return sortDir === 'asc' ? -v : v
     })
-  }, [filtered, rateMap, members, sortCol, sortDir])
+  }, [filtered, rateMap, monthlyCostMap, members, sortCol, sortDir])
 
   // Totals
-  const totalCost  = useMemo(() => byProject.reduce((s, p) => s + p.totalCost, 0), [byProject])
-  const totalSecs  = useMemo(() => byProject.reduce((s, p) => s + p.totalSecs, 0), [byProject])
+  const totalCost       = useMemo(() => byProject.reduce((s, p) => s + p.totalCost, 0), [byProject])
+  const totalSecs       = useMemo(() => byProject.reduce((s, p) => s + p.totalSecs, 0), [byProject])
+  const totalImputCost  = useMemo(() => byProject.reduce((s, p) => s + p.totalImputCost, 0), [byProject])
+  const totalImputPct   = useMemo(() => totalSecs / 3600 / CAPACITY_HOURS * 100, [totalSecs])
   const totalPeople = useMemo(() => new Set(filtered.filter(e => rateMap[e.user_email] > 0).map(e => e.user_email)).size, [filtered, rateMap])
 
   function toggleSort(col) {
@@ -522,7 +544,7 @@ export default function Costs() {
         {/* Table header */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px',
+          gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px 100px 130px',
           padding: '10px 14px',
           borderBottom: '1px solid var(--c-border-light)',
           background: 'var(--c-bg-muted)',
@@ -540,6 +562,8 @@ export default function Costs() {
             Coste <SortIcon col="cost" />
           </button>
           {!isMobile && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tarifa</span>}
+          {!isMobile && <span style={{ fontSize: 11, fontWeight: 700, color: '#8B5CF6', textTransform: 'uppercase', letterSpacing: '0.5px' }}>% Imputación</span>}
+          {!isMobile && <span style={{ fontSize: 11, fontWeight: 700, color: '#8B5CF6', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Coste imputación</span>}
         </div>
 
         {/* Rows */}
@@ -577,7 +601,7 @@ export default function Costs() {
         {(byProject.length > 0 || byPerson.length > 0) && (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px',
+            gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px 100px 130px',
             padding: '12px 14px',
             borderTop: '2px solid var(--c-border)',
             background: 'var(--c-bg-muted)',
@@ -586,6 +610,8 @@ export default function Costs() {
             {!isMobile && <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-2)' }}>{fmtH(totalSecs)}</span>}
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', textAlign: isMobile ? 'right' : 'left' }}>{fmtEUR(totalCost)}</span>
             {!isMobile && <span />}
+            {!isMobile && <span style={{ fontSize: 13, fontWeight: 700, color: '#8B5CF6' }}>{fmtPct(totalImputPct)}</span>}
+            {!isMobile && <span style={{ fontSize: 13, fontWeight: 700, color: '#8B5CF6' }}>{fmtEUR(totalImputCost)}</span>}
           </div>
         )}
       </div>
@@ -602,7 +628,7 @@ function ProjectRow({ proj, isMobile, expanded, onToggle }) {
         onClick={onToggle}
         style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px',
+          gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px 100px 130px',
           padding: isMobile ? '11px 14px' : '12px 16px',
           borderBottom: '1px solid var(--c-border-light)',
           cursor: 'pointer',
@@ -622,13 +648,15 @@ function ProjectRow({ proj, isMobile, expanded, onToggle }) {
         {!isMobile && <span style={{ fontSize: 13, color: 'var(--c-text-2)' }}>{fmtH(proj.totalSecs)}</span>}
         <span style={{ fontSize: 13, fontWeight: 700, color: '#7C4DFF' }}>{fmtEUR(proj.totalCost)}</span>
         {!isMobile && <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{people.length > 1 ? `${people.length} tarifas` : people[0] ? `${people[0].rate} €/h` : ''}</span>}
+        {!isMobile && <span style={{ fontSize: 12, fontWeight: 600, color: '#8B5CF6' }}>{fmtPct(proj.totalSecs / 3600 / CAPACITY_HOURS * 100)}</span>}
+        {!isMobile && <span style={{ fontSize: 12, fontWeight: 700, color: '#8B5CF6' }}>{fmtEUR(proj.totalImputCost)}</span>}
       </div>
 
       {/* Expanded: people breakdown */}
       {expanded && people.map(p => (
         <div key={p.email} style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px',
+          gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px 100px 130px',
           padding: '8px 16px 8px 36px',
           borderBottom: '1px solid var(--c-border-light)',
           background: 'var(--c-bg-app)',
@@ -643,6 +671,8 @@ function ProjectRow({ proj, isMobile, expanded, onToggle }) {
           {!isMobile && <span style={{ fontSize: 12, color: 'var(--c-text-3)' }}>{fmtH(p.secs)}</span>}
           <span style={{ fontSize: 12, color: 'var(--c-text-2)', fontWeight: 600 }}>{fmtEUR(p.cost)}</span>
           {!isMobile && <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{p.rate} €/h</span>}
+          {!isMobile && <span style={{ fontSize: 11, color: '#8B5CF6', fontWeight: 600 }}>{fmtPct(p.secs / 3600 / CAPACITY_HOURS * 100)}</span>}
+          {!isMobile && <span style={{ fontSize: 11, color: '#8B5CF6', fontWeight: 700 }}>{p.mc > 0 ? fmtEUR(p.imputCost) : '—'}</span>}
         </div>
       ))}
     </>
@@ -658,7 +688,7 @@ function PersonRow({ person, isMobile, expanded, onToggle }) {
         onClick={onToggle}
         style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px',
+          gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px 100px 130px',
           padding: isMobile ? '11px 14px' : '12px 16px',
           borderBottom: '1px solid var(--c-border-light)',
           cursor: 'pointer',
@@ -682,13 +712,15 @@ function PersonRow({ person, isMobile, expanded, onToggle }) {
         {!isMobile && <span style={{ fontSize: 13, color: 'var(--c-text-2)' }}>{fmtH(person.totalSecs)}</span>}
         <span style={{ fontSize: 13, fontWeight: 700, color: '#7C4DFF' }}>{fmtEUR(person.totalCost)}</span>
         {!isMobile && <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{person.rate} €/h</span>}
+        {!isMobile && <span style={{ fontSize: 12, fontWeight: 600, color: '#8B5CF6' }}>{fmtPct(person.totalSecs / 3600 / CAPACITY_HOURS * 100)}</span>}
+        {!isMobile && <span style={{ fontSize: 12, fontWeight: 700, color: '#8B5CF6' }}>{person.mc > 0 ? fmtEUR(person.totalImputCost) : '—'}</span>}
       </div>
 
       {/* Expanded: project breakdown */}
       {expanded && projs.map(p => (
         <div key={p.id} style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px',
+          gridTemplateColumns: isMobile ? '1fr auto' : '1fr 120px 120px 100px 100px 130px',
           padding: '8px 16px 8px 52px',
           borderBottom: '1px solid var(--c-border-light)',
           background: 'var(--c-bg-app)',
@@ -701,6 +733,8 @@ function PersonRow({ person, isMobile, expanded, onToggle }) {
           {!isMobile && <span style={{ fontSize: 12, color: 'var(--c-text-3)' }}>{fmtH(p.secs)}</span>}
           <span style={{ fontSize: 12, color: 'var(--c-text-2)', fontWeight: 600 }}>{fmtEUR(p.cost)}</span>
           {!isMobile && <span />}
+          {!isMobile && <span style={{ fontSize: 11, color: '#8B5CF6', fontWeight: 600 }}>{fmtPct(p.secs / 3600 / CAPACITY_HOURS * 100)}</span>}
+          {!isMobile && <span style={{ fontSize: 11, color: '#8B5CF6', fontWeight: 700 }}>{person.mc > 0 ? fmtEUR(p.imputCost) : '—'}</span>}
         </div>
       ))}
     </>

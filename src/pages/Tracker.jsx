@@ -705,55 +705,14 @@ export default function Tracker() {
 
             {/* Timer display */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <span style={{
-                  fontSize: 40, fontWeight: 800, letterSpacing: '-1px',
-                  color: timer.isRunning ? 'var(--c-text-1)' : 'var(--c-text-4)',
-                  fontVariantNumeric: 'tabular-nums',
-                  transition: 'color 0.3s',
-                  display: 'block',
-                }}>
-                  {timer.formatted}
-                </span>
-                {timer.isRunning && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
-                    <span style={{ fontSize: 11, color: 'var(--c-text-3)' }}>Inicio:</span>
-                    {editingStartTime ? (
-                      <input
-                        type="time"
-                        autoFocus
-                        value={startTimeInput}
-                        onChange={e => setStartTimeInput(e.target.value)}
-                        onBlur={applyStartTimeEdit}
-                        onKeyDown={e => { if (e.key === 'Enter') applyStartTimeEdit(); if (e.key === 'Escape') setEditingStartTime(false) }}
-                        style={{
-                          fontSize: 11, fontWeight: 600, color: '#7C4DFF',
-                          border: 'none', borderBottom: '1px solid #7C4DFF',
-                          background: 'transparent', outline: 'none', padding: '0 2px',
-                          width: 60, cursor: 'text',
-                        }}
-                      />
-                    ) : (
-                      <button
-                        onClick={() => {
-                          const startedAt = new Date(Date.now() - timer.elapsed * 1000)
-                          setStartTimeInput(`${String(startedAt.getHours()).padStart(2,'0')}:${String(startedAt.getMinutes()).padStart(2,'0')}`)
-                          setEditingStartTime(true)
-                        }}
-                        title="Corregir hora de inicio"
-                        style={{
-                          fontSize: 11, fontWeight: 600, color: '#7C4DFF',
-                          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-                          textDecoration: 'underline dotted',
-                        }}
-                      >
-                        {(() => { const s = new Date(Date.now() - timer.elapsed * 1000); return `${String(s.getHours()).padStart(2,'0')}:${String(s.getMinutes()).padStart(2,'0')}` })()}
-                        <Pencil size={9} style={{ marginLeft: 3, verticalAlign: 'middle' }} />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+              <span style={{
+                fontSize: 40, fontWeight: 800, letterSpacing: '-1px',
+                color: timer.isRunning ? 'var(--c-text-1)' : 'var(--c-text-4)',
+                fontVariantNumeric: 'tabular-nums',
+                transition: 'color 0.3s',
+              }}>
+                {timer.formatted}
+              </span>
               <button
                 onClick={timer.isRunning ? handleStop : handleStart}
                 disabled={syncing}
@@ -807,6 +766,57 @@ export default function Tracker() {
                     disabled={loadingTasks}
                     style={{ fontSize: 12 }}
                   />
+                </div>
+              )}
+
+              {/* Start-time chip — only visible when timer is running */}
+              {timer.isRunning && (
+                <div
+                  title="Corregir hora de inicio"
+                  onClick={() => {
+                    if (editingStartTime) return
+                    const s = new Date(Date.now() - timer.elapsed * 1000)
+                    setStartTimeInput(`${String(s.getHours()).padStart(2,'0')}:${String(s.getMinutes()).padStart(2,'0')}`)
+                    setEditingStartTime(true)
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    height: 34, padding: '0 10px', borderRadius: 8,
+                    border: editingStartTime ? '1.5px solid #7C4DFF' : '1px solid var(--c-border)',
+                    background: editingStartTime ? '#7C4DFF08' : 'var(--c-bg-surface)',
+                    cursor: editingStartTime ? 'default' : 'pointer',
+                    flexShrink: 0,
+                    transition: 'border-color 0.15s, background 0.15s',
+                  }}
+                  onMouseEnter={e => { if (!editingStartTime) e.currentTarget.style.borderColor = '#7C4DFF' }}
+                  onMouseLeave={e => { if (!editingStartTime) e.currentTarget.style.borderColor = 'var(--c-border)' }}
+                >
+                  <Clock size={12} style={{ color: '#7C4DFF', flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, color: 'var(--c-text-3)', fontWeight: 500 }}>Inicio</span>
+                  {editingStartTime ? (
+                    <input
+                      type="time"
+                      autoFocus
+                      value={startTimeInput}
+                      onChange={e => setStartTimeInput(e.target.value)}
+                      onBlur={applyStartTimeEdit}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') applyStartTimeEdit()
+                        if (e.key === 'Escape') setEditingStartTime(false)
+                      }}
+                      style={{
+                        fontSize: 12, fontWeight: 700, color: '#7C4DFF',
+                        border: 'none', background: 'transparent', outline: 'none',
+                        width: 56, padding: 0, cursor: 'text',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#7C4DFF', fontVariantNumeric: 'tabular-nums' }}>
+                      {(() => { const s = new Date(Date.now() - timer.elapsed * 1000); return `${String(s.getHours()).padStart(2,'0')}:${String(s.getMinutes()).padStart(2,'0')}` })()}
+                    </span>
+                  )}
+                  <Pencil size={10} style={{ color: 'var(--c-text-4)', flexShrink: 0 }} />
                 </div>
               )}
             </div>

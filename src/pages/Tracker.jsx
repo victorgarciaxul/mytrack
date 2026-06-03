@@ -86,6 +86,8 @@ export default function Tracker() {
   const [syncing, setSyncing] = useState(false)
   const [projectTasks, setProjectTasks] = useState([])
   const [loadingTasks, setLoadingTasks] = useState(false)
+  const [editingStartTime, setEditingStartTime] = useState(false)
+  const [startTimeInput, setStartTimeInput] = useState('')
 
   // ── Sticky notes ─────────────────────────────────────────────
   const [stickyNotes, setStickyNotes] = useState([
@@ -562,6 +564,33 @@ export default function Tracker() {
     }
   }
 
+  function applyStartTimeEdit() {
+    if (!startTimeInput) { setEditingStartTime(false); return }
+    const [h, m] = startTimeInput.split(':').map(Number)
+    const newStart = new Date()
+    newStart.setHours(h, m, 0, 0)
+    if (newStart > new Date()) {
+      toast.error('La hora de inicio no puede ser en el futuro')
+      setEditingStartTime(false)
+      return
+    }
+    const newISO = newStart.toISOString()
+    timer.start(newISO)
+    dbSaveRunningTimer({
+      userEmail: user.email,
+      workspaceId: user.workspace_id || 'xul-ws-1',
+      startedAt: newISO,
+      description: description || '',
+      projectId: selectedProject?.id || null,
+      projectName: selectedProject?.name || null,
+      projectColor: selectedProject?.color || null,
+      taskId: selectedTask?.id || null,
+      taskName: selectedTask?.name || null,
+    }).catch(() => {})
+    setEditingStartTime(false)
+    toast.success('Hora de inicio actualizada')
+  }
+
   function handleManualSave(entry) {
     setEntries(prev => [entry, ...prev].sort((a, b) =>
       new Date(b.start_time) - new Date(a.start_time)
@@ -676,14 +705,55 @@ export default function Tracker() {
 
             {/* Timer display */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{
-                fontSize: 40, fontWeight: 800, letterSpacing: '-1px',
-                color: timer.isRunning ? 'var(--c-text-1)' : 'var(--c-text-4)',
-                fontVariantNumeric: 'tabular-nums',
-                transition: 'color 0.3s',
-              }}>
-                {timer.formatted}
-              </span>
+              <div>
+                <span style={{
+                  fontSize: 40, fontWeight: 800, letterSpacing: '-1px',
+                  color: timer.isRunning ? 'var(--c-text-1)' : 'var(--c-text-4)',
+                  fontVariantNumeric: 'tabular-nums',
+                  transition: 'color 0.3s',
+                  display: 'block',
+                }}>
+                  {timer.formatted}
+                </span>
+                {timer.isRunning && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                    <span style={{ fontSize: 11, color: 'var(--c-text-3)' }}>Inicio:</span>
+                    {editingStartTime ? (
+                      <input
+                        type="time"
+                        autoFocus
+                        value={startTimeInput}
+                        onChange={e => setStartTimeInput(e.target.value)}
+                        onBlur={applyStartTimeEdit}
+                        onKeyDown={e => { if (e.key === 'Enter') applyStartTimeEdit(); if (e.key === 'Escape') setEditingStartTime(false) }}
+                        style={{
+                          fontSize: 11, fontWeight: 600, color: '#7C4DFF',
+                          border: 'none', borderBottom: '1px solid #7C4DFF',
+                          background: 'transparent', outline: 'none', padding: '0 2px',
+                          width: 60, cursor: 'text',
+                        }}
+                      />
+                    ) : (
+                      <button
+                        onClick={() => {
+                          const startedAt = new Date(Date.now() - timer.elapsed * 1000)
+                          setStartTimeInput(`${String(startedAt.getHours()).padStart(2,'0')}:${String(startedAt.getMinutes()).padStart(2,'0')}`)
+                          setEditingStartTime(true)
+                        }}
+                        title="Corregir hora de inicio"
+                        style={{
+                          fontSize: 11, fontWeight: 600, color: '#7C4DFF',
+                          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                          textDecoration: 'underline dotted',
+                        }}
+                      >
+                        {(() => { const s = new Date(Date.now() - timer.elapsed * 1000); return `${String(s.getHours()).padStart(2,'0')}:${String(s.getMinutes()).padStart(2,'0')}` })()}
+                        <Pencil size={9} style={{ marginLeft: 3, verticalAlign: 'middle' }} />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={timer.isRunning ? handleStop : handleStart}
                 disabled={syncing}
@@ -882,7 +952,7 @@ export default function Tracker() {
 
           {/* Report analytics / activity heatmap */}
           <Card color="var(--c-card-c)">
-            <CardHeader title="Report Analytics">
+            <CardHeader title="Análisis de actividad">
               <div style={{ display: 'flex', gap: 4 }}>
                 {['Hoy', 'Semana', 'Mes'].map(t => (
                   <button key={t} onClick={() => setChartPeriod(t)} style={{
@@ -1249,35 +1319,40 @@ function Opt({ children, onClick, muted }) {
   )
 }
 
+function fmtHoursCompact(secs) {
+  if (!secs) return ''
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  if (h === 0) return `${m}m`
+  if (m === 0) return `${h}h`
+  return `${h}h${m}m`
+}
+
 function ActivityGrid({ entries, formatTime, period }) {
   // Build bars depending on period
   let bars = []
 
   if (period === 'Hoy') {
-    // 24 bars — one per hour
     bars = Array.from({ length: 24 }, (_, h) => {
       const secs = entries
         .filter(e => e.start_time && new Date(e.start_time).getHours() === h)
         .reduce((s, e) => s + (e.duration || 0), 0)
-      return { label: `${h}:00`, secs }
+      return { label: `${h}h`, secs }
     })
   } else if (period === 'Semana') {
-    // 7 bars — Mon to Sun
     const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
     bars = Array.from({ length: 7 }, (_, i) => {
-      // date-fns startOfWeek uses 0=Sun, so Mon=1. We want Mon=0 → dayOfWeek (1-7 → 0-6)
       const secs = entries
         .filter(e => {
           if (!e.start_time) return false
-          const d = new Date(e.start_time).getDay() // 0=Sun,1=Mon,...6=Sat
-          const idx = d === 0 ? 6 : d - 1         // convert to Mon=0…Sun=6
+          const d = new Date(e.start_time).getDay()
+          const idx = d === 0 ? 6 : d - 1
           return idx === i
         })
         .reduce((s, e) => s + (e.duration || 0), 0)
       return { label: DAY_NAMES[i], secs }
     })
   } else {
-    // Mes — one bar per day of the current month (1-31)
     const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()
     bars = Array.from({ length: daysInMonth }, (_, i) => {
       const day = i + 1
@@ -1289,30 +1364,50 @@ function ActivityGrid({ entries, formatTime, period }) {
   }
 
   const max = Math.max(...bars.map(b => b.secs), 1)
-
-  // Which labels to show on the x-axis (avoid crowding)
+  const BAR_HEIGHT = 60
+  // For crowded periods, only show the x-axis label every N bars
   const showEvery = period === 'Hoy' ? 4 : period === 'Semana' ? 1 : 5
+  // For hours-above-bar: always show on Semana; on Hoy/Mes only bars with data
+  const showHoursAbove = (secs, i) => {
+    if (!secs) return false
+    if (period === 'Semana') return true
+    if (period === 'Hoy') return i % 4 === 0 || secs > 0
+    return true // Mes: show all with data
+  }
 
   return (
     <div style={{ marginTop: 16 }}>
-      <div style={{ display: 'flex', gap: period === 'Mes' ? 2 : 4, alignItems: 'flex-end', height: 70 }}>
-        {bars.map(({ label, secs }, i) => (
-          <div
-            key={i}
-            title={`${label} — ${formatTime(secs)}`}
-            style={{
-              flex: 1,
-              height: secs > 0 ? `${Math.max(6, (secs / max) * 70)}px` : 5,
-              borderRadius: 3,
-              background: secs > 0 ? 'linear-gradient(180deg,#7C4DFF,#E040FB)' : 'var(--c-bg-muted)',
-              transition: 'height 0.3s',
-              cursor: secs > 0 ? 'pointer' : 'default',
-              minWidth: 0,
-            }}
-          />
-        ))}
+      {/* Bars with hours on top */}
+      <div style={{ display: 'flex', gap: period === 'Mes' ? 2 : 4, height: BAR_HEIGHT + 18, alignItems: 'flex-end' }}>
+        {bars.map(({ label, secs }, i) => {
+          const barH = secs > 0 ? Math.max(6, (secs / max) * BAR_HEIGHT) : 4
+          return (
+            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0 }}>
+              {showHoursAbove(secs, i) && (
+                <span style={{
+                  fontSize: period === 'Semana' ? 9 : 8,
+                  color: '#7C4DFF', fontWeight: 700,
+                  marginBottom: 2, whiteSpace: 'nowrap', lineHeight: 1,
+                }}>
+                  {fmtHoursCompact(secs)}
+                </span>
+              )}
+              <div
+                title={`${label} — ${formatTime(secs)}`}
+                style={{
+                  width: '100%', height: `${barH}px`, borderRadius: 3,
+                  background: secs > 0 ? 'linear-gradient(180deg,#7C4DFF,#E040FB)' : 'var(--c-bg-muted)',
+                  transition: 'height 0.3s',
+                  cursor: secs > 0 ? 'pointer' : 'default',
+                  minWidth: 0,
+                }}
+              />
+            </div>
+          )
+        })}
       </div>
-      <div style={{ display: 'flex', marginTop: 6 }}>
+      {/* X-axis labels */}
+      <div style={{ display: 'flex', marginTop: 5 }}>
         {bars.map(({ label }, i) => (
           <div key={i} style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
             {i % showEvery === 0 && (

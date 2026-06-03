@@ -347,28 +347,45 @@ export default function Costs() {
     return rows
   }, [dateFiltered, filterUser, filterProj])
 
+  // Total secs per person across ALL projects in the period (pre-filter)
+  // Used as denominator so % always distributes to 100% across projects
+  const personTotalSecs = useMemo(() => {
+    const map = {}
+    dateFiltered.forEach(e => {
+      if (!rateMap[e.user_email]) return
+      map[e.user_email] = (map[e.user_email] || 0) + e.duration
+    })
+    return map
+  }, [dateFiltered, rateMap])
+
   // ── VIEW: by project ───────────────────────────────────────────────────────
   const byProject = useMemo(() => {
     const map = {}
     filtered.forEach(e => {
       const rate = rateMap[e.user_email] || 0
       if (!rate) return
-      const mc = monthlyCostMap[e.user_email] || 0
+      const mc   = monthlyCostMap[e.user_email] || 0
+      const personTotal = personTotalSecs[e.user_email] || e.duration // fallback = this entry
+      // Cap at 160h for cost — if worked more, monthly_cost is already 100% used
+      const cappedTotal = Math.max(personTotal, CAPACITY_HOURS * 3600)
       const projId = e.project_id || '__none__'
       if (!map[projId]) map[projId] = {
         id: projId, name: e.project_name || 'Sin proyecto', color: e.project_color || '#888',
         totalSecs: 0, totalCost: 0, totalImputCost: 0, people: {},
       }
-      const cost = (e.duration / 3600) * rate
-      const imputCost = (e.duration / 3600 / CAPACITY_HOURS) * mc
+      const cost      = (e.duration / 3600) * rate
+      const imputCost = (e.duration / cappedTotal) * mc        // cost: capped at 160h
       map[projId].totalSecs += e.duration
       map[projId].totalCost += cost
       map[projId].totalImputCost += imputCost
-      const mb = members.find(m => m.user_email === e.user_email)
+      const mb   = members.find(m => m.user_email === e.user_email)
       const pKey = e.user_email
-      if (!map[projId].people[pKey]) map[projId].people[pKey] = { name: mb?.user_name || e.user_email, email: e.user_email, rate, mc, secs: 0, cost: 0, imputCost: 0 }
-      map[projId].people[pKey].secs += e.duration
-      map[projId].people[pKey].cost += cost
+      if (!map[projId].people[pKey]) map[projId].people[pKey] = {
+        name: mb?.user_name || e.user_email, email: e.user_email, rate, mc,
+        secs: 0, cost: 0, imputCost: 0, personTotal,
+      }
+      map[projId].people[pKey].secs      += e.duration
+      map[projId].people[pKey].cost      += cost
       map[projId].people[pKey].imputCost += imputCost
     })
     return Object.values(map).sort((a, b) => {
@@ -377,7 +394,7 @@ export default function Costs() {
               : a.name.localeCompare(b.name)
       return sortDir === 'asc' ? -v : v
     })
-  }, [filtered, rateMap, monthlyCostMap, members, sortCol, sortDir])
+  }, [filtered, rateMap, monthlyCostMap, personTotalSecs, members, sortCol, sortDir])
 
   // ── VIEW: by person ────────────────────────────────────────────────────────
   const byPerson = useMemo(() => {
@@ -385,21 +402,32 @@ export default function Costs() {
     filtered.forEach(e => {
       const rate = rateMap[e.user_email] || 0
       if (!rate) return
-      const mc = monthlyCostMap[e.user_email] || 0
+      const mc          = monthlyCostMap[e.user_email] || 0
+      const personTotal = personTotalSecs[e.user_email] || e.duration
+      const cappedTotal = Math.max(personTotal, CAPACITY_HOURS * 3600)
       const key = e.user_email
       if (!map[key]) {
         const mb = members.find(m => m.user_email === e.user_email)
-        map[key] = { email: key, name: mb?.user_name || key, rate, mc, group: mb?.group_name || '', totalSecs: 0, totalCost: 0, totalImputCost: 0, projects: {} }
+        map[key] = {
+          email: key, name: mb?.user_name || key, rate, mc,
+          group: mb?.group_name || '',
+          totalSecs: 0, totalCost: 0, totalImputCost: 0,
+          personTotal, cappedTotal,
+          projects: {},
+        }
       }
-      const cost = (e.duration / 3600) * rate
-      const imputCost = (e.duration / 3600 / CAPACITY_HOURS) * mc
-      map[key].totalSecs += e.duration
-      map[key].totalCost += cost
+      const cost      = (e.duration / 3600) * rate
+      const imputCost = (e.duration / cappedTotal) * mc
+      map[key].totalSecs      += e.duration
+      map[key].totalCost      += cost
       map[key].totalImputCost += imputCost
       const projId = e.project_id || '__none__'
-      if (!map[key].projects[projId]) map[key].projects[projId] = { name: e.project_name || 'Sin proyecto', color: e.project_color || '#888', secs: 0, cost: 0, imputCost: 0 }
-      map[key].projects[projId].secs += e.duration
-      map[key].projects[projId].cost += cost
+      if (!map[key].projects[projId]) map[key].projects[projId] = {
+        name: e.project_name || 'Sin proyecto', color: e.project_color || '#888',
+        secs: 0, cost: 0, imputCost: 0,
+      }
+      map[key].projects[projId].secs      += e.duration
+      map[key].projects[projId].cost      += cost
       map[key].projects[projId].imputCost += imputCost
     })
     return Object.values(map).sort((a, b) => {
@@ -408,14 +436,13 @@ export default function Costs() {
               : a.name.localeCompare(b.name)
       return sortDir === 'asc' ? -v : v
     })
-  }, [filtered, rateMap, monthlyCostMap, members, sortCol, sortDir])
+  }, [filtered, rateMap, monthlyCostMap, personTotalSecs, members, sortCol, sortDir])
 
   // Totals
   const totalCost       = useMemo(() => byProject.reduce((s, p) => s + p.totalCost, 0), [byProject])
   const totalSecs       = useMemo(() => byProject.reduce((s, p) => s + p.totalSecs, 0), [byProject])
   const totalImputCost  = useMemo(() => byProject.reduce((s, p) => s + p.totalImputCost, 0), [byProject])
-  const totalImputPct   = useMemo(() => totalSecs / 3600 / CAPACITY_HOURS * 100, [totalSecs])
-  const totalPeople = useMemo(() => new Set(filtered.filter(e => rateMap[e.user_email] > 0).map(e => e.user_email)).size, [filtered, rateMap])
+  const totalPeople     = useMemo(() => new Set(filtered.filter(e => rateMap[e.user_email] > 0).map(e => e.user_email)).size, [filtered, rateMap])
 
   function toggleSort(col) {
     if (sortCol === col) setSortDir(d => d === 'desc' ? 'asc' : 'desc')
@@ -612,7 +639,7 @@ export default function Costs() {
             {!isMobile && <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-2)' }}>{fmtH(totalSecs)}</span>}
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', textAlign: isMobile ? 'right' : 'left' }}>{fmtEUR(totalCost)}</span>
             {!isMobile && <span />}
-            {!isMobile && <span style={{ fontSize: 13, fontWeight: 700, color: '#8B5CF6' }}>{fmtPct(totalImputPct)}</span>}
+            {!isMobile && <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>—</span>}
             {!isMobile && <span style={{ fontSize: 13, fontWeight: 700, color: '#8B5CF6' }}>{fmtEUR(totalImputCost)}</span>}
           </div>
         )}
@@ -650,7 +677,7 @@ function ProjectRow({ proj, isMobile, expanded, onToggle }) {
         {!isMobile && <span style={{ fontSize: 13, color: 'var(--c-text-2)' }}>{fmtH(proj.totalSecs)}</span>}
         <span style={{ fontSize: 13, fontWeight: 700, color: '#7C4DFF' }}>{fmtEUR(proj.totalCost)}</span>
         {!isMobile && <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{people.length > 1 ? `${people.length} tarifas` : people[0] ? `${people[0].rate} €/h` : ''}</span>}
-        {!isMobile && <span style={{ fontSize: 12, fontWeight: 600, color: '#8B5CF6' }}>{fmtPct(proj.totalSecs / 3600 / CAPACITY_HOURS * 100)}</span>}
+        {!isMobile && <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>—</span>}
         {!isMobile && <span style={{ fontSize: 12, fontWeight: 700, color: '#8B5CF6' }}>{fmtEUR(proj.totalImputCost)}</span>}
       </div>
 
@@ -673,7 +700,8 @@ function ProjectRow({ proj, isMobile, expanded, onToggle }) {
           {!isMobile && <span style={{ fontSize: 12, color: 'var(--c-text-3)' }}>{fmtH(p.secs)}</span>}
           <span style={{ fontSize: 12, color: 'var(--c-text-2)', fontWeight: 600 }}>{fmtEUR(p.cost)}</span>
           {!isMobile && <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{p.rate} €/h</span>}
-          {!isMobile && <span style={{ fontSize: 11, color: '#8B5CF6', fontWeight: 600 }}>{fmtPct(p.secs / 3600 / CAPACITY_HOURS * 100)}</span>}
+          {/* % = this project's hours / person's total hours → distributes to 100% */}
+          {!isMobile && <span style={{ fontSize: 11, color: '#8B5CF6', fontWeight: 600 }}>{p.personTotal ? fmtPct(p.secs / p.personTotal * 100) : '—'}</span>}
           {!isMobile && <span style={{ fontSize: 11, color: '#8B5CF6', fontWeight: 700 }}>{p.mc > 0 ? fmtEUR(p.imputCost) : '—'}</span>}
         </div>
       ))}
@@ -714,7 +742,8 @@ function PersonRow({ person, isMobile, expanded, onToggle }) {
         {!isMobile && <span style={{ fontSize: 13, color: 'var(--c-text-2)' }}>{fmtH(person.totalSecs)}</span>}
         <span style={{ fontSize: 13, fontWeight: 700, color: '#7C4DFF' }}>{fmtEUR(person.totalCost)}</span>
         {!isMobile && <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{person.rate} €/h</span>}
-        {!isMobile && <span style={{ fontSize: 12, fontWeight: 600, color: '#8B5CF6' }}>{fmtPct(person.totalSecs / 3600 / CAPACITY_HOURS * 100)}</span>}
+        {/* % utilización = min(horas/160h, 100%) */}
+        {!isMobile && <span style={{ fontSize: 12, fontWeight: 600, color: '#8B5CF6' }}>{fmtPct(Math.min(person.personTotal / (CAPACITY_HOURS * 3600), 1) * 100)}</span>}
         {!isMobile && <span style={{ fontSize: 12, fontWeight: 700, color: '#8B5CF6' }}>{person.mc > 0 ? fmtEUR(person.totalImputCost) : '—'}</span>}
       </div>
 
@@ -735,7 +764,8 @@ function PersonRow({ person, isMobile, expanded, onToggle }) {
           {!isMobile && <span style={{ fontSize: 12, color: 'var(--c-text-3)' }}>{fmtH(p.secs)}</span>}
           <span style={{ fontSize: 12, color: 'var(--c-text-2)', fontWeight: 600 }}>{fmtEUR(p.cost)}</span>
           {!isMobile && <span />}
-          {!isMobile && <span style={{ fontSize: 11, color: '#8B5CF6', fontWeight: 600 }}>{fmtPct(p.secs / 3600 / CAPACITY_HOURS * 100)}</span>}
+          {/* % = this project's hours / person's total hours → sums to 100% */}
+          {!isMobile && <span style={{ fontSize: 11, color: '#8B5CF6', fontWeight: 600 }}>{person.personTotal ? fmtPct(p.secs / person.personTotal * 100) : '—'}</span>}
           {!isMobile && <span style={{ fontSize: 11, color: '#8B5CF6', fontWeight: 700 }}>{person.mc > 0 ? fmtEUR(p.imputCost) : '—'}</span>}
         </div>
       ))}

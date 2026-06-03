@@ -143,6 +143,8 @@ export default function Tracker() {
       start_time: r.start_time,
       end_time: r.end_time,
       duration: r.duration,
+      project_id: r.project_id || null,
+      task_id: r.task_id || null,
       projects: r.project_id ? { name: r.project_name, color: r.project_color } : null,
       tasks: r.task_id ? { name: r.task_name } : null,
     }
@@ -500,7 +502,13 @@ export default function Tracker() {
     }
 
     setSelectedProject(proj)
-    setSelectedTask({ name: e.tasks.name, id: e.task_id })
+    const restoredTask = { id: e.task_id, name: e.tasks.name }
+    setSelectedTask(restoredTask)
+    // Pre-seed task list so the dropdown shows the task immediately (before async load)
+    setProjectTasks(prev => {
+      const alreadyThere = prev.some(t => t.id === e.task_id)
+      return alreadyThere ? prev : [restoredTask, ...prev]
+    })
 
     if (syncEnabled) {
       setSyncing(true)
@@ -697,7 +705,7 @@ export default function Tracker() {
 
             {selectedProject && (
               <p style={{ fontSize: 12, color: '#7C4DFF', marginBottom: 14, fontWeight: 500 }}>
-                Project: {selectedProject.name}
+                Proyecto: {selectedProject.name}
                 {selectedTask && <span style={{ color: '#9095B0' }}> › {selectedTask.name}</span>}
               </p>
             )}
@@ -824,7 +832,7 @@ export default function Tracker() {
 
           {/* Recent Activity */}
           <Card color="var(--c-card-b)">
-            <CardHeader title="Recent Activity">
+            <CardHeader title="Actividad reciente">
               {/* Manual sync button */}
               <button
                 onClick={() => loadFromNeon()}
@@ -1044,7 +1052,7 @@ export default function Tracker() {
 
           {/* Ongoing timesheet */}
           <Card color="var(--c-card-b)">
-            <CardHeader title="Ongoing Timesheet" />
+            <CardHeader title="Timer en curso" />
             <div style={{ marginTop: 12 }}>
               {timer.isRunning ? (
                 <div style={{ padding: '12px', borderRadius: 10, background: 'var(--c-card-a)', border: '1px solid var(--c-border)' }}>
@@ -1054,7 +1062,7 @@ export default function Tracker() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Clock size={11} style={{ color: '#7C4DFF' }} />
-                      <span style={{ fontSize: 11, color: '#7C4DFF' }}>Last Tracked: now</span>
+                      <span style={{ fontSize: 11, color: '#7C4DFF' }}>En curso ahora</span>
                     </div>
                     <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#22C55E', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                       onClick={handleStop}>

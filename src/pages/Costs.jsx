@@ -108,7 +108,7 @@ function DateRangePicker({ from, to, isActive, onActivate, onChange }) {
           transition: 'all 0.15s', whiteSpace: 'nowrap',
         }}
       >
-        <CalendarPange size={13} />
+        <CalendarRange size={13} />
         {triggerLabel}
       </button>
 

@@ -82,7 +82,11 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
           endTime: entry.end_time,
           duration,
           billable: true,
-        })).catch(err => console.warn('Neon save error:', err.message))
+        })).then(() => {
+          window.dispatchEvent(new CustomEvent('mytrack:entry-saved', {
+            detail: { year: new Date(entry.start_time).getFullYear() }
+          }))
+        }).catch(err => console.warn('Neon save error:', err.message))
         toast.success('✅ Guardado en Clockify')
       } catch (err) {
         toast.error('Error Clockify: ' + err.message)
@@ -119,6 +123,9 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
         projects: project ? { name: project.name, color: project.color, clients: project.clients } : null,
         tasks: task ? { name: task.name } : null,
       })
+      window.dispatchEvent(new CustomEvent('mytrack:entry-saved', {
+        detail: { year: new Date(start).getFullYear() }
+      }))
       toast.success('Entrada añadida')
     } catch (err) {
       toast.error('Error al guardar: ' + err.message)

@@ -185,9 +185,13 @@ export default function Tracker() {
   }, [user?.email])
 
   // Same-device: reload when another component saves an entry
+  // Small delay avoids read-after-write race on Neon (write may not be visible yet)
   useEffect(() => {
-    window.addEventListener('mytrack:entry-saved', loadFromNeon)
-    return () => window.removeEventListener('mytrack:entry-saved', loadFromNeon)
+    function onEntrySaved() {
+      setTimeout(() => loadFromNeon(), 600)
+    }
+    window.addEventListener('mytrack:entry-saved', onEntrySaved)
+    return () => window.removeEventListener('mytrack:entry-saved', onEntrySaved)
   }, [user?.email])
 
   const syncEnabled = isClockifyUser(user?.email)
@@ -1140,7 +1144,7 @@ export default function Tracker() {
       {showManual && (
         <ManualEntryModal
           onClose={() => setShowManual(false)}
-          onSave={() => { setShowManual(false); if (!isDemo) loadEntries() }}
+          onSave={() => { setShowManual(false); if (!isDemo) loadFromNeon() }}
           projects={projects}
           workspace={workspace}
           user={user}

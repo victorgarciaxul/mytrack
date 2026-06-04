@@ -1,15 +1,15 @@
 /**
- * Vercel Serverless Function — Clockify → Neon sync
+ * Vercel Serverless Function — Clockify → Supabase sync
  *
  * Cron: runs daily at 03:00 UTC (configured in vercel.json)
  * Also callable manually: GET /api/sync-clockify
  *
  * Fetches the last 7 days of time entries for ALL Clockify workspace users
- * and upserts them into the Neon `time_entries` table.
+ * and upserts them into the Supabase `time_entries` table.
  * Idempotent — safe to run multiple times.
  */
 
-import { neon } from '@neondatabase/serverless'
+import { supabaseSql } from './_supabase.js'
 
 const API_KEY      = 'MDQ0YTczODctZGNhMC00YjE1LTkxNzktMzdjYjM4YTVlMmM4'
 const WORKSPACE_ID = '5e67ae37a4ec9a653886c794'
@@ -47,10 +47,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const neonUrl = process.env.VITE_NEON_URL || process.env.NEON_URL
-  if (!neonUrl) return res.status(500).json({ error: 'NEON_URL not configured' })
-
-  const sql = neon(neonUrl)
+  const sql = supabaseSql()
   const startedAt = new Date()
   const log = []
 
@@ -134,15 +131,6 @@ export default async function handler(req, res) {
     }
 
     // ── 4. Persist sync metadata ─────────────────────────────────
-    await sql`
-      CREATE TABLE IF NOT EXISTS sync_log (
-        id         SERIAL PRIMARY KEY,
-        synced_at  TIMESTAMPTZ DEFAULT NOW(),
-        entries    INTEGER,
-        duration_ms INTEGER,
-        notes      TEXT
-      )
-    `
     const durationMs = Date.now() - startedAt.getTime()
     await sql`
       INSERT INTO sync_log (synced_at, entries, duration_ms, notes)

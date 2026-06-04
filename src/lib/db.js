@@ -1,12 +1,43 @@
-// ── Neon PostgreSQL client ───────────────────────────────────
-import { neon } from '@neondatabase/serverless'
+// ── Supabase PostgreSQL client ───────────────────────────────
+// Uses exec_sql RPC so all existing tagged-template SQL keeps working
+// without rewriting individual queries.
+import { createClient } from '@supabase/supabase-js'
 
-const CONNECTION = import.meta.env.VITE_NEON_URL
+const _supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+)
 
-let _sql = null
+// Export the client for direct use (Auth, Realtime, etc.)
+export { _supabase as supabaseClient }
+
+/**
+ * sql() returns a tagged-template function that mirrors the @neondatabase/serverless API.
+ * Queries are executed via the exec_sql Postgres RPC, so all existing
+ * db`SELECT …` calls work unchanged.
+ *
+ * Usage (unchanged from Neon):
+ *   const db = sql()
+ *   const rows = await db`SELECT * FROM workspaces WHERE id = ${wsId}`
+ */
 export function sql() {
-  if (!_sql) _sql = neon(CONNECTION)
-  return _sql
+  return function(strings, ...values) {
+    // Build "$1, $2, …" parameterised query
+    let query = ''
+    strings.forEach((s, i) => {
+      query += s
+      if (i < values.length) query += `$${i + 1}`
+    })
+    const params = values.map(v => (v === null || v === undefined) ? null : String(v))
+
+    return _supabase
+      .rpc('exec_sql', { query_text: query, params: JSON.stringify(params) })
+      .then(({ data, error }) => {
+        if (error) throw new Error(error.message)
+        // exec_sql always returns a jsonb array
+        return Array.isArray(data) ? data : []
+      })
+  }
 }
 
 /**
@@ -76,31 +107,15 @@ function normEntry(r) {
 // Resets on error so mobile can retry after network failure.
 // After a successful first run, sessionStorage flag skips the 30+ migration
 // statements on subsequent page loads — cutting startup time from ~4s to ~0s.
-// Version bump this key whenever a new migration is added to _runInitDB,
-// so devices re-run it once and then skip it again.
-const DB_READY_KEY = 'mytrack-db-ready-v3'
-let _initPromise = null
+// ── initDB — no-op with Supabase ─────────────────────────────
+// Schema is managed via Supabase migrations (applied once via MCP/dashboard).
+// This function is kept for backward compatibility with all call sites.
 export function initDB() {
-  if (_initPromise) return _initPromise
-  // Already initialised on this device — skip the 30+ migration statements.
-  // Uses localStorage so the flag survives tab kills and app restarts on mobile.
-  try {
-    if (localStorage.getItem(DB_READY_KEY) === '1') {
-      _initPromise = Promise.resolve()
-      return _initPromise
-    }
-  } catch {}
-  _initPromise = _runInitDB()
-    .then(() => {
-      try { localStorage.setItem(DB_READY_KEY, '1') } catch {}
-    })
-    .catch(err => {
-      _initPromise = null   // reset → next caller retries
-      console.warn('[initDB] failed, will retry next call:', err.message)
-      throw err
-    })
-  return _initPromise
+  return Promise.resolve()
 }
+
+// Legacy _runInitDB kept only as reference — never called in production.
+// eslint-disable-next-line no-unused-vars
 async function _runInitDB() {
   const db = sql()
 

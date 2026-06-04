@@ -10,7 +10,7 @@
  * - Cada admin recibe un resumen del equipo completo
  */
 
-import { neon } from '@neondatabase/serverless'
+import { supabaseSql } from './_supabase.js'
 import { format, subWeeks, startOfWeek, endOfWeek } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   const wLabel = `${format(prevWeekStart, "d 'de' MMMM", { locale: es })} – ${format(prevWeekEnd, "d 'de' MMMM", { locale: es })}`
 
   try {
-    const db = neon(process.env.VITE_NEON_URL)
+    const db = supabaseSql()
     let totalNotifications = 0
 
     for (const wsId of WORKSPACES) {

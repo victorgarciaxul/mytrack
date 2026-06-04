@@ -20,7 +20,7 @@
  * }
  */
 
-import { neon } from '@neondatabase/serverless'
+import { supabaseSql } from './_supabase.js'
 
 // Allowed origins (add more if needed)
 const ALLOWED_ORIGINS = [
@@ -64,7 +64,7 @@ export default async function handler(req, res) {
 
   // ── Query ─────────────────────────────────────────────────────
   try {
-    const db = neon(process.env.VITE_NEON_URL)
+    const db = supabaseSql()
 
     // ── List mode: return distinct project names for the workspace+year ──
     if (req.query.list === '1') {

@@ -1,100 +1,103 @@
 #!/usr/bin/env node
 /**
- * migrate-neon-to-supabase.js
- *
- * Migrates all data from Neon PostgreSQL → Supabase.
- * Run once from your machine:
- *
- *   NEON_URL="postgres://..." \
- *   SUPABASE_URL="https://bjoqigbscnkqufhtgrlu.supabase.co" \
- *   SUPABASE_SERVICE_ROLE_KEY="eyJ..." \
- *   node scripts/migrate-neon-to-supabase.js
- *
- * Safe to re-run — uses ON CONFLICT DO NOTHING / upserts.
+ * migrate-neon-to-supabase.js — con soporte de reanudación y reconexión
  */
-
-import { neon } from '@neondatabase/serverless'
+import pg from 'pg'
 import { createClient } from '@supabase/supabase-js'
 
-const NEON_URL    = process.env.NEON_URL || process.env.VITE_NEON_URL
-const SUPA_URL    = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
-const SUPA_KEY    = process.env.SUPABASE_SERVICE_ROLE_KEY
+const { Client } = pg
 
-if (!NEON_URL)  { console.error('❌  Set NEON_URL'); process.exit(1) }
-if (!SUPA_URL)  { console.error('❌  Set SUPABASE_URL'); process.exit(1) }
-if (!SUPA_KEY)  { console.error('❌  Set SUPABASE_SERVICE_ROLE_KEY'); process.exit(1) }
+const NEON_URL = process.env.NEON_URL
+const SUPA_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-const neonSql  = neon(NEON_URL)
+if (!NEON_URL) { console.error('❌  Falta NEON_URL'); process.exit(1) }
+if (!SUPA_URL) { console.error('❌  Falta SUPABASE_URL'); process.exit(1) }
+if (!SUPA_KEY) { console.error('❌  Falta SUPABASE_SERVICE_ROLE_KEY'); process.exit(1) }
+
 const supabase = createClient(SUPA_URL, SUPA_KEY, { auth: { persistSession: false } })
 
-function rpc(query, params = []) {
-  return supabase
-    .rpc('exec_sql', { query_text: query, params: JSON.stringify(params.map(v => v === null || v === undefined ? null : String(v))) })
-    .then(({ data, error }) => { if (error) throw new Error(error.message); return data || [] })
+function toISO(v) {
+  if (!v) return null
+  if (v instanceof Date) return v.toISOString()
+  return String(v)
+}
+function normaliseRow(row) {
+  const out = {}
+  for (const [k, v] of Object.entries(row)) out[k] = v instanceof Date ? toISO(v) : v
+  return out
 }
 
-async function migrateTable(tableName, rows, batchSize = 100) {
-  if (!rows.length) { console.log(`  ${tableName}: 0 rows (skip)`); return }
-  let done = 0
-  for (let i = 0; i < rows.length; i += batchSize) {
-    const batch = rows.slice(i, i + batchSize)
-    const { error } = await supabase.from(tableName).upsert(batch, { onConflict: 'id', ignoreDuplicates: true })
+async function getNewClient() {
+  const c = new Client({
+    connectionString: NEON_URL.replace('channel_binding=require', 'channel_binding=disable'),
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 30000,
+    query_timeout: 60000,
+  })
+  await c.connect()
+  return c
+}
+
+async function migrateTimeEntries() {
+  // Get how many we already have in Supabase
+  const { count } = await supabase.from('time_entries').select('*', { count: 'exact', head: true })
+  const alreadyDone = count || 0
+  console.log(`  time_entries: ${alreadyDone} ya migradas, reanudando…`)
+
+  const BATCH = 500
+  let offset = alreadyDone
+  let total = null
+  let neon = await getNewClient()
+  let reconnects = 0
+
+  while (true) {
+    // Fetch batch from Neon
+    let rows
+    try {
+      const res = await neon.query(
+        `SELECT * FROM time_entries ORDER BY created_at ASC LIMIT $1 OFFSET $2`,
+        [BATCH, offset]
+      )
+      rows = res.rows.map(normaliseRow)
+      if (total === null) {
+        const tot = await neon.query('SELECT COUNT(*) FROM time_entries')
+        total = parseInt(tot.rows[0].count)
+      }
+    } catch (err) {
+      // Neon connection dropped — reconnect and retry
+      console.log(`\n  ↻ Reconectando a Neon (${++reconnects})…`)
+      try { await neon.end() } catch {}
+      await new Promise(r => setTimeout(r, 2000))
+      neon = await getNewClient()
+      continue
+    }
+
+    if (!rows.length) break
+
+    // Insert to Supabase
+    const { error } = await supabase.from('time_entries').upsert(rows, { ignoreDuplicates: true })
     if (error) {
-      // upsert may fail on tables without 'id' — fall back to insert ignore
-      for (const row of batch) {
-        await supabase.from(tableName).insert(row).select().maybeSingle().catch(() => {})
+      // Batch failed — try row by row
+      for (const row of rows) {
+        await supabase.from('time_entries').upsert(row, { ignoreDuplicates: true })
       }
     }
-    done += batch.length
-    process.stdout.write(`\r  ${tableName}: ${done}/${rows.length}`)
+
+    offset += rows.length
+    process.stdout.write(`\r  time_entries: ${offset}/${total || '?'} (${Math.round(offset/(total||offset)*100)}%)`)
+
+    if (rows.length < BATCH) break
   }
-  console.log(`\r  ${tableName}: ✅  ${done} rows`)
+
+  try { await neon.end() } catch {}
+  console.log(`\r  time_entries: ✅  ${offset} filas totales`)
 }
 
 async function main() {
-  console.log('\n🚀  Starting Neon → Supabase migration\n')
-
-  // Tables to migrate (order matters for FK constraints)
-  const tables = [
-    'workspaces',
-    'workspace_members',
-    'clients',
-    'projects',
-    'tasks',
-    'tags',
-    'groups',
-    'time_off_policies',
-    'time_off_requests',
-    'running_timers',
-    'sticky_notes',
-    'notifications',
-    'hour_compensations',
-    'deleted_entries',
-    'time_entries',   // largest — last
-  ]
-
-  for (const table of tables) {
-    try {
-      process.stdout.write(`  ${table}: loading from Neon…`)
-      const rows = await neonSql`SELECT * FROM ${neonSql(table)}`.catch(() => [])
-      process.stdout.write(`\r  ${table}: ${rows.length} rows found, inserting…\n`)
-      await migrateTable(table, rows)
-    } catch (err) {
-      console.warn(`  ⚠️  ${table}: ${err.message}`)
-    }
-  }
-
-  // Special: sync_log (has SERIAL id, not TEXT)
-  try {
-    const logs = await neonSql`SELECT * FROM sync_log`.catch(() => [])
-    if (logs.length) {
-      const { error } = await supabase.from('sync_log').insert(logs)
-      if (error) console.warn('  ⚠️  sync_log:', error.message)
-      else console.log(`  sync_log: ✅  ${logs.length} rows`)
-    }
-  } catch {}
-
-  console.log('\n✅  Migration complete!\n')
+  console.log('\n🔄  Reanudando migración time_entries…\n')
+  await migrateTimeEntries()
+  console.log('\n✅  Migración completada\n')
 }
 
-main().catch(err => { console.error('Fatal:', err); process.exit(1) })
+main().catch(err => { console.error('Error fatal:', err.message); process.exit(1) })

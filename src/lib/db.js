@@ -1,6 +1,4 @@
-// ── Supabase PostgreSQL client ───────────────────────────────
-// Uses exec_sql RPC so all existing tagged-template SQL keeps working
-// without rewriting individual queries.
+// ── Supabase client ──────────────────────────────────────────
 import { createClient } from '@supabase/supabase-js'
 
 const _supabase = createClient(
@@ -8,33 +6,20 @@ const _supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 )
 
-// Export the client for direct use (Auth, Realtime, etc.)
 export { _supabase as supabaseClient }
 
-/**
- * sql() returns a tagged-template function that mirrors the @neondatabase/serverless API.
- * Queries are executed via the exec_sql Postgres RPC, so all existing
- * db`SELECT …` calls work unchanged.
- *
- * Usage (unchanged from Neon):
- *   const db = sql()
- *   const rows = await db`SELECT * FROM workspaces WHERE id = ${wsId}`
- */
+// ── sql() — exec_sql RPC fallback for complex aggregate queries ──
+// Used only by Costs.jsx and a few report pages. Critical path
+// functions (insert/select entries, auth) use native Supabase client.
 export function sql() {
   return function(strings, ...values) {
-    // Build "$1, $2, …" parameterised query
     let query = ''
-    strings.forEach((s, i) => {
-      query += s
-      if (i < values.length) query += `$${i + 1}`
-    })
+    strings.forEach((s, i) => { query += s; if (i < values.length) query += `$${i + 1}` })
     const params = values.map(v => (v === null || v === undefined) ? null : String(v))
-
     return _supabase
       .rpc('exec_sql', { query_text: query, params })
       .then(({ data, error }) => {
         if (error) throw new Error(error.message)
-        // exec_sql always returns a jsonb array
         return Array.isArray(data) ? data : []
       })
   }
@@ -493,98 +478,86 @@ async function _runInitDB() {
 // ── Auth ──────────────────────────────────────────────────────
 
 export async function dbSignIn(email, password) {
-  const db = sql()
-  // Search across all workspaces — workspace_id is returned in the row
-  const rows = await db`
-    SELECT * FROM workspace_members
-    WHERE user_email = ${email}
-      AND password = ${password}
-    LIMIT 1
-  `
-  return rows[0] || null
+  const { data, error } = await _supabase
+    .from('workspace_members')
+    .select('*')
+    .eq('user_email', email)
+    .eq('password', password)
+    .limit(1)
+  if (error) throw new Error(error.message)
+  return data?.[0] || null
 }
 
 // ── Notifications ─────────────────────────────────────────────
 export async function dbGetNotifications(userId) {
-  const db = sql()
-  return db`
-    SELECT * FROM notifications
-    WHERE user_id = ${userId} AND workspace_id = ${getWsId()}
-    ORDER BY created_at DESC
-    LIMIT 50
-  `
+  const { data, error } = await _supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('workspace_id', getWsId())
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (error) throw new Error(error.message)
+  return data || []
 }
 
 export async function dbSendNotification({ senderEmail, senderName, recipientIds, type, title, message }) {
-  const db = sql()
-  for (const userId of recipientIds) {
-    await db`
-      INSERT INTO notifications (workspace_id, user_id, sender_email, sender_name, type, title, message)
-      VALUES (${getWsId()}, ${userId}, ${senderEmail}, ${senderName}, ${type || 'default'}, ${title}, ${message || ''})
-    `
-  }
+  const rows = recipientIds.map(userId => ({
+    workspace_id: getWsId(), user_id: userId,
+    sender_email: senderEmail, sender_name: senderName,
+    type: type || 'default', title, message: message || '',
+  }))
+  const { error } = await _supabase.from('notifications').insert(rows)
+  if (error) throw new Error(error.message)
 }
 
 export async function dbMarkNotificationRead(id) {
-  const db = sql()
-  await db`UPDATE notifications SET read = true WHERE id = ${id}`
+  await _supabase.from('notifications').update({ read: true }).eq('id', id)
 }
 
 export async function dbMarkAllNotificationsRead(userId) {
-  const db = sql()
-  await db`UPDATE notifications SET read = true WHERE user_id = ${userId} AND workspace_id = ${getWsId()}`
+  await _supabase.from('notifications').update({ read: true })
+    .eq('user_id', userId).eq('workspace_id', getWsId())
 }
 
 export async function dbGetAllMembers() {
-  const db = sql()
   const wsId = getWsId()
-  // When viewing Fundación, only return actual Fundación users.
-  // XUL admins are cross-listed there for access but must not appear in metrics.
-  if (wsId === 'fundacion-ws-1') {
-    return db`
-      SELECT * FROM workspace_members
-      WHERE workspace_id = ${wsId}
-        AND user_email LIKE '%@fundacionxul.org'
-      ORDER BY user_name
-    `
-  }
-  return db`
-    SELECT * FROM workspace_members
-    WHERE workspace_id = ${wsId}
-    ORDER BY user_name
-  `
+  let query = _supabase.from('workspace_members').select('*').eq('workspace_id', wsId)
+  if (wsId === 'fundacion-ws-1') query = query.like('user_email', '%@fundacionxul.org')
+  const { data, error } = await query.order('user_name')
+  if (error) throw new Error(error.message)
+  return data || []
 }
 
 // ── Time entries ──────────────────────────────────────────────
 
 export async function dbGetEntries(userEmail, year) {
-  const db = sql()
-  // Use a range predicate (not EXTRACT) so the index on (user_email, start_time) is used
   const from = `${year}-01-01T00:00:00.000Z`
   const to   = `${year + 1}-01-01T00:00:00.000Z`
-  const rows = await db`
-    SELECT * FROM time_entries
-    WHERE user_email = ${userEmail}
-      AND end_time IS NOT NULL
-      AND start_time >= ${from}
-      AND start_time <  ${to}
-    ORDER BY start_time DESC
-  `
-  return rows.map(normEntry)
+  const { data, error } = await _supabase
+    .from('time_entries')
+    .select('*')
+    .eq('user_email', userEmail)
+    .not('end_time', 'is', null)
+    .gte('start_time', from)
+    .lt('start_time', to)
+    .order('start_time', { ascending: false })
+  if (error) throw new Error(error.message)
+  return (data || []).map(normEntry)
 }
 
 /** All workspace entries in a date range (for Reports page) */
 export async function dbGetEntriesForPeriod(from, to) {
-  const db = sql()
-  const rows = await db`
-    SELECT * FROM time_entries
-    WHERE workspace_id = ${getWsId()}
-      AND end_time IS NOT NULL
-      AND start_time >= ${from.toISOString()}
-      AND start_time <= ${to.toISOString()}
-    ORDER BY start_time DESC
-  `
-  return rows.map(normEntry)
+  const { data, error } = await _supabase
+    .from('time_entries')
+    .select('*')
+    .eq('workspace_id', getWsId())
+    .not('end_time', 'is', null)
+    .gte('start_time', from.toISOString())
+    .lte('start_time', to.toISOString())
+    .order('start_time', { ascending: false })
+  if (error) throw new Error(error.message)
+  return (data || []).map(normEntry)
 }
 
 export async function dbInsertEntry({
@@ -593,32 +566,30 @@ export async function dbInsertEntry({
   taskId, taskName, description,
   startTime, endTime, duration, billable,
 }) {
-  const db = sql()
   const entryId = id || `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
   const wsId = workspaceId || getWsId()
-  const rows = await db`
-    INSERT INTO time_entries
-      (id, workspace_id, user_email, project_id, project_name, project_color, client_name,
-       task_id, task_name, description, start_time, end_time, duration, billable)
-    VALUES
-      (${entryId}, ${wsId}, ${userEmail},
-       ${projectId || null}, ${projectName || null}, ${projectColor || null}, ${clientName || null},
-       ${taskId || null}, ${taskName || null}, ${description || ''},
-       ${startTime}, ${endTime || null}, ${duration || null}, ${billable || false})
-    ON CONFLICT (id) DO UPDATE SET
-      description   = EXCLUDED.description,
-      project_id    = EXCLUDED.project_id,
-      project_name  = EXCLUDED.project_name,
-      project_color = EXCLUDED.project_color,
-      client_name   = EXCLUDED.client_name,
-      task_id       = EXCLUDED.task_id,
-      task_name     = EXCLUDED.task_name,
-      start_time    = EXCLUDED.start_time,
-      end_time      = EXCLUDED.end_time,
-      duration      = EXCLUDED.duration
-    RETURNING *
-  `
-  return rows[0] ? normEntry(rows[0]) : null
+  const { data, error } = await _supabase
+    .from('time_entries')
+    .upsert({
+      id:            entryId,
+      workspace_id:  wsId,
+      user_email:    userEmail,
+      project_id:    projectId    || null,
+      project_name:  projectName  || null,
+      project_color: projectColor || null,
+      client_name:   clientName   || null,
+      task_id:       taskId       || null,
+      task_name:     taskName     || null,
+      description:   description  || '',
+      start_time:    startTime,
+      end_time:      endTime      || null,
+      duration:      duration     || null,
+      billable:      billable     || false,
+    }, { onConflict: 'id' })
+    .select()
+    .single()
+  if (error) throw new Error(error.message)
+  return data ? normEntry(data) : null
 }
 
 /** Returns true if the entry belongs to the Fundación client */
@@ -701,13 +672,11 @@ function _addToLocalDeletedList(id) {
 }
 
 export async function dbDeleteEntry(id) {
-  const db = sql()
-  // Register in localStorage blocklist — clockify.js reads this during cache merge
   _addToLocalDeletedList(id)
-  // Register in Neon — dbUpsertEntries reads this during full import
-  await db`INSERT INTO deleted_entries (id) VALUES (${id}) ON CONFLICT (id) DO NOTHING`
-  await db`INSERT INTO deleted_entries (id) VALUES (${id + '__f'}) ON CONFLICT (id) DO NOTHING`
-  await db`DELETE FROM time_entries WHERE id = ${id} OR id = ${id + '__f'}`
+  await _supabase.from('deleted_entries').upsert({ id }, { onConflict: 'id', ignoreDuplicates: true })
+  await _supabase.from('deleted_entries').upsert({ id: id + '__f' }, { onConflict: 'id', ignoreDuplicates: true })
+  const { error } = await _supabase.from('time_entries').delete().in('id', [id, id + '__f'])
+  if (error) throw new Error(error.message)
 }
 
 // ── Members ───────────────────────────────────────────────────
@@ -1136,43 +1105,32 @@ export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId
 // ── Running timer (cross-device sync) ────────────────────────────────────────
 
 export async function dbSaveRunningTimer({ userEmail, workspaceId, startedAt, description, projectId, projectName, projectColor, taskId, taskName }) {
-  const db = sql()
-  await db`
-    INSERT INTO running_timers
-      (user_email, workspace_id, started_at, description, project_id, project_name, project_color, task_id, task_name)
-    VALUES
-      (${userEmail}, ${workspaceId || 'xul-ws-1'}, ${startedAt}, ${description || null},
-       ${projectId || null}, ${projectName || null}, ${projectColor || null},
-       ${taskId || null}, ${taskName || null})
-    ON CONFLICT (user_email) DO UPDATE SET
-      workspace_id  = EXCLUDED.workspace_id,
-      started_at    = EXCLUDED.started_at,
-      description   = EXCLUDED.description,
-      project_id    = EXCLUDED.project_id,
-      project_name  = EXCLUDED.project_name,
-      project_color = EXCLUDED.project_color,
-      task_id       = EXCLUDED.task_id,
-      task_name     = EXCLUDED.task_name,
-      updated_at    = NOW()
-  `
+  await _supabase.from('running_timers').upsert({
+    user_email:    userEmail,
+    workspace_id:  workspaceId  || 'xul-ws-1',
+    started_at:    startedAt,
+    description:   description  || null,
+    project_id:    projectId    || null,
+    project_name:  projectName  || null,
+    project_color: projectColor || null,
+    task_id:       taskId       || null,
+    task_name:     taskName     || null,
+    updated_at:    new Date().toISOString(),
+  }, { onConflict: 'user_email' })
 }
 
 export async function dbGetRunningTimer(userEmail) {
-  const db = sql()
-  const rows = await db`SELECT * FROM running_timers WHERE user_email = ${userEmail}`
-  if (!rows[0]) return null
-  const r = rows[0]
-  // Neon returns TIMESTAMPTZ as Date objects — normalize to ISO strings
-  return {
-    ...r,
-    started_at: toISO(r.started_at),
-    updated_at: toISO(r.updated_at),
-  }
+  const { data } = await _supabase
+    .from('running_timers')
+    .select('*')
+    .eq('user_email', userEmail)
+    .single()
+  if (!data) return null
+  return { ...data, started_at: toISO(data.started_at), updated_at: toISO(data.updated_at) }
 }
 
 export async function dbDeleteRunningTimer(userEmail) {
-  const db = sql()
-  await db`DELETE FROM running_timers WHERE user_email = ${userEmail}`
+  await _supabase.from('running_timers').delete().eq('user_email', userEmail)
 }
 
 export async function dbDeleteMember(userEmail) {

@@ -31,7 +31,7 @@ export function sql() {
     const params = values.map(v => (v === null || v === undefined) ? null : String(v))
 
     return _supabase
-      .rpc('exec_sql', { query_text: query, params: JSON.stringify(params) })
+      .rpc('exec_sql', { query_text: query, params })
       .then(({ data, error }) => {
         if (error) throw new Error(error.message)
         // exec_sql always returns a jsonb array

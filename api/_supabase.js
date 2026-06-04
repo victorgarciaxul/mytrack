@@ -26,7 +26,7 @@ export function supabaseSql() {
     })
     const params = values.map(v => (v === null || v === undefined) ? null : String(v))
     return client
-      .rpc('exec_sql', { query_text: query, params: JSON.stringify(params) })
+      .rpc('exec_sql', { query_text: query, params })
       .then(({ data, error }) => {
         if (error) throw new Error(error.message)
         return Array.isArray(data) ? data : []

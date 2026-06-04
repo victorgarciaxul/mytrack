@@ -893,18 +893,22 @@ export default function Tracker() {
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', minWidth: 52, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {timer.format(e.duration || 0)}
                   </span>
-                  {/* Reactivate — hidden on mobile */}
-                  {!isMobile && (
-                    <button
-                      onClick={() => reactivateEntry(e)}
-                      title="Reactivar"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6 }}
-                      onMouseEnter={ev => { ev.currentTarget.style.background = '#7C4DFF15'; ev.currentTarget.style.color = '#7C4DFF' }}
-                      onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--c-text-3)' }}
-                    >
-                      <Play size={13} fill="currentColor" />
-                    </button>
-                  )}
+                  {/* Reactivate — visible on all devices */}
+                  <button
+                    onClick={() => reactivateEntry(e)}
+                    title="Reactivar"
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'var(--c-text-3)', flexShrink: 0, display: 'flex',
+                      alignItems: 'center', justifyContent: 'center',
+                      width: isMobile ? 32 : 26, height: isMobile ? 32 : 26,
+                      borderRadius: 6,
+                    }}
+                    onMouseEnter={ev => { ev.currentTarget.style.background = '#7C4DFF15'; ev.currentTarget.style.color = '#7C4DFF' }}
+                    onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--c-text-3)' }}
+                  >
+                    <Play size={isMobile ? 15 : 13} fill="currentColor" />
+                  </button>
 
                   {/* Edit */}
                   <button

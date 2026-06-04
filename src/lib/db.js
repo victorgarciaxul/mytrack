@@ -76,18 +76,23 @@ function normEntry(r) {
 // Resets on error so mobile can retry after network failure.
 // After a successful first run, sessionStorage flag skips the 30+ migration
 // statements on subsequent page loads — cutting startup time from ~4s to ~0s.
-const DB_READY_KEY = 'mytrack-db-ready-v2'
+// Version bump this key whenever a new migration is added to _runInitDB,
+// so devices re-run it once and then skip it again.
+const DB_READY_KEY = 'mytrack-db-ready-v3'
 let _initPromise = null
 export function initDB() {
   if (_initPromise) return _initPromise
-  // Already initialised in this browser session — skip migrations entirely
-  if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(DB_READY_KEY) === '1') {
-    _initPromise = Promise.resolve()
-    return _initPromise
-  }
+  // Already initialised on this device — skip the 30+ migration statements.
+  // Uses localStorage so the flag survives tab kills and app restarts on mobile.
+  try {
+    if (localStorage.getItem(DB_READY_KEY) === '1') {
+      _initPromise = Promise.resolve()
+      return _initPromise
+    }
+  } catch {}
   _initPromise = _runInitDB()
     .then(() => {
-      try { sessionStorage.setItem(DB_READY_KEY, '1') } catch {}
+      try { localStorage.setItem(DB_READY_KEY, '1') } catch {}
     })
     .catch(err => {
       _initPromise = null   // reset → next caller retries

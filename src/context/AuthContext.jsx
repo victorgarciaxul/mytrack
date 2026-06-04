@@ -2,7 +2,9 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { initDB, dbSignIn, setActiveWorkspace, clearActiveWorkspace } from '../lib/db'
 
-const DEMO_MODE = import.meta.env.VITE_SUPABASE_URL === 'https://placeholder.supabase.co'
+// MyTrack always uses its own custom auth (workspace_members table).
+// Never use Supabase Auth regardless of which Supabase project is configured.
+const DEMO_MODE = true
 
 // Fallback users in case Neon isn't reachable yet (cold start / timeout)
 const FALLBACK_USERS = [

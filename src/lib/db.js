@@ -74,14 +74,26 @@ function normEntry(r) {
 // ── Bootstrap: create tables if they don't exist ─────────────
 // Uses a promise cache so concurrent calls share one init.
 // Resets on error so mobile can retry after network failure.
+// After a successful first run, sessionStorage flag skips the 30+ migration
+// statements on subsequent page loads — cutting startup time from ~4s to ~0s.
+const DB_READY_KEY = 'mytrack-db-ready-v2'
 let _initPromise = null
 export function initDB() {
   if (_initPromise) return _initPromise
-  _initPromise = _runInitDB().catch(err => {
-    _initPromise = null   // reset → next caller retries
-    console.warn('[initDB] failed, will retry next call:', err.message)
-    throw err
-  })
+  // Already initialised in this browser session — skip migrations entirely
+  if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(DB_READY_KEY) === '1') {
+    _initPromise = Promise.resolve()
+    return _initPromise
+  }
+  _initPromise = _runInitDB()
+    .then(() => {
+      try { sessionStorage.setItem(DB_READY_KEY, '1') } catch {}
+    })
+    .catch(err => {
+      _initPromise = null   // reset → next caller retries
+      console.warn('[initDB] failed, will retry next call:', err.message)
+      throw err
+    })
   return _initPromise
 }
 async function _runInitDB() {

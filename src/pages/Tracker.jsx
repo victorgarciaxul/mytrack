@@ -153,6 +153,7 @@ export default function Tracker() {
   function loadFromNeon() {
     if (!user?.email) return
     const year = getSelectedYear()
+    // initDB() returns immediately after first session init (sessionStorage flag)
     initDB()
       .then(() => dbGetEntries(user.email, year))
       .then(rows => setEntries(rows.map(mapNeonRow)))

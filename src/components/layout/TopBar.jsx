@@ -52,130 +52,108 @@ export default function TopBar({ onMenuClick }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>
-
-      {/* ── Tutorial download banner ── */}
-      <div style={{
-        background: 'linear-gradient(90deg, #7C4DFF 0%, #5C35CC 100%)',
-        padding: '0 24px',
-        height: 34,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        justifyContent: 'center',
-      }}>
-        <Download size={13} style={{ color: '#D4C5FF', flexShrink: 0 }} />
-        <span style={{ fontSize: 12.5, color: '#E8E0FF', fontWeight: 500 }}>
-          ¿Nuevo en MyTrack?
-        </span>
-        <a
-          href="/tutoriales/MyTrack_Tutorial_Admin.pdf"
-          download="MyTrack_Tutorial_Admin.pdf"
-          style={{
-            fontSize: 12.5, color: '#fff', fontWeight: 700,
-            textDecoration: 'none',
-            background: 'rgba(255,255,255,0.15)',
-            padding: '2px 10px',
-            borderRadius: 20,
-            border: '1px solid rgba(255,255,255,0.3)',
-            transition: 'background 0.15s',
-            whiteSpace: 'nowrap',
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-        >
-          Descarga aquí el tutorial de MyTrack
-        </a>
-      </div>
-
     <div style={{
-      height: 60,
-      background: 'var(--c-bg-surface)',
-      borderBottom: '1px solid var(--c-border-light)',
+      height: 52,
+      background: 'linear-gradient(90deg, #7C4DFF 0%, #5C35CC 100%)',
+      borderBottom: '1px solid #5C35CC',
       display: 'flex',
       alignItems: 'center',
-      padding: '0 24px',
+      padding: '0 20px',
       gap: 12,
+      flexShrink: 0,
       fontFamily: 'Inter, system-ui, sans-serif',
     }}>
       {/* Hamburger – mobile only */}
       {isMobile && (
-        <button
-          onClick={onMenuClick}
-          style={{
-            width: 36, height: 36, borderRadius: 9,
-            background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: 'var(--c-text-3)', flexShrink: 0,
-          }}
-        >
-          <Menu size={17} />
+        <button onClick={onMenuClick} style={{
+          width: 34, height: 34, borderRadius: 8,
+          background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', color: '#fff', flexShrink: 0,
+        }}>
+          <Menu size={16} />
         </button>
       )}
+
+      {/* Tutorial download link */}
+      <a
+        href="/tutoriales/MyTrack_Tutorial_Admin.pdf"
+        download="MyTrack_Tutorial_Admin.pdf"
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          fontSize: 12.5, color: '#fff', fontWeight: 600,
+          textDecoration: 'none',
+          background: 'rgba(255,255,255,0.13)',
+          padding: '5px 12px', borderRadius: 20,
+          border: '1px solid rgba(255,255,255,0.25)',
+          whiteSpace: 'nowrap', flexShrink: 0,
+          transition: 'background 0.15s',
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.22)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.13)'}
+      >
+        <Download size={12} />
+        {!isMobile && 'Descarga aquí el tutorial de MyTrack'}
+        {isMobile && 'Tutorial'}
+      </a>
 
       <div style={{ flex: 1 }} />
 
       {/* Year selector */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6,
-        padding: '5px 10px', borderRadius: 8,
-        background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5,
+        padding: '4px 10px', borderRadius: 8,
+        background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
       }}>
-        <Calendar size={13} style={{ color: 'var(--c-text-3)', flexShrink: 0 }} />
+        <Calendar size={12} style={{ color: 'rgba(255,255,255,0.7)', flexShrink: 0 }} />
         <select
           value={currentYear}
           onChange={handleYearChange}
           style={{
             background: 'transparent', border: 'none', outline: 'none',
-            fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)',
+            fontSize: 12.5, fontWeight: 600, color: '#fff',
             cursor: 'pointer', padding: 0,
           }}
         >
           {availableYears.map(y => (
-            <option key={y} value={y}>{y}</option>
+            <option key={y} value={y} style={{ color: '#1F2937', background: '#fff' }}>{y}</option>
           ))}
         </select>
       </div>
 
       {/* Theme toggle */}
-      <button
-        onClick={toggle}
-        title={isDark ? 'Tema claro' : 'Tema oscuro'}
-        style={{
-          width: 36, height: 36, borderRadius: 9,
-          background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', color: 'var(--c-text-3)',
-          transition: 'background 0.15s, color 0.15s',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'var(--c-bg-hover)'; e.currentTarget.style.color = '#7C4DFF' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'var(--c-bg-muted)'; e.currentTarget.style.color = 'var(--c-text-3)' }}
+      <button onClick={toggle} title={isDark ? 'Tema claro' : 'Tema oscuro'} style={{
+        width: 34, height: 34, borderRadius: 8,
+        background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', color: '#fff', transition: 'background 0.15s',
+      }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.22)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
       >
-        {isDark ? <Sun size={15} /> : <Moon size={15} />}
+        {isDark ? <Sun size={14} /> : <Moon size={14} />}
       </button>
 
       {/* Bell */}
-      <button
-        onClick={() => navigate('/notifications')}
-        style={{
-          width: 36, height: 36, borderRadius: 9,
-          background: 'var(--c-bg-muted)', border: '1px solid var(--c-border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', position: 'relative', color: 'var(--c-text-3)',
-        }}
-        onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-hover)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
+      <button onClick={() => navigate('/notifications')} style={{
+        width: 34, height: 34, borderRadius: 8,
+        background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', position: 'relative', color: '#fff',
+        transition: 'background 0.15s',
+      }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.22)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
       >
-        <Bell size={15} />
+        <Bell size={14} />
         {unreadCount > 0 && (
           <span style={{
             position: 'absolute', top: 6, right: 6,
             width: 7, height: 7, borderRadius: '50%',
-            background: '#EF4444', border: '1.5px solid var(--c-bg-surface)',
+            background: '#FCD34D', border: '1.5px solid #7C4DFF',
           }} />
         )}
       </button>
 
-    </div>
     </div>
   )
 }

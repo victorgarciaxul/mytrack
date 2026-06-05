@@ -3,8 +3,9 @@
  *
  * GET /api/team-costs?year=2026&workspace=xul-ws-1
  *
- * Calcula el coste de personal mensual sumando
- * (horas imputadas × tarifa horaria de cada miembro)
+ * Calcula el coste de imputación mensual usando la misma fórmula
+ * que la vista "Costes de equipo" de MyTrack:
+ *   coste_imput = (segundos_en_proyecto / MAX(segundos_totales_persona, 160h)) × coste_mensual
  * y devuelve un JSON que EcoFin puede consumir directamente.
  *
  * Respuesta:
@@ -82,45 +83,86 @@ export default async function handler(req, res) {
       return
     }
 
-    // Two query variants: with / without project filter.
-    // Neon tagged templates don't support dynamic LIKE interpolation
-    // in a single template, so we branch explicitly.
+    // Capacity: 160 standard hours per month in seconds (same constant as MyTrack frontend)
+    const CAPACITY_SECS = 160 * 3600
+
+    // Formula mirrors MyTrack's "Coste imput." calculation:
+    //   imputCost = (seconds_on_project / MAX(person_total_seconds, capacity)) × monthly_cost
+    //
+    // person_total_seconds = all seconds the person logged in that month across ALL projects,
+    // so we compute it in a CTE before filtering by project.
     let rows
     if (project) {
       const like = `%${project.toLowerCase()}%`
       rows = await db`
+        WITH person_month_totals AS (
+          SELECT
+            user_email,
+            TO_CHAR(start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM') AS month,
+            SUM(duration) AS total_secs
+          FROM time_entries
+          WHERE workspace_id = ${workspace}
+            AND duration > 0
+            AND EXTRACT(YEAR FROM start_time AT TIME ZONE 'Europe/Madrid') = ${year}
+          GROUP BY user_email, TO_CHAR(start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM')
+        )
         SELECT
           TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM') AS month,
           ROUND(
-            SUM(te.duration / 3600.0 * COALESCE(wm.hourly_rate, 0))::numeric,
+            SUM(
+              (te.duration::numeric / GREATEST(COALESCE(pmt.total_secs, te.duration), ${CAPACITY_SECS}))
+              * COALESCE(wm.monthly_cost, 0)
+            )::numeric,
             2
           ) AS cost
         FROM time_entries te
         LEFT JOIN workspace_members wm
           ON te.user_email    = wm.user_email
          AND wm.workspace_id = te.workspace_id
+        LEFT JOIN person_month_totals pmt
+          ON te.user_email = pmt.user_email
+         AND TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM') = pmt.month
         WHERE te.workspace_id = ${workspace}
           AND te.duration > 0
           AND EXTRACT(YEAR FROM te.start_time AT TIME ZONE 'Europe/Madrid') = ${year}
           AND LOWER(COALESCE(te.project_name, '')) LIKE ${like}
+          AND COALESCE(wm.monthly_cost, 0) > 0
         GROUP BY TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM')
         ORDER BY month
       `
     } else {
       rows = await db`
+        WITH person_month_totals AS (
+          SELECT
+            user_email,
+            TO_CHAR(start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM') AS month,
+            SUM(duration) AS total_secs
+          FROM time_entries
+          WHERE workspace_id = ${workspace}
+            AND duration > 0
+            AND EXTRACT(YEAR FROM start_time AT TIME ZONE 'Europe/Madrid') = ${year}
+          GROUP BY user_email, TO_CHAR(start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM')
+        )
         SELECT
           TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM') AS month,
           ROUND(
-            SUM(te.duration / 3600.0 * COALESCE(wm.hourly_rate, 0))::numeric,
+            SUM(
+              (te.duration::numeric / GREATEST(COALESCE(pmt.total_secs, te.duration), ${CAPACITY_SECS}))
+              * COALESCE(wm.monthly_cost, 0)
+            )::numeric,
             2
           ) AS cost
         FROM time_entries te
         LEFT JOIN workspace_members wm
           ON te.user_email    = wm.user_email
          AND wm.workspace_id = te.workspace_id
+        LEFT JOIN person_month_totals pmt
+          ON te.user_email = pmt.user_email
+         AND TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM') = pmt.month
         WHERE te.workspace_id = ${workspace}
           AND te.duration > 0
           AND EXTRACT(YEAR FROM te.start_time AT TIME ZONE 'Europe/Madrid') = ${year}
+          AND COALESCE(wm.monthly_cost, 0) > 0
         GROUP BY TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM')
         ORDER BY month
       `

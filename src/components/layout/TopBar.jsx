@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Moon, Sun, Calendar, Menu } from 'lucide-react'
+import { Bell, Moon, Sun, Calendar, Menu, Download } from 'lucide-react'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { useAuth } from '../../context/AuthContext'
 import { useRole } from '../../context/RoleContext'
@@ -52,6 +52,42 @@ export default function TopBar({ onMenuClick }) {
   }
 
   return (
+    <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>
+
+      {/* ── Tutorial download banner ── */}
+      <div style={{
+        background: 'linear-gradient(90deg, #7C4DFF 0%, #5C35CC 100%)',
+        padding: '0 24px',
+        height: 34,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        justifyContent: 'center',
+      }}>
+        <Download size={13} style={{ color: '#D4C5FF', flexShrink: 0 }} />
+        <span style={{ fontSize: 12.5, color: '#E8E0FF', fontWeight: 500 }}>
+          ¿Nuevo en MyTrack?
+        </span>
+        <a
+          href="/tutoriales/MyTrack_Tutorial_Admin.pdf"
+          download="MyTrack_Tutorial_Admin.pdf"
+          style={{
+            fontSize: 12.5, color: '#fff', fontWeight: 700,
+            textDecoration: 'none',
+            background: 'rgba(255,255,255,0.15)',
+            padding: '2px 10px',
+            borderRadius: 20,
+            border: '1px solid rgba(255,255,255,0.3)',
+            transition: 'background 0.15s',
+            whiteSpace: 'nowrap',
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+        >
+          Descarga aquí el tutorial de MyTrack
+        </a>
+      </div>
+
     <div style={{
       height: 60,
       background: 'var(--c-bg-surface)',
@@ -60,7 +96,6 @@ export default function TopBar({ onMenuClick }) {
       alignItems: 'center',
       padding: '0 24px',
       gap: 12,
-      flexShrink: 0,
       fontFamily: 'Inter, system-ui, sans-serif',
     }}>
       {/* Hamburger – mobile only */}
@@ -140,6 +175,7 @@ export default function TopBar({ onMenuClick }) {
         )}
       </button>
 
+    </div>
     </div>
   )
 }

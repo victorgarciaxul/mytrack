@@ -75,6 +75,24 @@ export default function TopBar({ onMenuClick }) {
         </button>
       )}
 
+      {/* Welcome + support */}
+      {!isMobile && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <span style={{ fontSize: 12.5, color: '#fff', fontWeight: 700 }}>👋 Bienvenido a MyTrack</span>
+          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>·</span>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>
+            ¿Necesitas ayuda?{' '}
+            <a href="mailto:victorgarcia@xul.es"
+              style={{ color: '#C4B5FD', fontWeight: 600, textDecoration: 'none' }}
+              onMouseEnter={e => e.target.style.color = '#fff'}
+              onMouseLeave={e => e.target.style.color = '#C4B5FD'}
+            >victorgarcia@xul.es</a>
+          </span>
+        </div>
+      )}
+
+      <div style={{ flex: 1 }} />
+
       {/* Tutorial download link */}
       <a
         href="/tutoriales/MyTrack_Tutorial_Admin.pdf"
@@ -97,7 +115,7 @@ export default function TopBar({ onMenuClick }) {
         {isMobile && 'Tutorial'}
       </a>
 
-      <div style={{ flex: 1 }} />
+      {!isMobile && <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.2)', flexShrink: 0 }} />}
 
       {/* Year selector */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 5,

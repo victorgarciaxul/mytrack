@@ -199,12 +199,17 @@ export default function Costs() {
 
   const { from, to } = appliedRange
 
-  // ── Capacity proportional to the selected period ──────────────────────────
-  // Example: 1 month → 160h, 1 year → 1920h, 2 weeks → ~80h
-  const periodCapacitySecs = useMemo(() => {
+  // ── Capacity & period cost proportional to the selected period ──────────────
+  // periodCapacitySecs: reference hours for the period (1 month → 160h, 1 year → 1920h)
+  // periodMonths: used to scale monthly_cost to the full period cost
+  const { periodCapacitySecs, periodMonths } = useMemo(() => {
     const ms = to.getTime() - from.getTime()
     const months = ms / (1000 * 60 * 60 * 24 * 30.4375)
-    return Math.max(CAPACITY_HOURS * 3600 * months, CAPACITY_HOURS * 3600)
+    const clampedMonths = Math.max(months, 1)
+    return {
+      periodCapacitySecs: CAPACITY_HOURS * 3600 * clampedMonths,
+      periodMonths: clampedMonths,
+    }
   }, [from, to])
 
   useEffect(() => {
@@ -322,12 +327,12 @@ export default function Costs() {
         imputBudgets: {}, people: {},
       }
       const cost      = (e.duration / 3600) * rate
-      const imputCost = (e.duration / cappedTotal) * mc
+      const imputCost = (e.duration / cappedTotal) * mc * periodMonths
       map[projId].totalSecs      += e.duration
       map[projId].totalCost      += cost
       map[projId].totalImputCost += imputCost
       if (mc > 0 && !map[projId].imputBudgets[e.user_email]) {
-        map[projId].imputBudgets[e.user_email] = mc * Math.min(personTotal / periodCapacitySecs, 1)
+        map[projId].imputBudgets[e.user_email] = mc * periodMonths * Math.min(personTotal / periodCapacitySecs, 1)
       }
       const mb   = members.find(m => m.user_email === e.user_email)
       const pKey = e.user_email
@@ -348,7 +353,7 @@ export default function Costs() {
               : a.name.localeCompare(b.name)
       return sortDir === 'asc' ? -v : v
     })
-  }, [filtered, rateMap, monthlyCostMap, personTotalSecs, periodCapacitySecs, members, sortCol, sortDir])
+  }, [filtered, rateMap, monthlyCostMap, personTotalSecs, periodCapacitySecs, periodMonths, members, sortCol, sortDir])
 
   // ── VIEW: by person ────────────────────────────────────────────────────────
   const byPerson = useMemo(() => {
@@ -370,7 +375,7 @@ export default function Costs() {
         }
       }
       const cost      = (e.duration / 3600) * rate
-      const imputCost = (e.duration / cappedTotal) * mc
+      const imputCost = (e.duration / cappedTotal) * mc * periodMonths
       map[key].totalSecs      += e.duration
       map[key].totalCost      += cost
       map[key].totalImputCost += imputCost
@@ -389,7 +394,7 @@ export default function Costs() {
               : a.name.localeCompare(b.name)
       return sortDir === 'asc' ? -v : v
     })
-  }, [filtered, rateMap, monthlyCostMap, personTotalSecs, periodCapacitySecs, members, sortCol, sortDir])
+  }, [filtered, rateMap, monthlyCostMap, personTotalSecs, periodCapacitySecs, periodMonths, members, sortCol, sortDir])
 
   // ── VIEW: by client ────────────────────────────────────────────────────────
   const byClient = useMemo(() => {
@@ -408,12 +413,12 @@ export default function Costs() {
         imputBudgets: {}, projects: {},
       }
       const cost      = (e.duration / 3600) * rate
-      const imputCost = (e.duration / cappedTotal) * mc
+      const imputCost = (e.duration / cappedTotal) * mc * periodMonths
       map[clientKey].totalSecs      += e.duration
       map[clientKey].totalCost      += cost
       map[clientKey].totalImputCost += imputCost
       if (mc > 0 && !map[clientKey].imputBudgets[e.user_email]) {
-        map[clientKey].imputBudgets[e.user_email] = mc * Math.min(personTotal / periodCapacitySecs, 1)
+        map[clientKey].imputBudgets[e.user_email] = mc * periodMonths * Math.min(personTotal / periodCapacitySecs, 1)
       }
       const projId = e.project_id || '__none__'
       if (!map[clientKey].projects[projId]) map[clientKey].projects[projId] = {
@@ -433,7 +438,7 @@ export default function Costs() {
               : a.name.localeCompare(b.name)
       return sortDir === 'asc' ? -v : v
     })
-  }, [filtered, rateMap, monthlyCostMap, personTotalSecs, periodCapacitySecs, sortCol, sortDir])
+  }, [filtered, rateMap, monthlyCostMap, personTotalSecs, periodCapacitySecs, periodMonths, sortCol, sortDir])
 
   // Totals (use active view's data)
   const activeRows = viewMode === 'project' ? byProject : viewMode === 'person' ? byPerson : byClient

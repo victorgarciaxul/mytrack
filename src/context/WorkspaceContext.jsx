@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 import { loadClockifyCache, isClockifyUser } from '../lib/clockify'
-import { initDB, dbGetProjects, dbGetClients } from '../lib/db'
+import { initDB, dbGetProjects, dbGetClients, dbGetAllTasks } from '../lib/db'
 
 const WorkspaceContext = createContext(null)
 
@@ -36,10 +36,10 @@ export function WorkspaceProvider({ children }) {
   useEffect(() => {
     if (!user) return
     if (isDemo) {
-      // Load projects & clients from Neon (available to all users after import)
+      // Load projects, clients AND tasks from Supabase
       initDB()
-        .then(() => Promise.all([dbGetProjects(), dbGetClients()]))
-        .then(([neonProjects, neonClients]) => {
+        .then(() => Promise.all([dbGetProjects(), dbGetClients(), dbGetAllTasks()]))
+        .then(([neonProjects, neonClients, neonTasks]) => {
           if (neonProjects?.length) {
             setProjects(neonProjects.map(p => ({
               ...p,
@@ -47,6 +47,7 @@ export function WorkspaceProvider({ children }) {
             })))
           }
           if (neonClients?.length) setClients(neonClients)
+          if (neonTasks?.length) setTasks(neonTasks)
         })
         .catch(console.error)
       return

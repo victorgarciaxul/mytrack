@@ -597,43 +597,22 @@ function isFundacionEntry(e) {
   return e.client_name?.toLowerCase().includes('fundaci')
 }
 
-/** Insert a single entry row (helper used by dbUpsertEntries) */
-async function _upsertEntry(db, id, wsId, e) {
-  await db`
-    INSERT INTO time_entries
-      (id, workspace_id, user_email, project_id, project_name, project_color, client_name,
-       task_id, task_name, description, start_time, end_time, duration, billable)
-    VALUES
-      (${id}, ${wsId}, ${e.user_email},
-       ${e.project_id || null}, ${e.project_name || null},
-       ${e.project_color || null}, ${e.client_name || null},
-       ${e.task_id || null}, ${e.task_name || null},
-       ${e.description || ''}, ${e.start_time}, ${e.end_time || null},
-       ${e.duration || null}, ${e.billable || false})
-    ON CONFLICT (id) DO UPDATE SET
-      description   = EXCLUDED.description,
-      project_name  = EXCLUDED.project_name,
-      project_color = EXCLUDED.project_color,
-      client_name   = EXCLUDED.client_name,
-      task_name     = EXCLUDED.task_name,
-      start_time    = EXCLUDED.start_time,
-      end_time      = EXCLUDED.end_time,
-      duration      = EXCLUDED.duration
-  `
+/** Insert a single entry row (native Supabase) */
+async function _upsertEntry(id, wsId, e) {
+  await _supabase.from('time_entries').upsert({
+    id, workspace_id: wsId, user_email: e.user_email,
+    project_id: e.project_id || null, project_name: e.project_name || null,
+    project_color: e.project_color || null, client_name: e.client_name || null,
+    task_id: e.task_id || null, task_name: e.task_name || null,
+    description: e.description || '', start_time: e.start_time,
+    end_time: e.end_time || null, duration: e.duration || null, billable: e.billable || false,
+  }, { onConflict: 'id' })
 }
 
-/** Bulk upsert — inserts entries in batches of 50.
- *  Routing rules:
- *  1. Each entry goes to its owner's workspace (by email domain).
- *  2. Entries for the "Fundación" client are ALSO saved to fundacion-ws-1
- *     (even if tracked by a XUL user), using a suffixed ID to avoid PK conflicts. */
+/** Bulk upsert — inserts entries in batches of 50. */
 export async function dbUpsertEntries(entries, onProgress) {
-  const db = sql()
-
-  // Load deleted IDs once — skip any entry the user explicitly removed in MyTrack
-  const deletedRows = await db`SELECT id FROM deleted_entries`
-  const deletedIds = new Set(deletedRows.map(r => r.id))
-
+  const { data: deletedRows } = await _supabase.from('deleted_entries').select('id')
+  const deletedIds = new Set((deletedRows || []).map(r => r.id))
   const toInsert = entries.filter(e => !deletedIds.has(e.id))
 
   const BATCH = 50
@@ -642,17 +621,10 @@ export async function dbUpsertEntries(entries, onProgress) {
     const batch = toInsert.slice(i, i + BATCH)
     for (const e of batch) {
       const ownerWsId = getWsIdForEmail(e.user_email)
-
-      // 1. Save to owner's workspace
-      await _upsertEntry(db, e.id, ownerWsId, e)
-
-      // 2. Fundación client entries also land in fundacion-ws-1
-      //    Skip if already routed there (avoids double-writing @fundacionxul.org entries)
+      await _upsertEntry(e.id, ownerWsId, e)
       if (isFundacionEntry(e) && ownerWsId !== 'fundacion-ws-1') {
         const mirrorId = `${e.id}__f`
-        if (!deletedIds.has(mirrorId)) {
-          await _upsertEntry(db, mirrorId, 'fundacion-ws-1', e)
-        }
+        if (!deletedIds.has(mirrorId)) await _upsertEntry(mirrorId, 'fundacion-ws-1', e)
       }
     }
     done += batch.length
@@ -682,15 +654,12 @@ export async function dbDeleteEntry(id) {
 // ── Members ───────────────────────────────────────────────────
 
 export async function dbChangePassword(userEmail, newPassword) {
-  const db = sql()
-  await db`
-    UPDATE workspace_members
-    SET password = ${newPassword}
-    WHERE workspace_id = ${getWsId()} AND user_email = ${userEmail}
-  `
+  await _supabase.from('workspace_members').update({ password: newPassword })
+    .eq('workspace_id', getWsId()).eq('user_email', userEmail)
 }
 
 export async function dbGetAvailableYears(userEmail) {
+  // Use exec_sql for EXTRACT + DISTINCT — no native Supabase equivalent
   const db = sql()
   const rows = await db`
     SELECT DISTINCT EXTRACT(YEAR FROM start_time)::int AS year
@@ -705,8 +674,10 @@ export async function dbGetAvailableYears(userEmail) {
 // ── Projects & Clients ────────────────────────────────────────
 
 export async function dbGetProjects() {
-  const db = sql()
-  return db`SELECT * FROM projects WHERE workspace_id = ${getWsId()} AND archived = false ORDER BY name`
+  const { data, error } = await _supabase.from('projects').select('*')
+    .eq('workspace_id', getWsId()).eq('archived', false).order('name')
+  if (error) throw new Error(error.message)
+  return data || []
 }
 
 export async function dbGetProjectsWithHours() {
@@ -740,366 +711,233 @@ export async function dbGetAllProjectsWithHours() {
 }
 
 export async function dbGetClients() {
-  const db = sql()
-  return db`SELECT * FROM clients WHERE workspace_id = ${getWsId()} ORDER BY name`
+  const { data, error } = await _supabase.from('clients').select('*')
+    .eq('workspace_id', getWsId()).order('name')
+  if (error) throw new Error(error.message)
+  return data || []
 }
 
 // ── Groups ────────────────────────────────────────────────────
 
 export async function dbGetGroups() {
-  const db = sql()
-  return db`SELECT * FROM groups WHERE workspace_id = ${getWsId()} ORDER BY name`
+  const { data } = await _supabase.from('groups').select('*').eq('workspace_id', getWsId()).order('name')
+  return data || []
 }
 
 export async function dbUpsertGroups(groups) {
-  const db = sql()
   const wsId = getWsId()
-  for (const g of groups) {
-    await db`
-      INSERT INTO groups (id, workspace_id, name, user_ids, manager_ids)
-      VALUES (${g.id}, ${wsId}, ${g.name},
-              ${g.user_ids || '[]'}, ${g.manager_ids || '[]'})
-      ON CONFLICT (id) DO UPDATE SET
-        name        = EXCLUDED.name,
-        user_ids    = EXCLUDED.user_ids,
-        manager_ids = EXCLUDED.manager_ids
-    `
-  }
+  const rows = groups.map(g => ({ id: g.id, workspace_id: wsId, name: g.name, user_ids: g.user_ids || '[]', manager_ids: g.manager_ids || '[]' }))
+  await _supabase.from('groups').upsert(rows, { onConflict: 'id' })
 }
 
 export async function dbDeleteGroup(id) {
-  const db = sql()
-  await db`DELETE FROM groups WHERE id = ${id}`
+  await _supabase.from('groups').delete().eq('id', id)
 }
 
 // ── Tasks ──────────────────────────────────────────────────────
 
 export async function dbGetTasksForProject(projectId) {
-  const db = sql()
-  return db`
-    SELECT * FROM tasks
-    WHERE project_id = ${projectId} AND archived = false
-    ORDER BY created_at ASC
-  `
+  const { data } = await _supabase.from('tasks').select('*')
+    .eq('project_id', projectId).eq('archived', false).order('created_at')
+  return data || []
 }
 
 export async function dbGetAllTasks() {
-  const db = sql()
-  return db`
-    SELECT * FROM tasks
-    WHERE workspace_id = ${getWsId()} AND archived = false
-    ORDER BY project_id, created_at ASC
-  `
+  const { data } = await _supabase.from('tasks').select('*')
+    .eq('workspace_id', getWsId()).eq('archived', false).order('project_id').order('created_at')
+  return data || []
 }
 
 export async function dbUpsertTasks(tasks, wsId) {
-  const db = sql()
   wsId = wsId || getWsId()
-  for (const t of tasks) {
-    await db`
-      INSERT INTO tasks (id, workspace_id, project_id, name, status, estimate, archived)
-      VALUES (${t.id}, ${wsId}, ${t.project_id}, ${t.name},
-              ${t.status || 'ACTIVE'}, ${t.estimate || null}, ${t.archived || false})
-      ON CONFLICT (id) DO UPDATE SET
-        name     = EXCLUDED.name,
-        status   = EXCLUDED.status,
-        estimate = EXCLUDED.estimate,
-        archived = EXCLUDED.archived
-    `
-  }
+  const rows = tasks.map(t => ({ id: t.id, workspace_id: wsId, project_id: t.project_id, name: t.name, status: t.status || 'ACTIVE', estimate: t.estimate || null, archived: t.archived || false }))
+  await _supabase.from('tasks').upsert(rows, { onConflict: 'id' })
 }
 
 export async function dbCreateTask({ projectId, name, estimate }) {
-  const db = sql()
   const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
-  const rows = await db`
-    INSERT INTO tasks (id, workspace_id, project_id, name, status, estimate)
-    VALUES (${id}, ${getWsId()}, ${projectId}, ${name}, 'ACTIVE', ${estimate || null})
-    RETURNING *
-  `
-  return rows[0]
+  const { data, error } = await _supabase.from('tasks')
+    .insert({ id, workspace_id: getWsId(), project_id: projectId, name, status: 'ACTIVE', estimate: estimate || null })
+    .select().single()
+  if (error) throw new Error(error.message)
+  return data
 }
 
 export async function dbDeleteTask(id) {
-  const db = sql()
-  await db`DELETE FROM tasks WHERE id = ${id}`
+  await _supabase.from('tasks').delete().eq('id', id)
 }
 
 export async function dbToggleTaskStatus(id, status) {
-  const db = sql()
-  await db`UPDATE tasks SET status = ${status} WHERE id = ${id}`
+  await _supabase.from('tasks').update({ status }).eq('id', id)
 }
 
 export async function dbCreateProject({ name, color, clientId, clientName, budgetHours }) {
-  const db = sql()
   const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
-  const rows = await db`
-    INSERT INTO projects (id, workspace_id, name, color, client_id, client_name, budget_hours, archived, access)
-    VALUES (${id}, ${getWsId()}, ${name}, ${color || '#7C4DFF'},
-            ${clientId || null}, ${clientName || null}, ${budgetHours || null}, false, 'PRIVATE')
-    RETURNING *
-  `
-  return rows[0]
+  const { data, error } = await _supabase.from('projects')
+    .insert({ id, workspace_id: getWsId(), name, color: color || '#7C4DFF', client_id: clientId || null, client_name: clientName || null, budget_hours: budgetHours || null, archived: false, access: 'PRIVATE' })
+    .select().single()
+  if (error) throw new Error(error.message)
+  return data
 }
 
 export async function dbDeleteProject(id) {
-  const db = sql()
-  await db`DELETE FROM projects WHERE id = ${id}`
+  await _supabase.from('projects').delete().eq('id', id)
 }
 
 export async function dbUpdateProject({ id, name, color, clientId, clientName, budgetHours }) {
-  const db = sql()
-  const rows = await db`
-    UPDATE projects SET
-      name         = ${name},
-      color        = ${color || '#7C4DFF'},
-      client_id    = ${clientId || null},
-      client_name  = ${clientName || null},
-      budget_hours = ${budgetHours || null}
-    WHERE id = ${id}
-    RETURNING *
-  `
-  return rows[0]
+  const { data, error } = await _supabase.from('projects')
+    .update({ name, color: color || '#7C4DFF', client_id: clientId || null, client_name: clientName || null, budget_hours: budgetHours || null })
+    .eq('id', id).select().single()
+  if (error) throw new Error(error.message)
+  return data
 }
 
 export async function dbArchiveProject(id, archived) {
-  const db = sql()
-  await db`UPDATE projects SET archived = ${archived} WHERE id = ${id}`
+  await _supabase.from('projects').update({ archived }).eq('id', id)
 }
 
 export async function dbCreateClient({ name, email }) {
-  const db = sql()
   const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
-  const rows = await db`
-    INSERT INTO clients (id, workspace_id, name, email)
-    VALUES (${id}, ${getWsId()}, ${name}, ${email || null})
-    RETURNING *
-  `
-  return rows[0]
+  const { data, error } = await _supabase.from('clients')
+    .insert({ id, workspace_id: getWsId(), name, email: email || null })
+    .select().single()
+  if (error) throw new Error(error.message)
+  return data
 }
 
 export async function dbDeleteClient(id) {
-  const db = sql()
-  await db`DELETE FROM clients WHERE id = ${id}`
+  await _supabase.from('clients').delete().eq('id', id)
 }
 
 export async function dbUpdateClient({ id, name, email }) {
-  const db = sql()
-  const rows = await db`
-    UPDATE clients SET name = ${name}, email = ${email || null}
-    WHERE id = ${id}
-    RETURNING *
-  `
-  return rows[0]
+  const { data, error } = await _supabase.from('clients')
+    .update({ name, email: email || null }).eq('id', id).select().single()
+  if (error) throw new Error(error.message)
+  return data
 }
 
 export async function dbArchiveClient(id, archived) {
-  const db = sql()
-  await db`UPDATE clients SET archived = ${archived} WHERE id = ${id}`
+  await _supabase.from('clients').update({ archived }).eq('id', id)
 }
 
 export async function dbCreateTag({ name }) {
-  const db = sql()
   const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
-  const rows = await db`
-    INSERT INTO tags (id, workspace_id, name, archived)
-    VALUES (${id}, ${getWsId()}, ${name}, false)
-    RETURNING *
-  `
-  return rows[0]
+  const { data, error } = await _supabase.from('tags')
+    .insert({ id, workspace_id: getWsId(), name, archived: false }).select().single()
+  if (error) throw new Error(error.message)
+  return data
 }
 
 export async function dbDeleteTag(id) {
-  const db = sql()
-  await db`DELETE FROM tags WHERE id = ${id}`
+  await _supabase.from('tags').delete().eq('id', id)
 }
 
 export async function dbUpdateTag(id, name) {
-  const db = sql()
-  const rows = await db`
-    UPDATE tags SET name = ${name} WHERE id = ${id} RETURNING *
-  `
-  return rows[0]
+  const { data, error } = await _supabase.from('tags').update({ name }).eq('id', id).select().single()
+  if (error) throw new Error(error.message)
+  return data
 }
 
 export async function dbCreateTimeOffRequest({ userEmail, userName, policyId, policyName, startDate, endDate, note }) {
-  const db = sql()
   const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
-  const rows = await db`
-    INSERT INTO time_off_requests
-      (id, workspace_id, user_email, user_name, policy_id, policy_name, status, start_date, end_date, note)
-    VALUES
-      (${id}, ${getWsId()}, ${userEmail || null}, ${userName || null},
-       ${policyId || null}, ${policyName || null}, 'PENDING',
-       ${startDate}, ${endDate}, ${note || null})
-    RETURNING *
-  `
-  return rows[0]
+  const { data, error } = await _supabase.from('time_off_requests')
+    .insert({ id, workspace_id: getWsId(), user_email: userEmail || null, user_name: userName || null, policy_id: policyId || null, policy_name: policyName || null, status: 'PENDING', start_date: startDate, end_date: endDate, note: note || null })
+    .select().single()
+  if (error) throw new Error(error.message)
+  return data
 }
 
 export async function dbUpsertProjects(projects, wsId) {
-  const db = sql()
   wsId = wsId || getWsId()
-  for (const p of projects) {
-    await db`
-      INSERT INTO projects (id, workspace_id, name, color, client_id, client_name, budget_hours, archived, access)
-      VALUES (${p.id}, ${wsId}, ${p.name}, ${p.color || '#7C4DFF'},
-              ${p.client_id || null}, ${p.clients?.name || null},
-              ${p.budget_hours || null}, ${p.archived || false}, ${p.access || 'PRIVATE'})
-      ON CONFLICT (id) DO UPDATE SET
-        name         = EXCLUDED.name,
-        color        = EXCLUDED.color,
-        client_id    = EXCLUDED.client_id,
-        client_name  = EXCLUDED.client_name,
-        budget_hours = EXCLUDED.budget_hours,
-        archived     = EXCLUDED.archived,
-        access       = EXCLUDED.access
-    `
-  }
+  const rows = projects.map(p => ({ id: p.id, workspace_id: wsId, name: p.name, color: p.color || '#7C4DFF', client_id: p.client_id || null, client_name: p.clients?.name || null, budget_hours: p.budget_hours || null, archived: p.archived || false, access: p.access || 'PRIVATE' }))
+  await _supabase.from('projects').upsert(rows, { onConflict: 'id' })
 }
 
 // ── Sticky notes ──────────────────────────────────────────────
 
 export async function dbGetMyNotes(userEmail) {
-  const db = sql()
-  const rows = await db`
-    SELECT * FROM sticky_notes
-    WHERE author_email = ${userEmail}
-    ORDER BY slot ASC
-  `
-  // Always return 3 slots
+  const { data } = await _supabase.from('sticky_notes').select('*').eq('author_email', userEmail).order('slot')
   const bySlot = {}
-  rows.forEach(r => { bySlot[r.slot] = r })
-  return [0, 1, 2].map(slot => bySlot[slot] || {
-    id: null, slot, content: '', shared_with: '[]',
-    author_email: userEmail, author_name: '',
-  })
+  ;(data || []).forEach(r => { bySlot[r.slot] = r })
+  return [0, 1, 2].map(slot => bySlot[slot] || { id: null, slot, content: '', shared_with: '[]', author_email: userEmail, author_name: '' })
 }
 
 export async function dbSaveNote({ userEmail, authorName, slot, content }) {
-  const db = sql()
-  const updated = await db`
-    UPDATE sticky_notes
-    SET content = ${content}, author_name = ${authorName || ''}, updated_at = NOW()
-    WHERE author_email = ${userEmail} AND slot = ${slot}
-    RETURNING *
-  `
-  if (updated.length > 0) return updated[0]
-
-  const rows = await db`
-    INSERT INTO sticky_notes (workspace_id, author_email, author_name, slot, content, updated_at)
-    VALUES (${getWsId()}, ${userEmail}, ${authorName || ''}, ${slot}, ${content}, NOW())
-    ON CONFLICT (author_email, slot) DO UPDATE SET
-      content     = EXCLUDED.content,
-      author_name = EXCLUDED.author_name,
-      updated_at  = NOW()
-    RETURNING *
-  `
-  return rows[0]
+  const { data, error } = await _supabase.from('sticky_notes')
+    .upsert({ workspace_id: getWsId(), author_email: userEmail, author_name: authorName || '', slot, content, updated_at: new Date().toISOString() }, { onConflict: 'author_email,slot' })
+    .select().single()
+  if (error) throw new Error(error.message)
+  return data
 }
 
 export async function dbShareNote(id, sharedWith) {
-  const db = sql()
-  await db`
-    UPDATE sticky_notes
-    SET shared_with = ${JSON.stringify(sharedWith)}, updated_at = NOW()
-    WHERE id = ${id}
-  `
+  await _supabase.from('sticky_notes').update({ shared_with: JSON.stringify(sharedWith), updated_at: new Date().toISOString() }).eq('id', id)
 }
 
 export async function dbDeleteNote(noteId) {
-  const db = sql()
-  await db`DELETE FROM sticky_notes WHERE id = ${noteId}`
+  await _supabase.from('sticky_notes').delete().eq('id', noteId)
 }
 
 export async function dbGetSharedNotes(userEmail) {
-  const db = sql()
-  const rows = await db`
-    SELECT * FROM sticky_notes
-    WHERE author_email != ${userEmail}
-      AND workspace_id = ${getWsId()}
-      AND content != ''
-      AND (shared_with::text LIKE ${'%"all"%'}
-           OR shared_with::text LIKE ${'%' + userEmail + '%'})
-    ORDER BY updated_at DESC
-  `
-  return rows
+  const wsId = getWsId()
+  const { data } = await _supabase.from('sticky_notes').select('*')
+    .neq('author_email', userEmail).eq('workspace_id', wsId).neq('content', '')
+    .order('updated_at', { ascending: false })
+  return (data || []).filter(n => {
+    try {
+      const sw = JSON.parse(n.shared_with || '[]')
+      return sw.includes('all') || sw.includes(userEmail)
+    } catch { return false }
+  })
 }
 
 export async function dbUpdateNoteContent(noteId, content) {
-  const db = sql()
-  const rows = await db`
-    UPDATE sticky_notes SET content = ${content}, updated_at = NOW()
-    WHERE id = ${noteId} RETURNING *
-  `
-  return rows[0]
+  const { data, error } = await _supabase.from('sticky_notes')
+    .update({ content, updated_at: new Date().toISOString() }).eq('id', noteId).select().single()
+  if (error) throw new Error(error.message)
+  return data
 }
 
 export async function dbUnshareNote(noteId, userEmail) {
-  const db = sql()
-  const rows = await db`SELECT shared_with FROM sticky_notes WHERE id = ${noteId}`
-  if (!rows[0]) return
+  const { data } = await _supabase.from('sticky_notes').select('shared_with').eq('id', noteId).single()
+  if (!data) return
   let sw = []
-  try { sw = JSON.parse(rows[0].shared_with || '[]') } catch {}
+  try { sw = JSON.parse(data.shared_with || '[]') } catch {}
   sw = sw.filter(e => e !== userEmail)
-  await db`UPDATE sticky_notes SET shared_with = ${JSON.stringify(sw)}, updated_at = NOW() WHERE id = ${noteId}`
+  await _supabase.from('sticky_notes').update({ shared_with: JSON.stringify(sw), updated_at: new Date().toISOString() }).eq('id', noteId)
 }
 
 export async function dbToggleReaction(noteId, userEmail, userName, emoji) {
-  const db = sql()
-  const rows = await db`SELECT reactions FROM sticky_notes WHERE id = ${noteId}`
-  if (!rows[0]) return []
+  const { data } = await _supabase.from('sticky_notes').select('reactions').eq('id', noteId).single()
+  if (!data) return []
   let reactions = []
-  try { reactions = JSON.parse(rows[0].reactions || '[]') } catch {}
+  try { reactions = JSON.parse(data.reactions || '[]') } catch {}
   const exists = reactions.find(r => r.email === userEmail && r.emoji === emoji)
-  if (exists) {
-    reactions = reactions.filter(r => !(r.email === userEmail && r.emoji === emoji))
-  } else {
-    reactions.push({ email: userEmail, name: userName, emoji })
-  }
-  await db`UPDATE sticky_notes SET reactions = ${JSON.stringify(reactions)} WHERE id = ${noteId}`
+  reactions = exists
+    ? reactions.filter(r => !(r.email === userEmail && r.emoji === emoji))
+    : [...reactions, { email: userEmail, name: userName, emoji }]
+  await _supabase.from('sticky_notes').update({ reactions: JSON.stringify(reactions) }).eq('id', noteId)
   return reactions
 }
 
-// Ensure reactions column exists (run once per session)
-let _reactionsReady = false
-export async function ensureReactionsColumn() {
-  if (_reactionsReady) return
-  _reactionsReady = true
-  try {
-    await sql()`ALTER TABLE sticky_notes ADD COLUMN IF NOT EXISTS reactions TEXT DEFAULT '[]'`
-  } catch {}
-}
+export async function ensureReactionsColumn() { /* column exists in Supabase schema */ }
 
 export async function dbUpsertClients(clients, wsId) {
-  const db = sql()
   wsId = wsId || getWsId()
-  for (const c of clients) {
-    await db`
-      INSERT INTO clients (id, workspace_id, name, email)
-      VALUES (${c.id}, ${wsId}, ${c.name}, ${c.email || null})
-      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
-    `
-  }
+  const rows = clients.map(c => ({ id: c.id, workspace_id: wsId, name: c.name, email: c.email || null }))
+  await _supabase.from('clients').upsert(rows, { onConflict: 'id' })
 }
 
 export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId, groupName }) {
-  const db = sql()
-  // Route member to their workspace based on email domain
   const wsId = getWsIdForEmail(userEmail) || getWsId()
-  await db`
-    INSERT INTO workspace_members (workspace_id, user_email, user_name, role, password, clockify_user_id, group_name)
-    VALUES (${wsId}, ${userEmail}, ${userName}, ${role || 'employee'}, 'Mytrack14$', ${clockifyUserId || null}, ${groupName || null})
-    ON CONFLICT (workspace_id, user_email) DO UPDATE SET
-      user_name        = EXCLUDED.user_name,
-      -- Protect manually-promoted admins: only upgrade role (employee→admin), never downgrade
-      role             = CASE
-                           WHEN workspace_members.role = 'admin' THEN 'admin'
-                           ELSE EXCLUDED.role
-                         END,
-      clockify_user_id = EXCLUDED.clockify_user_id,
-      group_name       = EXCLUDED.group_name
-  `
+  // Never downgrade an existing admin
+  const { data: existing } = await _supabase.from('workspace_members').select('role').eq('workspace_id', wsId).eq('user_email', userEmail).single()
+  const finalRole = existing?.role === 'admin' ? 'admin' : (role || 'employee')
+  await _supabase.from('workspace_members').upsert({
+    workspace_id: wsId, user_email: userEmail, user_name: userName,
+    role: finalRole, password: 'Mytrack14$',
+    clockify_user_id: clockifyUserId || null, group_name: groupName || null,
+  }, { onConflict: 'workspace_id,user_email' })
 }
 
 // ── Running timer (cross-device sync) ────────────────────────────────────────
@@ -1134,154 +972,103 @@ export async function dbDeleteRunningTimer(userEmail) {
 }
 
 export async function dbDeleteMember(userEmail) {
-  const db = sql()
   const wsId = getWsIdForEmail(userEmail) || getWsId()
-  await db`DELETE FROM workspace_members WHERE workspace_id = ${wsId} AND user_email = ${userEmail}`
+  await _supabase.from('workspace_members').delete().eq('workspace_id', wsId).eq('user_email', userEmail)
 }
 
-/** Admin-only update: allows role changes in both directions */
 export async function dbUpdateMemberAdmin({ userEmail, userName, role, hourlyRate }) {
-  const db = sql()
   const wsId = getWsIdForEmail(userEmail) || getWsId()
-  await db`
-    UPDATE workspace_members SET
-      user_name   = ${userName},
-      role        = ${role},
-      hourly_rate = ${hourlyRate != null ? hourlyRate : null}
-    WHERE workspace_id = ${wsId} AND user_email = ${userEmail}
-  `
+  await _supabase.from('workspace_members').update({ user_name: userName, role, hourly_rate: hourlyRate ?? null })
+    .eq('workspace_id', wsId).eq('user_email', userEmail)
 }
 
 // ── Tags ──────────────────────────────────────────────────────
 
 export async function dbGetTags() {
-  const db = sql()
-  return db`SELECT * FROM tags WHERE workspace_id = ${getWsId()} AND archived = false ORDER BY name`
+  const { data } = await _supabase.from('tags').select('*').eq('workspace_id', getWsId()).eq('archived', false).order('name')
+  return data || []
 }
 
 export async function dbUpsertTags(tags, wsId) {
-  const db = sql()
   wsId = wsId || getWsId()
-  for (const t of tags) {
-    await db`
-      INSERT INTO tags (id, workspace_id, name, archived)
-      VALUES (${t.id}, ${wsId}, ${t.name}, ${t.archived || false})
-      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, archived = EXCLUDED.archived
-    `
-  }
+  const rows = tags.map(t => ({ id: t.id, workspace_id: wsId, name: t.name, archived: t.archived || false }))
+  await _supabase.from('tags').upsert(rows, { onConflict: 'id' })
 }
 
 // ── Time Off ──────────────────────────────────────────────────
 
 export async function dbGetTimeOffPolicies() {
-  const db = sql()
-  return db`SELECT * FROM time_off_policies WHERE workspace_id = ${getWsId()} ORDER BY name`
+  const { data } = await _supabase.from('time_off_policies').select('*').eq('workspace_id', getWsId()).order('name')
+  return data || []
 }
 
 export async function dbUpsertTimeOffPolicies(policies, wsId) {
-  const db = sql()
   wsId = wsId || getWsId()
-  for (const p of policies) {
-    await db`
-      INSERT INTO time_off_policies (id, workspace_id, name, color, days_per_year)
-      VALUES (${p.id}, ${wsId}, ${p.name}, ${p.color || '#7C4DFF'}, ${p.daysPerYear || null})
-      ON CONFLICT (id) DO UPDATE SET
-        name         = EXCLUDED.name,
-        color        = EXCLUDED.color,
-        days_per_year = EXCLUDED.days_per_year
-    `
-  }
+  const rows = policies.map(p => ({ id: p.id, workspace_id: wsId, name: p.name, color: p.color || '#7C4DFF', days_per_year: p.daysPerYear || null }))
+  await _supabase.from('time_off_policies').upsert(rows, { onConflict: 'id' })
 }
 
 export async function dbGetTimeOffRequests() {
-  const db = sql()
-  return db`
-    SELECT * FROM time_off_requests
-    WHERE workspace_id = ${getWsId()}
-    ORDER BY start_date DESC
-  `
+  const { data } = await _supabase.from('time_off_requests').select('*').eq('workspace_id', getWsId()).order('start_date', { ascending: false })
+  return data || []
 }
 
 export async function dbUpsertTimeOffRequests(requests) {
-  const db = sql()
-  for (const r of requests) {
-    // Route each request to the workspace that owns that user
-    const wsId = r.user_email ? getWsIdForEmail(r.user_email) : getWsId()
-    await db`
-      INSERT INTO time_off_requests
-        (id, workspace_id, user_email, user_name, policy_id, policy_name, status, start_date, end_date, note)
-      VALUES
-        (${r.id}, ${wsId}, ${r.user_email || null}, ${r.user_name || null},
-         ${r.policy_id || null}, ${r.policy_name || null}, ${r.status || 'PENDING'},
-         ${r.start_date || null}, ${r.end_date || null}, ${r.note || null})
-      ON CONFLICT (id) DO UPDATE SET
-        status      = EXCLUDED.status,
-        user_email  = EXCLUDED.user_email,
-        user_name   = EXCLUDED.user_name,
-        policy_name = EXCLUDED.policy_name,
-        start_date  = EXCLUDED.start_date,
-        end_date    = EXCLUDED.end_date,
-        note        = EXCLUDED.note
-    `
-  }
+  const rows = requests.map(r => ({
+    id: r.id, workspace_id: r.user_email ? getWsIdForEmail(r.user_email) : getWsId(),
+    user_email: r.user_email || null, user_name: r.user_name || null,
+    policy_id: r.policy_id || null, policy_name: r.policy_name || null,
+    status: r.status || 'PENDING', start_date: r.start_date || null,
+    end_date: r.end_date || null, note: r.note || null,
+  }))
+  await _supabase.from('time_off_requests').upsert(rows, { onConflict: 'id' })
 }
 
 // ── Hour Compensations ────────────────────────────────────────
 
-/** Get all compensation entries for a user (or all users if email omitted) */
 export async function dbGetCompensations(userEmail) {
-  const db = sql()
   const wsId = getWsId()
-  if (userEmail) {
-    return db`
-      SELECT * FROM hour_compensations
-      WHERE workspace_id = ${wsId} AND user_email = ${userEmail}
-      ORDER BY week_start DESC
-    `
-  }
-  return db`
-    SELECT * FROM hour_compensations
-    WHERE workspace_id = ${wsId}
-    ORDER BY week_start DESC, user_email
-  `
+  let q = _supabase.from('hour_compensations').select('*').eq('workspace_id', wsId)
+  if (userEmail) q = q.eq('user_email', userEmail)
+  const { data } = await q.order('week_start', { ascending: false })
+  return data || []
 }
 
-/** Add a compensation entry */
 export async function dbAddCompensation({ userEmail, weekStart, compHours, notes, createdBy }) {
-  const db = sql()
-  const rows = await db`
-    INSERT INTO hour_compensations (workspace_id, user_email, week_start, comp_hours, notes, created_by)
-    VALUES (${getWsId()}, ${userEmail}, ${weekStart}, ${compHours}, ${notes || ''}, ${createdBy || ''})
-    RETURNING *
-  `
-  return rows[0]
+  const { data, error } = await _supabase.from('hour_compensations')
+    .insert({ workspace_id: getWsId(), user_email: userEmail, week_start: weekStart, comp_hours: compHours, notes: notes || '', created_by: createdBy || '' })
+    .select().single()
+  if (error) throw new Error(error.message)
+  return data
 }
 
-/** Delete a compensation entry */
 export async function dbDeleteCompensation(id) {
-  const db = sql()
-  await db`DELETE FROM hour_compensations WHERE id = ${id}`
+  await _supabase.from('hour_compensations').delete().eq('id', id)
 }
 
 /** Get weekly hours per user from time_entries */
 export async function dbGetWeeklyHours(userEmail, fromDate, toDate) {
-  const db = sql()
-  const wsId = getWsId()
-  const where = userEmail
-    ? db`AND user_email = ${userEmail}`
-    : db``
-  return db`
-    SELECT
-      user_email,
-      DATE_TRUNC('week', start_time AT TIME ZONE 'Europe/Madrid')::date AS week_start,
-      SUM(duration) AS total_seconds
-    FROM time_entries
-    WHERE workspace_id = ${wsId}
-      AND start_time >= ${fromDate}
-      AND start_time <= ${toDate}
-      AND duration > 0
-      ${where}
-    GROUP BY user_email, DATE_TRUNC('week', start_time AT TIME ZONE 'Europe/Madrid')
-    ORDER BY week_start DESC, user_email
-  `
+  let q = _supabase.from('time_entries')
+    .select('user_email, start_time, duration')
+    .eq('workspace_id', getWsId())
+    .gte('start_time', typeof fromDate === 'string' ? fromDate : fromDate.toISOString())
+    .lte('start_time', typeof toDate === 'string' ? toDate : toDate.toISOString())
+    .gt('duration', 0)
+  if (userEmail) q = q.eq('user_email', userEmail)
+  const { data } = await q
+  // Aggregate by week in JS (DATE_TRUNC equivalent)
+  const map = {}
+  ;(data || []).forEach(e => {
+    const d = new Date(e.start_time)
+    const day = d.getDay()
+    const diff = (day === 0 ? -6 : 1) - day  // Monday-based
+    const monday = new Date(d)
+    monday.setDate(d.getDate() + diff)
+    monday.setHours(0, 0, 0, 0)
+    const weekStart = monday.toISOString().slice(0, 10)
+    const key = `${e.user_email}|${weekStart}`
+    if (!map[key]) map[key] = { user_email: e.user_email, week_start: weekStart, total_seconds: 0 }
+    map[key].total_seconds += Number(e.duration) || 0
+  })
+  return Object.values(map).sort((a, b) => b.week_start.localeCompare(a.week_start) || a.user_email.localeCompare(b.user_email))
 }

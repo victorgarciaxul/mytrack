@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Building2, Mail, Plus, X, Trash2, Search, Pencil, Archive, ArchiveRestore } from 'lucide-react'
-import { initDB, dbGetClients, dbGetProjects, dbCreateClient, dbDeleteClient, dbUpdateClient, dbArchiveClient, getWsId } from '../lib/db'
+import { Building2, Mail, Plus, X, Trash2, Search, Pencil, Archive, ArchiveRestore, Briefcase } from 'lucide-react'
+import { initDB, dbGetClients, dbGetProjects, dbCreateClient, dbDeleteClient, dbUpdateClient, dbArchiveClient, getWsId, _supabase as supabaseClient } from '../lib/db'
 import { useRole } from '../context/RoleContext'
 import toast from 'react-hot-toast'
 
@@ -57,15 +57,64 @@ function EditClientModal({ client, onSave, onClose }) {
   )
 }
 
+// ── Client detail modal ────────────────────────────────────────
+function ClientDetailModal({ client, projects, onClose }) {
+  const clientProjects = projects.filter(p => p.client_id === client.id)
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 16 }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: 'var(--c-bg-surface)', borderRadius: 18, width: '100%', maxWidth: 560, maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,0.25)', border: '1px solid var(--c-border)' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '22px 24px 18px', borderBottom: '1px solid var(--c-border-light)' }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: '#03A9F418', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Building2 size={20} style={{ color: '#03A9F4' }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--c-text-1)', margin: 0 }}>{client.name}</h2>
+            {client.email && <p style={{ fontSize: 12, color: 'var(--c-text-3)', margin: '3px 0 0', display: 'flex', alignItems: 'center', gap: 4 }}><Mail size={11} />{client.email}</p>}
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}>
+            <X size={18} />
+          </button>
+        </div>
+        {/* Projects list */}
+        <div style={{ overflowY: 'auto', padding: '16px 24px 24px' }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+            {clientProjects.length} proyecto{clientProjects.length !== 1 ? 's' : ''}
+          </p>
+          {clientProjects.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--c-text-4)' }}>
+              <Briefcase size={32} style={{ marginBottom: 8, opacity: 0.4 }} />
+              <p style={{ fontSize: 13, margin: 0 }}>Sin proyectos asignados</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {clientProjects.map(p => (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 10, background: 'var(--c-bg-muted)', border: '1px solid var(--c-border-light)' }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: p.color || '#7C4DFF', flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--c-text-1)', flex: 1 }}>{p.name}</span>
+                  {p.archived && <span style={{ fontSize: 10, color: 'var(--c-text-4)', background: 'var(--c-bg-surface)', padding: '2px 7px', borderRadius: 5, border: '1px solid var(--c-border-light)' }}>Archivado</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Client card ────────────────────────────────────────────────
-function ClientCard({ client, projects, canEdit, onEdit, onArchive, onDelete }) {
+function ClientCard({ client, projects, canEdit, onEdit, onArchive, onDelete, onOpen }) {
   const clientProjects = projects.filter(p => p.client_id === client.id)
   const isArch = !!client.archived
 
   return (
-    <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, padding: '16px 18px', transition: 'box-shadow 0.15s', position: 'relative', opacity: isArch ? 0.65 : 1 }}
-      onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'}
-      onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+    <div
+      onClick={e => { if (!e.target.closest('button')) onOpen(client) }}
+      style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, padding: '16px 18px', transition: 'box-shadow 0.15s, border-color 0.15s', position: 'relative', opacity: isArch ? 0.65 : 1, cursor: 'pointer' }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'; e.currentTarget.style.borderColor = '#03A9F440' }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'var(--c-border-light)' }}
     >
       {/* Action buttons — top right */}
       {canEdit && (
@@ -146,12 +195,13 @@ export default function Clients() {
   const { isAdmin, isManager } = useRole()
   const canEdit = isAdmin || isManager
 
-  const [clients, setClients]           = useState([])
-  const [projects, setProjects]         = useState([])
-  const [loading, setLoading]           = useState(true)
-  const [search, setSearch]             = useState('')
-  const [showForm, setShowForm]         = useState(false)
+  const [clients, setClients]             = useState([])
+  const [projects, setProjects]           = useState([])
+  const [loading, setLoading]             = useState(true)
+  const [search, setSearch]               = useState('')
+  const [showForm, setShowForm]           = useState(false)
   const [editingClient, setEditingClient] = useState(null)
+  const [detailClient, setDetailClient]   = useState(null)
   const [tab, setTab] = useState('active')
 
   const [name, setName]   = useState('')
@@ -159,10 +209,19 @@ export default function Clients() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    initDB()
-      .then(() => Promise.all([dbGetAllClients(), dbGetProjects()]))
-      .then(([c, p]) => { setClients(c || []); setProjects(p || []); setLoading(false) })
-      .catch(() => setLoading(false))
+    async function load() {
+      try {
+        const wsId = getWsId()
+        const [{ data: c }, { data: p }] = await Promise.all([
+          supabaseClient.from('clients').select('*').eq('workspace_id', wsId).order('name'),
+          supabaseClient.from('projects').select('*').eq('workspace_id', wsId).order('name'),
+        ])
+        setClients(c || [])
+        setProjects(p || [])
+      } catch (e) { console.error(e) }
+      setLoading(false)
+    }
+    load()
   }, [])
 
   const q = search.toLowerCase()
@@ -289,7 +348,7 @@ export default function Clients() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
                 {filtered.map(client => (
                   <ClientCard key={client.id} client={client} projects={projects} canEdit={canEdit}
-                    onEdit={setEditingClient} onArchive={handleArchive} onDelete={handleDelete} />
+                    onEdit={setEditingClient} onArchive={handleArchive} onDelete={handleDelete} onOpen={setDetailClient} />
                 ))}
               </div>
             )
@@ -303,7 +362,7 @@ export default function Clients() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
                 {filteredArchived.map(client => (
                   <ClientCard key={client.id} client={client} projects={projects} canEdit={canEdit}
-                    onEdit={setEditingClient} onArchive={handleArchive} onDelete={handleDelete} />
+                    onEdit={setEditingClient} onArchive={handleArchive} onDelete={handleDelete} onOpen={setDetailClient} />
                 ))}
               </div>
             )
@@ -314,13 +373,10 @@ export default function Clients() {
       {editingClient && (
         <EditClientModal client={editingClient} onSave={handleEditSaved} onClose={() => setEditingClient(null)} />
       )}
+      {detailClient && (
+        <ClientDetailModal client={detailClient} projects={projects} onClose={() => setDetailClient(null)} />
+      )}
     </div>
   )
 }
 
-// Load all clients including archived
-async function dbGetAllClients() {
-  const { sql } = await import('../lib/db')
-  const db = sql()
-  return db`SELECT * FROM clients WHERE workspace_id = ${getWsId()} ORDER BY archived ASC, name ASC`
-}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { DollarSign, ChevronDown, ChevronUp, TrendingUp, Users, Briefcase, Filter, CalendarRange, ChevronLeft, ChevronRight, Building2 } from 'lucide-react'
+import { DollarSign, ChevronDown, ChevronUp, TrendingUp, Users, Briefcase, Filter, CalendarRange, ChevronLeft, ChevronRight, Building2, Percent } from 'lucide-react'
 import { useRole } from '../context/RoleContext'
 import { useNavigate } from 'react-router-dom'
 import { sql, getWsId, initDB } from '../lib/db'
@@ -502,11 +502,12 @@ export default function Costs() {
       </div>
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
-        <StatCard icon={DollarSign} label="Coste total"       value={fmtEUR(totalCost)} color="#7C4DFF" isMobile={isMobile} />
-        <StatCard icon={TrendingUp} label="Horas registradas" value={fmtH(totalSecs)}   color="#06B6D4" isMobile={isMobile} />
-        <StatCard icon={Users}      label="Perfiles activos"  value={totalPeople}        color="#10B981" isMobile={isMobile} />
-        <StatCard icon={Briefcase}  label="Proyectos"         value={byProject.length}   color="#F59E0B" isMobile={isMobile} />
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5, 1fr)', gap: 10, marginBottom: 16 }}>
+        <StatCard icon={DollarSign} label="Coste imputado"    value={fmtEUR(totalImputCost)} color="#8B5CF6" isMobile={isMobile} />
+        <StatCard icon={Percent}    label="% Imputación"      value={totalImputBudget > 0 ? fmtPct(totalImputCost / totalImputBudget * 100) : '—'} color="#7C4DFF" isMobile={isMobile} />
+        <StatCard icon={TrendingUp} label="Horas registradas" value={fmtH(totalSecs)}        color="#06B6D4" isMobile={isMobile} />
+        <StatCard icon={Users}      label="Perfiles activos"  value={totalPeople}             color="#10B981" isMobile={isMobile} />
+        <StatCard icon={Briefcase}  label="Proyectos"         value={byProject.length}        color="#F59E0B" isMobile={isMobile} />
       </div>
 
       {/* Filters row */}

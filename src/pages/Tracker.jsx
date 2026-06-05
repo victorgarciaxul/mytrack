@@ -820,7 +820,7 @@ export default function Tracker() {
                       style={{
                         fontSize: 12, fontWeight: 700, color: '#7C4DFF',
                         border: 'none', background: 'transparent', outline: 'none',
-                        width: 56, padding: 0, cursor: 'text',
+                        width: 72, padding: 0, cursor: 'text',
                         fontVariantNumeric: 'tabular-nums',
                       }}
                     />

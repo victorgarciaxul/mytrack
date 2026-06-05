@@ -82,11 +82,11 @@ export default function TopBar({ onMenuClick }) {
           <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>·</span>
           <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>
             ¿Necesitas ayuda?{' '}
-            <a href="mailto:victorgarcia@xul.es"
+            <a href="mailto:tech@xul.es"
               style={{ color: '#C4B5FD', fontWeight: 600, textDecoration: 'none' }}
               onMouseEnter={e => e.target.style.color = '#fff'}
               onMouseLeave={e => e.target.style.color = '#C4B5FD'}
-            >victorgarcia@xul.es</a>
+            >tech@xul.es</a>
           </span>
         </div>
       )}

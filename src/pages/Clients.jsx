@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Building2, Mail, Plus, X, Trash2, Search, Pencil, Archive, ArchiveRestore, Briefcase } from 'lucide-react'
-import { initDB, dbGetClients, dbGetProjects, dbCreateClient, dbDeleteClient, dbUpdateClient, dbArchiveClient, getWsId, _supabase as supabaseClient } from '../lib/db'
+import { initDB, dbGetClients, dbGetProjects, dbCreateClient, dbDeleteClient, dbUpdateClient, dbArchiveClient, getWsId, supabaseClient } from '../lib/db'
 import { useRole } from '../context/RoleContext'
 import toast from 'react-hot-toast'
 

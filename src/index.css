@@ -6,13 +6,13 @@
 /* ── Theme tokens ──────────────────────────────────────────── */
 :root {
   --logo-filter:   none;
-  --c-bg-app:      #EDEDF5;
+  --c-bg-app:      #E4E2F2;
   --c-bg-surface:  #FFFFFF;
-  --c-bg-muted:    #F4F3FB;
-  --c-bg-subtle:   #F8F7FF;
+  --c-bg-muted:    #F0EEFB;
+  --c-bg-subtle:   #E8E6F4;
   --c-bg-hover:    #EEEEFA;
-  --c-border:      #E2E0F0;
-  --c-border-light:#ECEAF6;
+  --c-border:      #D0CEEA;
+  --c-border-light:#DDD9F0;
   --c-text-1:      #1A1A2E;
   --c-text-2:      #6B7090;
   --c-text-3:      #9095B0;

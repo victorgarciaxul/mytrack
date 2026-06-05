@@ -83,14 +83,16 @@ export default async function handler(req, res) {
       return
     }
 
-    // Capacity: 160 standard hours per month in seconds (same constant as MyTrack frontend)
-    const CAPACITY_SECS = 160 * 3600
-
     // Formula mirrors MyTrack's "Coste imput." calculation:
-    //   imputCost = (seconds_on_project / MAX(person_total_seconds, capacity)) × monthly_cost
+    //   imputCost = (seconds_on_project / MAX(person_total_seconds, capacity_secs)) × monthly_cost
+    //
+    // capacity_secs matches the frontend formula:
+    //   periodCapacitySecs = MAX(160h × 3600 × (days_in_month / 30.4375), 160h × 3600)
     //
     // person_total_seconds = all seconds the person logged in that month across ALL projects,
     // so we compute it in a CTE before filtering by project.
+    //
+    // Both queries share the same CTE — branched only for the project LIKE filter.
     let rows
     if (project) {
       const like = `%${project.toLowerCase()}%`
@@ -99,18 +101,29 @@ export default async function handler(req, res) {
           SELECT
             user_email,
             TO_CHAR(start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM') AS month,
-            SUM(duration) AS total_secs
+            SUM(duration) AS total_secs,
+            GREATEST(
+              160.0 * 3600 * EXTRACT(DAY FROM (
+                DATE_TRUNC('month', (start_time AT TIME ZONE 'Europe/Madrid')::date)
+                + INTERVAL '1 month'
+                - DATE_TRUNC('month', (start_time AT TIME ZONE 'Europe/Madrid')::date)
+              )) / 30.4375,
+              160.0 * 3600
+            ) AS capacity_secs
           FROM time_entries
           WHERE workspace_id = ${workspace}
             AND duration > 0
             AND EXTRACT(YEAR FROM start_time AT TIME ZONE 'Europe/Madrid') = ${year}
-          GROUP BY user_email, TO_CHAR(start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM')
+          GROUP BY
+            user_email,
+            TO_CHAR(start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM'),
+            DATE_TRUNC('month', (start_time AT TIME ZONE 'Europe/Madrid')::date)
         )
         SELECT
           TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM') AS month,
           ROUND(
             SUM(
-              (te.duration::numeric / GREATEST(COALESCE(pmt.total_secs, te.duration), ${CAPACITY_SECS}))
+              (te.duration::numeric / GREATEST(COALESCE(pmt.total_secs, te.duration), COALESCE(pmt.capacity_secs, 160.0 * 3600)))
               * COALESCE(wm.monthly_cost, 0)
             )::numeric,
             2
@@ -136,18 +149,29 @@ export default async function handler(req, res) {
           SELECT
             user_email,
             TO_CHAR(start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM') AS month,
-            SUM(duration) AS total_secs
+            SUM(duration) AS total_secs,
+            GREATEST(
+              160.0 * 3600 * EXTRACT(DAY FROM (
+                DATE_TRUNC('month', (start_time AT TIME ZONE 'Europe/Madrid')::date)
+                + INTERVAL '1 month'
+                - DATE_TRUNC('month', (start_time AT TIME ZONE 'Europe/Madrid')::date)
+              )) / 30.4375,
+              160.0 * 3600
+            ) AS capacity_secs
           FROM time_entries
           WHERE workspace_id = ${workspace}
             AND duration > 0
             AND EXTRACT(YEAR FROM start_time AT TIME ZONE 'Europe/Madrid') = ${year}
-          GROUP BY user_email, TO_CHAR(start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM')
+          GROUP BY
+            user_email,
+            TO_CHAR(start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM'),
+            DATE_TRUNC('month', (start_time AT TIME ZONE 'Europe/Madrid')::date)
         )
         SELECT
           TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM') AS month,
           ROUND(
             SUM(
-              (te.duration::numeric / GREATEST(COALESCE(pmt.total_secs, te.duration), ${CAPACITY_SECS}))
+              (te.duration::numeric / GREATEST(COALESCE(pmt.total_secs, te.duration), COALESCE(pmt.capacity_secs, 160.0 * 3600)))
               * COALESCE(wm.monthly_cost, 0)
             )::numeric,
             2

@@ -4,6 +4,13 @@ import { useAuth } from './AuthContext'
 import { demoMembers } from '../lib/demoData'
 import { initDB, dbGetNotifications, dbMarkNotificationRead, dbMarkAllNotificationsRead } from '../lib/db'
 
+const ADMIN_EMAILS = [
+  'josecastillo@xul.es',
+  'inmaosuna@xul.es',
+  'carlagarcia@xul.es',
+  'victorgarcia@xul.es',
+]
+
 const RoleContext = createContext(null)
 
 export function RoleProvider({ children }) {
@@ -86,8 +93,8 @@ export function RoleProvider({ children }) {
   }
 
   const unreadCount = notifications.filter(n => !n.read).length
-  const isManager = role === 'admin' || role === 'manager'
-  const isAdmin = role === 'admin'
+  const isAdmin = ADMIN_EMAILS.includes(user?.email)
+  const isManager = isAdmin || role === 'manager'
 
   return (
     <RoleContext.Provider value={{

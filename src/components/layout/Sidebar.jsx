@@ -252,8 +252,8 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
     setMenuOpen(false)
   }
 
-  // XUL admin viewing Fundación workspace in "guest" mode — can't register time
-  const isGuestViewing = getWsId() !== (user?.workspace_id || 'xul-ws-1')
+  // Non-admin users viewing another workspace see a restricted view
+  const isGuestViewing = !isAdmin && getWsId() !== (user?.workspace_id || 'xul-ws-1')
 
   const generalNav = [
     ...(!isGuestViewing ? [{ to: '/tracker',  icon: Clock,        label: 'Registro de tiempo', badge: false }] : []),
@@ -269,7 +269,7 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
     { to: '/tags',      icon: Tag,         label: 'Etiquetas' },
     { to: '/time-off',  icon: CalendarOff, label: 'Bajas'     },
     ...(isManager ? [{ to: '/team', icon: Users, label: 'Equipo' }] : []),
-    ...(isAdmin && !isGuestViewing ? [{ to: '/costs', icon: CircleDollarSign, label: 'Costes' }] : []),
+    ...(isAdmin ? [{ to: '/costs', icon: CircleDollarSign, label: 'Costes' }] : []),
   ]
 
   const W = collapsed ? 56 : 240

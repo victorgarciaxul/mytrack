@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
+import { useRole } from '../context/RoleContext'
 import { User, HelpCircle, Play, Download, CheckCircle, RefreshCw, Trash2, Lock, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useTour } from '../components/tour/AppTour'
@@ -375,6 +376,7 @@ function AutoSyncCard() {
 export default function Settings() {
   const { user } = useAuth()
   const { workspace } = useWorkspace()
+  const { isAdmin } = useRole()
   const { onStartTour } = useOutletContext() || {}
   const { resetTour } = useTour()
   const [, forceUpdate] = useState(0)
@@ -383,8 +385,8 @@ export default function Settings() {
     <div style={{ padding: '24px 28px', maxWidth: 640, fontFamily: 'Inter, system-ui, sans-serif' }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--c-text-1)', marginBottom: 20 }}>Ajustes</h1>
 
-      {/* Clockify import + auto-sync — only the Clockify owner */}
-      {user?.email === 'victorgarcia@xul.es' && (
+      {/* Clockify import + auto-sync — admin only */}
+      {isAdmin && (
         <>
           <ClockifyImportCard onImported={() => forceUpdate(n => n + 1)} />
           <AutoSyncCard />

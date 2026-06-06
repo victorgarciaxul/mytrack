@@ -21,7 +21,7 @@ const FALLBACK_USERS = [
   { email: 'cristinafernandez@xul.es',       password: 'Mytrack14$', name: 'Cristina Fernández',            role: 'employee' },
   { email: 'cristinareyes@fundacionxul.org', password: 'Mytrack14$', name: 'Cristina Reyes Baro',           role: 'employee' },
   { email: 'elenarojo@xul.es',               password: 'Mytrack14$', name: 'Elena Rojo',                    role: 'employee' },
-  { email: 'inmaosuna@xul.es',               password: 'Mytrack14$', name: 'Inma Osuna',                    role: 'employee' },
+  { email: 'inmaosuna@xul.es',               password: 'Mytrack14$', name: 'Inma Osuna',                    role: 'admin'    },
   { email: 'irenezurita@xul.es',             password: 'Mytrack14$', name: 'Irene Zurita',                  role: 'employee' },
   { email: 'javier@xul.es',                  password: 'Mytrack14$', name: 'Javier Ramírez',                role: 'employee' },
   { email: 'javierdura@xul.es',              password: 'Mytrack14$', name: 'Javier Durá',                   role: 'employee' },

@@ -5,6 +5,7 @@ import { useTimerContext } from '../context/TimerContext'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
+import { useRole } from '../context/RoleContext'
 import { loadClockifyCache, clockifyStartTimer, clockifyStopTimer, clockifyDeleteEntry, getClockifyUserId, isClockifyUser, clockifyGetProjectTasks } from '../lib/clockify'
 import { getSelectedYear } from '../components/layout/TopBar'
 import { initDB, dbGetEntries, dbInsertEntry, dbDeleteEntry, dbGetMyNotes, dbSaveNote, dbShareNote, dbGetSharedNotes, dbGetAllMembers, dbUpdateNoteContent, dbUnshareNote, dbToggleReaction, ensureReactionsColumn, dbDeleteNote, getWsId, dbSaveRunningTimer, dbGetRunningTimer, dbDeleteRunningTimer } from '../lib/db'
@@ -19,11 +20,12 @@ import StickyNote from '../components/ui/StickyNote'
 export default function Tracker() {
   const { user, isDemo } = useAuth()
   const { workspace, projects, getTasksForProject, markProjectArchived } = useWorkspace()
+  const { isAdmin } = useRole()
   const timer = useTimerContext()
   const isMobile = useMediaQuery('(max-width: 768px)')
 
-  // XUL admins viewing Fundación workspace cannot register time — show info screen
-  const isGuestViewing = getWsId() !== (user?.workspace_id || 'xul-ws-1')
+  // Non-admin users viewing another workspace see read-only screen
+  const isGuestViewing = !isAdmin && getWsId() !== (user?.workspace_id || 'xul-ws-1')
   if (isGuestViewing) {
     return (
       <div style={{

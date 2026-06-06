@@ -18,7 +18,7 @@ export function getSelectedYear() {
 export default function TopBar({ onMenuClick }) {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { unreadCount } = useRole()
+  const { unreadCount, isAdmin } = useRole()
   const { isDark, toggle } = useTheme()
   const isMobile = useMediaQuery('(max-width: 768px)')
 
@@ -93,10 +93,10 @@ export default function TopBar({ onMenuClick }) {
 
       <div style={{ flex: 1 }} />
 
-      {/* Tutorial download link */}
+      {/* Tutorial download link — role-specific */}
       <a
-        href="/tutoriales/MyTrack_Tutorial_Admin.pdf"
-        download="MyTrack_Tutorial_Admin.pdf"
+        href={isAdmin ? '/tutoriales/MyTrack_Tutorial_Admin.pdf' : '/tutoriales/MyTrack_Tutorial_Empleado.pdf'}
+        download={isAdmin ? 'MyTrack_Tutorial_Admin.pdf' : 'MyTrack_Tutorial_Empleado.pdf'}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           fontSize: 12.5, color: '#fff', fontWeight: 600,

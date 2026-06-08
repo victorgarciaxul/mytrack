@@ -567,8 +567,10 @@ export default function Overtime() {
             const isOk   = Math.abs(net) < 0.05
             const isSurplus = net < -0.05
             const balColor  = isOk ? '#10B981' : isSurplus ? '#3B82F6' : '#EF4444'
-            const balLabel  = isOk ? 'Al día ✓' : isSurplus ? `La empresa te debe ${fmtHShort(-net)}` : `Debes ${fmtHShort(net)} a la empresa`
+            const balLabel  = isOk ? 'Al día ✓' : isSurplus ? 'La empresa te debe horas' : 'Horas pendientes con la empresa'
             const balValue  = isOk ? '—' : fmtHShort(net)
+            // Only show ACUMULADO/DEBIDO separately when they both have values worth showing
+            const showDetail = acu > 0.05 && deb > 0.05
             return (
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
                 {/* Net balance — the number that matters */}
@@ -579,18 +581,22 @@ export default function Overtime() {
                   color={balColor}
                   sub={balLabel}
                 />
-                <BalanceCard
-                  icon={TrendingUp} label='ACUMULADO'
-                  value={fmtHShort(acu)}
-                  color='#7C4DFF'
-                  sub='Semanas por encima del estándar'
-                />
-                <BalanceCard
-                  icon={TrendingDown} label='DEBIDO'
-                  value={fmtHShort(deb)}
-                  color={deb > 0.05 ? '#F59E0B' : '#10B981'}
-                  sub='Semanas por debajo del estándar'
-                />
+                {showDetail && (
+                  <BalanceCard
+                    icon={TrendingUp} label='ACUMULADO'
+                    value={fmtHShort(acu)}
+                    color='#7C4DFF'
+                    sub='Semanas por encima del estándar'
+                  />
+                )}
+                {showDetail && (
+                  <BalanceCard
+                    icon={TrendingDown} label='DEBIDO'
+                    value={fmtHShort(deb)}
+                    color='#F59E0B'
+                    sub='Semanas por debajo del estándar'
+                  />
+                )}
                 {vac > 0 && (
                   <BalanceCard
                     icon={CheckCircle2} label='VACACIONES'

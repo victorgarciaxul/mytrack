@@ -127,10 +127,8 @@ const WORKSPACES = [
 ]
 
 function WorkspaceSwitcher({ collapsed, user, isAdmin, switchWorkspace, isDark }) {
-  // Only XUL admins can switch workspaces
-  // workspace_id may be undefined in old sessions — treat that as xul-ws-1
-  const userWs = user?.workspace_id || 'xul-ws-1'
-  if (!isAdmin || userWs !== 'xul-ws-1') return null
+  // All admins can switch between both workspaces
+  if (!isAdmin) return null
 
   const activeWsId = getWsId()
 

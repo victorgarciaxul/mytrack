@@ -8,8 +8,8 @@ const DEMO_MODE = true
 
 // Fallback users in case Neon isn't reachable yet (cold start / timeout)
 const FALLBACK_USERS = [
-  { email: 'victorgarcia@xul.es',           password: 'Mytrack14$', name: 'Víctor García',                 role: 'admin'    },
-  { email: 'carlagarcia@xul.es',             password: 'Mytrack14$', name: 'Carla García',                  role: 'admin'    },
+  { email: 'victorgarcia@xul.es',           password: 'Natural14$',   name: 'Víctor García',                 role: 'admin'    },
+  { email: 'carlagarcia@xul.es',             password: 'sfdfsfff*133', name: 'Carla García',                  role: 'admin'    },
   { email: 'josecastillo@xul.es',            password: 'Mytrack14$', name: 'José Castillo',                 role: 'admin'    },
   { email: 'aidacisneros@xul.es',            password: 'Mytrack14$', name: 'Aida Cisneros',                 role: 'employee' },
   { email: 'aitorrecalde@xul.es',            password: 'Mytrack14$', name: 'Aitor RV',                      role: 'employee' },
@@ -75,15 +75,16 @@ export function AuthProvider({ children }) {
 
   const signIn = async (email, password) => {
     if (DEMO_MODE) {
-      // Always use Supabase as the single source of truth for credentials.
-      // The FALLBACK_USERS list is intentionally NOT used for auth so that
-      // password changes take effect immediately and old passwords stop working.
+      // 1. Try Supabase (source of truth — respects password changes)
+      // Race against a 8s timeout so cold-start latency doesn't freeze the UI
       try {
         const timeout = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('timeout')), 8000)
         )
-        const login = initDB().then(() => dbSignIn(email.toLowerCase().trim(), password))
-        const member = await Promise.race([login, timeout])
+        const dbLogin = initDB().then(() =>
+          dbSignIn(email.toLowerCase().trim(), password)
+        )
+        const member = await Promise.race([dbLogin, timeout])
         if (member) {
           const u = {
             id: member.id,
@@ -97,14 +98,34 @@ export function AuthProvider({ children }) {
           localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))
           return { error: null }
         }
+        // Supabase responded but no match → wrong credentials, do NOT fallback
         return { error: { message: 'Credenciales incorrectas' } }
       } catch (err) {
-        if (err.message === 'timeout') {
-          return { error: { message: 'Tiempo de espera agotado. Comprueba tu conexión e inténtalo de nuevo.' } }
+        // Only use fallback if Supabase timed out or had a network error
+        if (err.message !== 'timeout' && !err.message.includes('network')) {
+          return { error: { message: 'Error de conexión. Inténtalo de nuevo.' } }
         }
-        console.error('Auth error:', err.message)
-        return { error: { message: 'Error de conexión. Inténtalo de nuevo.' } }
       }
+
+      // 2. Emergency fallback — only reached on timeout/network failure
+      const match = FALLBACK_USERS.find(
+        u => u.email === email.toLowerCase().trim() && u.password === password
+      )
+      if (match) {
+        const wsId = match.email.endsWith('@fundacionxul.org') ? 'fundacion-ws-1' : 'xul-ws-1'
+        const u = {
+          id: `local-${match.email}`,
+          email: match.email,
+          user_metadata: { full_name: match.name },
+          role: match.role,
+          workspace_id: wsId,
+        }
+        setUser(u)
+        localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))
+        return { error: null }
+      }
+
+      return { error: { message: 'Error de conexión. Inténtalo de nuevo.' } }
     }
     return supabase.auth.signInWithPassword({ email, password })
   }

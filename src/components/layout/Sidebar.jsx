@@ -258,7 +258,7 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
   const generalNav = [
     ...(!isGuestViewing ? [{ to: '/tracker',  icon: Clock,        label: 'Registro de tiempo', badge: false }] : []),
     ...(!isGuestViewing ? [{ to: '/calendar', icon: CalendarDays, label: 'Calendario',          badge: false }] : []),
-    ...(isManager ? [{ to: '/reports', icon: BarChart2, label: 'Informes', badge: false }] : []),
+    { to: '/reports', icon: BarChart2, label: 'Informes', badge: false },
     ...(!isGuestViewing ? [{ to: '/overtime', icon: AlarmClock, label: 'Compensación', badge: false }] : []),
     { to: '/notifications', icon: Bell, label: 'Bandeja de entrada', badge: true },
   ]
@@ -268,7 +268,7 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
     { to: '/clients',   icon: Building2,   label: 'Clientes'  },
     { to: '/tags',      icon: Tag,         label: 'Etiquetas' },
     { to: '/time-off',  icon: CalendarOff, label: 'Bajas'     },
-    ...(isManager ? [{ to: '/team', icon: Users, label: 'Equipo' }] : []),
+    { to: '/team', icon: Users, label: 'Equipo' },
     ...(isAdmin ? [{ to: '/costs', icon: CircleDollarSign, label: 'Costes' }] : []),
   ]
 

@@ -75,16 +75,12 @@ export function AuthProvider({ children }) {
 
   const signIn = async (email, password) => {
     if (DEMO_MODE) {
-      // 1. Try Neon first (has all imported Clockify users)
-      // Race against a 6s timeout so cold-start latency doesn't freeze the UI
+      // Always use Supabase as the single source of truth for credentials.
+      // The FALLBACK_USERS list is intentionally NOT used for auth so that
+      // password changes take effect immediately and old passwords stop working.
       try {
-        const timeout = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Neon timeout')), 6000)
-        )
-        const neonLogin = initDB().then(() =>
-          dbSignIn(email.toLowerCase().trim(), password)
-        )
-        const member = await Promise.race([neonLogin, timeout])
+        await initDB()
+        const member = await dbSignIn(email.toLowerCase().trim(), password)
         if (member) {
           const u = {
             id: member.id,
@@ -98,29 +94,11 @@ export function AuthProvider({ children }) {
           localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))
           return { error: null }
         }
+        return { error: { message: 'Credenciales incorrectas' } }
       } catch (err) {
-        console.warn('Neon auth failed, trying fallback:', err.message)
+        console.error('Auth error:', err.message)
+        return { error: { message: 'Error de conexión. Inténtalo de nuevo.' } }
       }
-
-      // 2. Fallback to hardcoded users (before first import)
-      const match = FALLBACK_USERS.find(
-        u => u.email === email.toLowerCase().trim() && u.password === password
-      )
-      if (match) {
-        const wsId = match.email.endsWith('@fundacionxul.org') ? 'fundacion-ws-1' : 'xul-ws-1'
-        const u = {
-          id: `local-${match.email}`,
-          email: match.email,
-          user_metadata: { full_name: match.name },
-          role: match.role,
-          workspace_id: wsId,
-        }
-        setUser(u)
-        localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))
-        return { error: null }
-      }
-
-      return { error: { message: 'Credenciales incorrectas' } }
     }
     return supabase.auth.signInWithPassword({ email, password })
   }

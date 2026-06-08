@@ -675,8 +675,10 @@ export async function dbDeleteEntry(id) {
 // ── Members ───────────────────────────────────────────────────
 
 export async function dbChangePassword(userEmail, newPassword) {
-  await _supabase.from('workspace_members').update({ password: newPassword })
-    .eq('workspace_id', getWsId()).eq('user_email', userEmail)
+  // Update ALL workspace rows for this user so the old password can't be used in any workspace
+  const { error } = await _supabase.from('workspace_members').update({ password: newPassword })
+    .eq('user_email', userEmail)
+  if (error) throw new Error(error.message)
 }
 
 export async function dbGetAvailableYears(userEmail) {

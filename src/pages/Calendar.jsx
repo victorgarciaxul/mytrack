@@ -201,13 +201,16 @@ export default function Calendar() {
       `}</style>
 
       <div style={{
-        padding: isMobile ? '14px' : '24px 28px',
+        padding: isMobile ? '14px' : '20px 24px',
         fontFamily: 'Inter, system-ui, sans-serif',
-        height: isMobile ? 'calc(100dvh - 70px)' : 'calc(100dvh - 84px)',
+        flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        gap: isMobile ? 12 : 20,
-        boxSizing: 'border-box', overflow: 'hidden',
+        gap: isMobile ? 10 : 14,
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+        minHeight: 0,
+        width: '100%',
       }}>
 
         {/* ── Header ── */}
@@ -311,11 +314,12 @@ export default function Calendar() {
           {/* Grid — rows split available height equally */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(7, 1fr)',
+            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
             gridTemplateRows: `repeat(${days.length / 7}, 1fr)`,
             gap: 4,
             flex: 1,
             minHeight: 0,
+            width: '100%',
             position: 'relative',
           }}>
             {loading && (

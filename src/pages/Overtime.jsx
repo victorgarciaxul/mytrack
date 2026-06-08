@@ -637,7 +637,7 @@ export default function Overtime() {
                 clearLabel="Todos los miembros"
               />
             </div>
-            <span style={{ fontSize: 12, color: 'var(--c-text-4)' }}>{filteredTeam.filter(u => u.balance > 0).length} personas con horas pendientes</span>
+            <span style={{ fontSize: 12, color: 'var(--c-text-4)' }}>{filteredTeam.filter(u => (u.debido - u.acumulado) > 0.05).length} personas con horas pendientes</span>
           </div>
 
           {/* Team table */}
@@ -654,9 +654,9 @@ export default function Overtime() {
                   Acumulado
                 </span>
               )}
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#10B981' }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
-                Debido
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: 'var(--c-text-3)' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--c-text-3)', display: 'inline-block' }} />
+                Balance
               </span>
             </div>
 
@@ -816,14 +816,15 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
   const deb = u.debido    ?? 0
   const acu = u.acumulado ?? 0
   const vac = u.totalVacH ?? 0
+  const bal = deb - acu   // positive = owes company, negative = company owes them
   const [openWeeks, setOpenWeeks] = useState({})
   function toggleWeek(wk) { setOpenWeeks(p => ({ ...p, [wk]: !p[wk] })) }
 
-  // Status dot: red = owes hours, blue = has accumulated, green = neutral
-  const hasDeb = deb > 0.05
-  const hasAcu = acu > 0.05
+  // Status dot: red = owes hours, blue = surplus, green = neutral
+  const hasDeb = bal > 0.05
+  const hasAcu = bal < -0.05
   const dotColor = hasDeb ? '#EF4444' : hasAcu ? '#3B82F6' : '#10B981'
-  const dotTitle = hasDeb ? 'Debe horas' : hasAcu ? 'Tiene horas acumuladas' : 'Al día'
+  const dotTitle = hasDeb ? `Debe ${fmtHShort(bal)}` : hasAcu ? `Acumulado ${fmtHShort(-bal)}` : 'Al día'
 
   return (
     <>
@@ -875,8 +876,8 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
             {hasAcu ? fmtHShort(acu) : '—'}
           </span>
         )}
-        <span style={{ fontSize: 14, fontWeight: 800, color: '#10B981', letterSpacing: '-0.3px' }}>
-          {hasDeb ? fmtHShort(deb) : '—'}
+        <span style={{ fontSize: 14, fontWeight: 800, color: bal > 0.05 ? '#EF4444' : bal < -0.05 ? '#3B82F6' : '#10B981', letterSpacing: '-0.3px' }}>
+          {Math.abs(bal) > 0.05 ? `${bal > 0 ? '+' : '−'}${fmtHShort(Math.abs(bal))}` : '—'}
         </span>
       </div>
 

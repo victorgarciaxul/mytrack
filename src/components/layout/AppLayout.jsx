@@ -64,10 +64,8 @@ export default function AppLayout() {
           height: '100%',
         }}>
           <TopBar onMenuClick={() => setSidebarOpen(true)} />
-          <main style={{ flex: 1, overflow: 'hidden', background: 'var(--c-bg-subtle)', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ flex: 1, overflowY: 'auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <Outlet context={{ onStartTour: () => setTourRunning(true) }} />
-            </div>
+          <main style={{ flex: 1, overflowY: 'auto', background: 'var(--c-bg-subtle)', position: 'relative' }}>
+            <Outlet context={{ onStartTour: () => setTourRunning(true) }} />
           </main>
         </div>
       </div>

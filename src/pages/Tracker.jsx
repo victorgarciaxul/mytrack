@@ -116,25 +116,29 @@ export default function Tracker() {
       .catch(console.error)
   }, [user?.email])
 
-  // Load tasks when project changes — merge Clockify API tasks + local workspace tasks
+  // Load tasks when project changes — fetch directly from Supabase (reliable for all users)
+  // then merge with any Clockify API tasks
   useEffect(() => {
     if (!selectedProject) { setProjectTasks([]); return }
     setLoadingTasks(true)
-    const localTasks = getTasksForProject(selectedProject.id).map(t => ({
-      id: t.id, name: t.name,
-    }))
-    clockifyGetProjectTasks(selectedProject.id)
-      .then(apiTasks => {
-        // Merge: local tasks first, then any Clockify tasks not already in local
-        const localIds = new Set(localTasks.map(t => t.id))
-        const merged = [...localTasks, ...apiTasks.filter(t => !localIds.has(t.id))]
-        setProjectTasks(merged.length > 0 ? merged : apiTasks)
-        setLoadingTasks(false)
-      })
-      .catch(() => {
-        setProjectTasks(localTasks)
-        setLoadingTasks(false)
-      })
+
+    // Always fetch from Supabase directly (avoids WorkspaceContext race conditions)
+    import('../lib/db').then(({ dbGetTasksForProject }) =>
+      dbGetTasksForProject(selectedProject.id)
+    ).then(supabaseTasks => {
+      const localTasks = supabaseTasks.map(t => ({ id: t.id, name: t.name }))
+      return clockifyGetProjectTasks(selectedProject.id)
+        .then(apiTasks => {
+          const localIds = new Set(localTasks.map(t => t.id))
+          const merged = [...localTasks, ...apiTasks.filter(t => !localIds.has(t.id))]
+          setProjectTasks(merged.length > 0 ? merged : localTasks)
+        })
+        .catch(() => setProjectTasks(localTasks))
+    }).catch(() => {
+      // Fallback to WorkspaceContext if Supabase fails
+      const localTasks = getTasksForProject(selectedProject.id).map(t => ({ id: t.id, name: t.name }))
+      setProjectTasks(localTasks)
+    }).finally(() => setLoadingTasks(false))
   }, [selectedProject?.id])
 
   // ── Neon load helper ───────────────────────────────────────────

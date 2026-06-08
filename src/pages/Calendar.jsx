@@ -294,7 +294,7 @@ export default function Calendar() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
           {/* Day labels */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridTemplateRows: `repeat(${days.length / 7}, 1fr)`, gap: 4, marginBottom: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4, flexShrink: 0 }}>
             {(isMobile ? DAY_LABELS_MOB : DAY_LABELS).map((d, i) => (
               <div key={d} style={{
                 textAlign: 'center',
@@ -308,14 +308,19 @@ export default function Calendar() {
             ))}
           </div>
 
-          {/* Grid */}
+          {/* Grid — rows split available height equally */}
           <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridTemplateRows: `repeat(${days.length / 7}, 1fr)`,
-            gap: 4, flex: 1, position: 'relative',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(7, 1fr)',
+            gridTemplateRows: `repeat(${days.length / 7}, 1fr)`,
+            gap: 4,
+            flex: 1,
+            minHeight: 0,
+            position: 'relative',
           }}>
             {loading && (
               <div style={{
-                height: isMobile ? 'calc(100dvh - 70px)' : 'calc(100dvh - 84px)', display: 'flex',
+                position: 'absolute', inset: 0, display: 'flex',
                 alignItems: 'center', justifyContent: 'center',
                 background: 'var(--c-bg-surface)cc', borderRadius: 12, zIndex: 5,
               }}>
@@ -336,71 +341,59 @@ export default function Calendar() {
               const today = isToday(day)
               const isWeekend = day.getDay() === 0 || day.getDay() === 6
               const hasEntries = dayEntries.length > 0
-
-              // Unique project colors (up to 4)
               const colors = [...new Map(dayEntries.map(e => [e.projects?.id, e.projects?.color]).filter(([, c]) => c)).values()].slice(0, 4)
-
-              // Heat bar height (0–20px range)
               const heatPct = totalSecs / maxDaySecs
-              const heatH = Math.round(heatPct * 20)
 
               return (
                 <div
                   key={key}
                   className="cal-day"
-                  onClick={() => hasEntries || today ? (isSameDay(day, selected) ? closeModal() : openModal(day)) : null}
-                  style={{ cursor: (hasEntries || today) ? 'pointer' : 'default' }}
+                  onClick={() => (hasEntries || today) ? (isSameDay(day, selected) ? closeModal() : openModal(day)) : null}
+                  style={{ cursor: (hasEntries || today) ? 'pointer' : 'default', minHeight: 0 }}
                 >
                   <div
                     className="cal-day-inner"
                     style={{
-                      borderRadius: isMobile ? 8 : 12,
+                      height: '100%',
+                      boxSizing: 'border-box',
+                      borderRadius: isMobile ? 8 : 10,
                       border: isSelected
                         ? '2px solid #7C4DFF'
                         : today
                           ? '2px solid #7C4DFF55'
-                          : `1.5px solid ${isWeekend && inMonth ? 'var(--c-border)' : 'var(--c-border-light)'}`,
+                          : `1px solid ${isWeekend && inMonth ? 'var(--c-border)' : 'var(--c-border-light)'}`,
                       background: isSelected
                         ? 'linear-gradient(145deg, #7C4DFF12, #E040FB08)'
                         : today
                           ? 'var(--c-bg-subtle)'
                           : inMonth ? 'var(--c-bg-surface)' : 'var(--c-bg-muted)',
-                      padding: isMobile ? '4px 3px 0' : '8px 8px 0',
-                      opacity: inMonth ? 1 : 0.3,
+                      padding: isMobile ? '4px 3px 2px' : '6px 6px 2px',
+                      opacity: inMonth ? 1 : 0.35,
                       transition: 'border-color 0.15s, background 0.15s',
-                      height: isMobile ? 'calc(100dvh - 70px)' : 'calc(100dvh - 84px)',
-                      boxSizing: 'border-box', overflow: 'hidden',
                       display: 'flex', flexDirection: 'column',
-                      
                       overflow: 'hidden',
                     }}
                   >
                     {/* Top row: day number + time */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: isMobile ? 3 : 6 }}>
-                      {/* Day number */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 3, flexShrink: 0 }}>
                       <div style={{
-                        width: isMobile ? 18 : 24, height: isMobile ? 18 : 24, borderRadius: '50%',
+                        width: isMobile ? 18 : 22, height: isMobile ? 18 : 22, borderRadius: '50%',
                         background: today ? '#7C4DFF' : 'transparent',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                       }}>
                         <span style={{
-                          fontSize: isMobile ? 10 : 12, fontWeight: today ? 800 : inMonth ? 500 : 400,
+                          fontSize: isMobile ? 10 : 11, fontWeight: today ? 800 : inMonth ? 500 : 400,
                           color: today ? '#fff' : inMonth ? 'var(--c-text-1)' : 'var(--c-text-4)',
                           lineHeight: 1,
                         }}>
                           {format(day, 'd')}
                         </span>
                       </div>
-
-                      {/* Time badge — hidden on mobile */}
                       {!isMobile && totalSecs > 0 && (
                         <span style={{
-                          fontSize: 10, fontWeight: 700,
+                          fontSize: 9, fontWeight: 700,
                           color: isSelected ? '#7C4DFF' : 'var(--c-text-3)',
-                          fontVariantNumeric: 'tabular-nums',
-                          lineHeight: 1,
-                          marginTop: 2,
+                          fontVariantNumeric: 'tabular-nums', lineHeight: 1, marginTop: 2,
                         }}>
                           {secsToHM(totalSecs)}
                         </span>
@@ -410,46 +403,32 @@ export default function Calendar() {
                     {/* Entry previews */}
                     {dayEntries.length > 0 && (
                       isMobile ? (
-                        /* Mobile: compact color dots only */
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, paddingBottom: 3 }}>
-                          {[...new Map(dayEntries.map(e => [
-                            e.projects?.id ?? e.id, e.projects?.color || '#7C4DFF'
-                          ])).values()].slice(0, 4).map((c, idx) => (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                          {[...new Map(dayEntries.map(e => [e.projects?.id ?? e.id, e.projects?.color || '#7C4DFF'])).values()].slice(0, 4).map((c, idx) => (
                             <span key={idx} style={{ width: 5, height: 5, borderRadius: '50%', background: c, flexShrink: 0 }} />
                           ))}
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, overflow: 'hidden' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, overflow: 'hidden' }}>
                           {dayEntries.slice(0, 3).map((e, i) => {
                             const c = e.projects?.color || '#7C4DFF'
-                            const label = e.description || e.projects?.name || '—'
                             return (
                               <div key={i} style={{
-                                display: 'flex', alignItems: 'center', gap: 4,
-                                padding: '2px 4px', borderRadius: 4,
-                                background: c + '14',
+                                display: 'flex', alignItems: 'center', gap: 3,
+                                padding: '1px 3px', borderRadius: 3, background: c + '18', flexShrink: 0,
                               }}>
+                                <span style={{ width: 4, height: 4, borderRadius: '50%', background: c, flexShrink: 0 }} />
                                 <span style={{
-                                  width: 5, height: 5, borderRadius: '50%',
-                                  background: c, flexShrink: 0,
-                                }} />
-                                <span style={{
-                                  fontSize: 10, fontWeight: 500,
-                                  color: 'var(--c-text-2)',
-                                  overflow: 'hidden', whiteSpace: 'nowrap',
-                                  textOverflow: 'ellipsis', flex: 1,
-                                  lineHeight: 1.3,
+                                  fontSize: 9, fontWeight: 500, color: 'var(--c-text-2)',
+                                  overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flex: 1, lineHeight: 1.4,
                                 }}>
-                                  {label}
+                                  {e.description || e.projects?.name || '—'}
                                 </span>
                               </div>
                             )
                           })}
                           {dayEntries.length > 3 && (
-                            <span style={{
-                              fontSize: 9, fontWeight: 600,
-                              color: 'var(--c-text-4)', paddingLeft: 4,
-                            }}>
+                            <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--c-text-4)', paddingLeft: 3 }}>
                               +{dayEntries.length - 3} más
                             </span>
                           )}
@@ -458,24 +437,20 @@ export default function Calendar() {
                     )}
 
                     {/* Heat bar at bottom */}
-                    {heatH > 0 && (
-                      <div style={{ marginTop: 'auto', padding: '0 0 0', height: 4, marginBottom: 0, position: 'relative' }}>
-                        <div
-                          className="cal-heat"
-                          style={{
-                            position: 'absolute', bottom: 0, left: 0,
-                            width: `${Math.max(heatPct * 100, 8)}%`,
-                            height: isMobile ? 'calc(100dvh - 70px)' : 'calc(100dvh - 84px)',
-                            borderRadius: '4px 4px 0 0',
-                            background: isSelected
-                              ? 'linear-gradient(90deg, #7C4DFF, #E040FB)'
-                              : colors[0]
-                                ? `linear-gradient(90deg, ${colors[0]}, ${colors[0]}99)`
-                                : 'linear-gradient(90deg, #7C4DFF, #7C4DFF99)',
-                            opacity: isSelected ? 1 : 0.65,
-                            transition: 'opacity 0.15s, width 0.3s',
-                          }}
-                        />
+                    {heatPct > 0 && (
+                      <div style={{ marginTop: 'auto', height: 3, position: 'relative', flexShrink: 0 }}>
+                        <div className="cal-heat" style={{
+                          position: 'absolute', bottom: 0, left: 0,
+                          width: `${Math.max(heatPct * 100, 8)}%`, height: '100%',
+                          borderRadius: '2px 2px 0 0',
+                          background: isSelected
+                            ? 'linear-gradient(90deg, #7C4DFF, #E040FB)'
+                            : colors[0]
+                              ? `linear-gradient(90deg, ${colors[0]}, ${colors[0]}99)`
+                              : 'linear-gradient(90deg, #7C4DFF, #7C4DFF99)',
+                          opacity: isSelected ? 1 : 0.6,
+                          transition: 'opacity 0.15s, width 0.3s',
+                        }} />
                       </div>
                     )}
                   </div>

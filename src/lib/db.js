@@ -1066,7 +1066,10 @@ export async function dbGetWeeklyHours(userEmail, fromDate, toDate) {
     const monday = new Date(d)
     monday.setDate(d.getDate() + diff)
     monday.setHours(0, 0, 0, 0)
-    const weekStart = monday.toISOString().slice(0, 10)
+    // Use local date to avoid UTC offset shifting the day (e.g. Spain UTC+2)
+    const mm = String(monday.getMonth() + 1).padStart(2, '0')
+    const dd = String(monday.getDate()).padStart(2, '0')
+    const weekStart = `${monday.getFullYear()}-${mm}-${dd}`
     const key = `${e.user_email}|${weekStart}`
     if (!map[key]) map[key] = { user_email: e.user_email, week_start: weekStart, total_seconds: 0 }
     map[key].total_seconds += Number(e.duration) || 0

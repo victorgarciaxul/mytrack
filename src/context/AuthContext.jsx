@@ -79,8 +79,11 @@ export function AuthProvider({ children }) {
       // The FALLBACK_USERS list is intentionally NOT used for auth so that
       // password changes take effect immediately and old passwords stop working.
       try {
-        await initDB()
-        const member = await dbSignIn(email.toLowerCase().trim(), password)
+        const timeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), 8000)
+        )
+        const login = initDB().then(() => dbSignIn(email.toLowerCase().trim(), password))
+        const member = await Promise.race([login, timeout])
         if (member) {
           const u = {
             id: member.id,
@@ -96,6 +99,9 @@ export function AuthProvider({ children }) {
         }
         return { error: { message: 'Credenciales incorrectas' } }
       } catch (err) {
+        if (err.message === 'timeout') {
+          return { error: { message: 'Tiempo de espera agotado. Comprueba tu conexión e inténtalo de nuevo.' } }
+        }
         console.error('Auth error:', err.message)
         return { error: { message: 'Error de conexión. Inténtalo de nuevo.' } }
       }

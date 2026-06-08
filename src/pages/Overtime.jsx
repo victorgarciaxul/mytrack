@@ -654,8 +654,8 @@ export default function Overtime() {
                   Acumulado
                 </span>
               )}
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#EF4444' }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444', display: 'inline-block' }} />
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#10B981' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
                 Debido
               </span>
             </div>
@@ -875,7 +875,7 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
             {hasAcu ? fmtHShort(acu) : '—'}
           </span>
         )}
-        <span style={{ fontSize: 14, fontWeight: 800, color: hasDeb ? '#EF4444' : '#10B981', letterSpacing: '-0.3px' }}>
+        <span style={{ fontSize: 14, fontWeight: 800, color: '#10B981', letterSpacing: '-0.3px' }}>
           {hasDeb ? fmtHShort(deb) : '—'}
         </span>
       </div>

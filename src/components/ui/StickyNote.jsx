@@ -81,11 +81,12 @@ export default function StickyNote({ note, idx, members, userEmail, authorName, 
 
   async function toggle(target) {
     let noteId = note.id
+    const currentDraft = draft  // capture before any async/re-render
     if (!noteId) {
       setSaving(true)
       try {
-        const saved = await dbSaveNote({ userEmail, authorName, slot: idx, content: draft })
-        if (saved) { noteId = saved.id; onChange({ ...note, id: saved.id, content: draft }) }
+        const saved = await dbSaveNote({ userEmail, authorName, slot: idx, content: currentDraft })
+        if (saved) { noteId = saved.id }
       } catch { toast.error('Guarda la nota primero'); setSaving(false); return }
       setSaving(false)
     }
@@ -93,7 +94,8 @@ export default function StickyNote({ note, idx, members, userEmail, authorName, 
       ? sharedWith.filter(e => e !== target)
       : [...sharedWith, target]
     setSharedWith(next)
-    onChange({ ...note, id: noteId, shared_with: JSON.stringify(next) })
+    // Always include content so re-mount (key change) restores the draft
+    onChange({ ...note, id: noteId, content: currentDraft, shared_with: JSON.stringify(next) })
     await dbShareNote(noteId, next)
   }
 

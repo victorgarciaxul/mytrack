@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
-import { useRole } from './RoleContext'
+import { ADMIN_EMAILS } from './RoleContext'
 import { loadClockifyCache, isClockifyUser } from '../lib/clockify'
 import { initDB, dbGetProjects, dbGetClients, dbGetAllTasks } from '../lib/db'
 
@@ -27,7 +27,7 @@ function getInitialData(isDemo, email) {
 
 export function WorkspaceProvider({ children }) {
   const { user, isDemo } = useAuth()
-  const { isAdmin } = useRole()
+  const isAdmin = ADMIN_EMAILS.includes(user?.email)
   const init = getInitialData(isDemo, user?.email)
   const [workspace, setWorkspace] = useState(init.ws)
   const [projects, setProjects] = useState(init.projects)

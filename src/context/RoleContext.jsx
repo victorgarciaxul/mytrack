@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext'
 import { demoMembers } from '../lib/demoData'
 import { initDB, dbGetNotifications, dbMarkNotificationRead, dbMarkAllNotificationsRead } from '../lib/db'
 
-const ADMIN_EMAILS = [
+export const ADMIN_EMAILS = [
   'josecastillo@xul.es',
   'inmaosuna@xul.es',
   'carlagarcia@xul.es',

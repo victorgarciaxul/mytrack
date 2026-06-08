@@ -1156,7 +1156,7 @@ export async function dbGetVacations({ userEmail } = {}) {
 /** Bulk upsert vacation rows — single DB call instead of one per day */
 export async function dbBulkUpsertVacations(rows, createdBy) {
   const wsId = getWsId()
-  const data = rows.map(r => ({
+  const rawData = rows.map(r => ({
     workspace_id: r.workspaceId || wsId,
     user_email:   r.userEmail,
     date:         r.date,
@@ -1164,6 +1164,13 @@ export async function dbBulkUpsertVacations(rows, createdBy) {
     description:  r.description || 'Vacaciones (Google Calendar)',
     created_by:   createdBy || '',
   }))
+  // Deduplicate by (user_email, date) — keep last occurrence to avoid
+  // "ON CONFLICT DO UPDATE command cannot affect row a second time"
+  const seen = new Map()
+  for (const row of rawData) {
+    seen.set(`${row.user_email}|${row.date}`, row)
+  }
+  const data = [...seen.values()]
   // Supabase upsert in chunks of 500 to stay within request limits
   const CHUNK = 500
   for (let i = 0; i < data.length; i += CHUNK) {

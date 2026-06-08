@@ -203,7 +203,7 @@ export default function Calendar() {
       <div style={{
         padding: isMobile ? '14px' : '24px 28px',
         fontFamily: 'Inter, system-ui, sans-serif',
-        position: 'absolute', inset: 0,
+        height: isMobile ? 'calc(100dvh - 70px)' : 'calc(100dvh - 84px)',
         display: 'flex',
         flexDirection: 'column',
         gap: isMobile ? 12 : 20,
@@ -315,7 +315,7 @@ export default function Calendar() {
           }}>
             {loading && (
               <div style={{
-                position: 'absolute', inset: 0, display: 'flex',
+                height: isMobile ? 'calc(100dvh - 70px)' : 'calc(100dvh - 84px)', display: 'flex',
                 alignItems: 'center', justifyContent: 'center',
                 background: 'var(--c-bg-surface)cc', borderRadius: 12, zIndex: 5,
               }}>
@@ -368,7 +368,7 @@ export default function Calendar() {
                       padding: isMobile ? '4px 3px 0' : '8px 8px 0',
                       opacity: inMonth ? 1 : 0.3,
                       transition: 'border-color 0.15s, background 0.15s',
-                      position: 'absolute', inset: 0,
+                      height: isMobile ? 'calc(100dvh - 70px)' : 'calc(100dvh - 84px)',
                       boxSizing: 'border-box', overflow: 'hidden',
                       display: 'flex', flexDirection: 'column',
                       
@@ -465,7 +465,7 @@ export default function Calendar() {
                           style={{
                             position: 'absolute', bottom: 0, left: 0,
                             width: `${Math.max(heatPct * 100, 8)}%`,
-                            position: 'absolute', inset: 0,
+                            height: isMobile ? 'calc(100dvh - 70px)' : 'calc(100dvh - 84px)',
                             borderRadius: '4px 4px 0 0',
                             background: isSelected
                               ? 'linear-gradient(90deg, #7C4DFF, #E040FB)'

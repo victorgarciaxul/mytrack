@@ -43,6 +43,7 @@ const FALLBACK_USERS = [
   { email: 'saramoran@xul.es',               password: 'Mytrack14$', name: 'Sara Morán',                    role: 'employee' },
   { email: 'sarasanchez@xul.es',             password: 'Mytrack14$', name: 'Sara Sánchez',                  role: 'employee' },
   { email: 'silviamunoz@xul.es',             password: 'Mytrack14$', name: 'Silvia Muñoz',                  role: 'employee' },
+  { email: 'pruebas@xul.es',                 password: 'Mytrack14$', name: 'Usuario Pruebas',                role: 'employee' },
 ]
 
 const AuthContext = createContext(null)

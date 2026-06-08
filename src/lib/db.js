@@ -430,6 +430,7 @@ async function _runInitDB() {
     { email: 'saramoran@xul.es',               name: 'Sara Morán',                    role: 'employee' },
     { email: 'sarasanchez@xul.es',             name: 'Sara Sánchez',                  role: 'employee' },
     { email: 'silviamunoz@xul.es',             name: 'Silvia Muñoz',                  role: 'employee' },
+    { email: 'pruebas@xul.es',                 name: 'Usuario Pruebas',               role: 'employee' },
   ]
   for (const u of xulUsers) {
     await db`

@@ -11,7 +11,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import { useRole } from '../../context/RoleContext'
-import { getWsId } from '../../lib/db'
+import { getWsId, dbSaveAvatar, dbGetAvatar } from '../../lib/db'
 import { useTour } from '../tour/AppTour'
 import { useTheme } from '../../context/ThemeContext'
 import AppLauncher from './AppLauncher'
@@ -206,6 +206,16 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false)
   const [selectedAvatar, setSelectedAvatar] = useState(() => getStoredAvatar(user?.email))
+
+  // Load avatar from Supabase on mount (overrides localStorage if DB has a value)
+  useEffect(() => {
+    if (!user?.email) return
+    dbGetAvatar(user.email)
+      .then(url => {
+        if (url) { storeAvatar(user.email, url); setSelectedAvatar(url) }
+      })
+      .catch(() => {})
+  }, [user?.email])
   const [pickerPos, setPickerPos] = useState({ bottom: 80, left: 8 })
   const menuRef = useRef(null)
   const userBtnRef = useRef(null)
@@ -250,6 +260,8 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
     setSelectedAvatar(url)
     setAvatarPickerOpen(false)
     setMenuOpen(false)
+    // Persist to Supabase so it loads on any device
+    dbSaveAvatar(user?.email, url).catch(() => {})
   }
 
   // Non-admin users viewing another workspace see a restricted view

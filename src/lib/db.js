@@ -530,6 +530,26 @@ export async function dbGetAllMembers() {
   return data || []
 }
 
+// ── Avatar ────────────────────────────────────────────────────
+
+export async function dbSaveAvatar(userEmail, avatarUrl) {
+  const { error } = await _supabase
+    .from('workspace_members')
+    .update({ avatar_url: avatarUrl })
+    .eq('user_email', userEmail)
+  if (error) throw new Error(error.message)
+}
+
+export async function dbGetAvatar(userEmail) {
+  const { data } = await _supabase
+    .from('workspace_members')
+    .select('avatar_url')
+    .eq('user_email', userEmail)
+    .limit(1)
+    .single()
+  return data?.avatar_url || null
+}
+
 // ── Time entries ──────────────────────────────────────────────
 
 export async function dbGetEntries(userEmail, year) {

@@ -31,7 +31,8 @@ function fmtHShort(h) {
   const abs = Math.abs(h)
   const hh = Math.floor(abs)
   const mm = Math.round((abs - hh) * 60)
-  return `${h < 0 ? '-' : '+'}${hh}${mm > 0 ? `:${mm.toString().padStart(2, '0')}` : ''}h`
+  const sign = h < 0 ? '-' : '+'
+  return mm > 0 ? `${sign}${hh}h ${mm}m` : `${sign}${hh}h`
 }
 // Monday of the ISO week for a Date
 function weekMonday(d) {
@@ -567,7 +568,7 @@ export default function Overtime() {
             const isSurplus = net < -0.05
             const balColor  = isOk ? '#10B981' : isSurplus ? '#3B82F6' : '#EF4444'
             const balLabel  = isOk ? 'Al día ✓' : isSurplus ? `La empresa te debe ${fmtHShort(-net)}` : `Debes ${fmtHShort(net)} a la empresa`
-            const balValue  = isOk ? '—' : isSurplus ? `−${fmtHShort(-net)}` : `+${fmtHShort(net)}`
+            const balValue  = isOk ? '—' : fmtHShort(net)
             return (
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
                 {/* Net balance — the number that matters */}

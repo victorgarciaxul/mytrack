@@ -7,7 +7,7 @@ import DateRangePicker from '../components/ui/DateRangePicker'
 import { useRole } from '../context/RoleContext'
 import { useAuth } from '../context/AuthContext'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-import { initDB, sql, dbGetCompensations, dbAddCompensation, dbDeleteCompensation, dbGetWeeklyHours, getWsId } from '../lib/db'
+import { initDB, sql, dbGetCompensations, dbAddCompensation, dbDeleteCompensation, dbGetWeeklyHours, getWsId, supabaseClient } from '../lib/db'
 import {
   format, startOfWeek, endOfWeek, addWeeks, subWeeks,
   parseISO, startOfYear, endOfYear, startOfDay, endOfDay,
@@ -168,29 +168,35 @@ export default function Overtime() {
     if (role !== null) setViewMode(isAdmin ? 'team' : 'mine')
   }, [role, isAdmin])
 
-  // Load all data
+  // Load all data — each fetch is independent so one failure doesn't block the others
   async function load() {
     setLoading(true)
-    try {
-      await initDB()
-      const db = sql()
-      const [mems, compsAll] = await Promise.all([
-        db`SELECT id, user_name, user_email, group_name, COALESCE(weekly_hours, 37.5) AS weekly_hours FROM workspace_members WHERE workspace_id = ${getWsId()} ORDER BY user_name`,
-        dbGetCompensations(null), // all users
-      ])
-      setMembers(mems)
-      setComps(compsAll)
+    await initDB()
 
-      // Weekly hours: last 52 weeks + current
-      const from = format(subWeeks(new Date(), 52), 'yyyy-MM-dd')
-      const to   = format(addWeeks(new Date(), 1), 'yyyy-MM-dd')
-      const weekly = await dbGetWeeklyHours(null, from, to)
-      setWeeklyRaw(weekly)
-    } catch(e) {
-      console.error('Overtime load error:', e)
-    } finally {
-      setLoading(false)
-    }
+    // Members via native Supabase (no RPC dependency)
+    supabaseClient
+      .from('workspace_members')
+      .select('id, user_name, user_email, group_name, weekly_hours')
+      .eq('workspace_id', getWsId())
+      .order('user_name')
+      .then(({ data }) => setMembers((data || []).map(m => ({
+        ...m,
+        weekly_hours: m.weekly_hours ?? 37.5,
+      }))))
+      .catch(e => console.error('Overtime members error:', e))
+
+    // Compensations
+    dbGetCompensations(null)
+      .then(setComps)
+      .catch(e => console.error('Overtime comps error:', e))
+
+    // Weekly hours (main data) — critical path
+    const from = format(subWeeks(new Date(), 52), 'yyyy-MM-dd')
+    const to   = format(addWeeks(new Date(), 1), 'yyyy-MM-dd')
+    dbGetWeeklyHours(null, from, to)
+      .then(setWeeklyRaw)
+      .catch(e => console.error('Overtime weekly error:', e))
+      .finally(() => setLoading(false))
   }
 
   useEffect(() => { load() }, [])

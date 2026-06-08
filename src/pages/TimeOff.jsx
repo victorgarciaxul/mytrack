@@ -46,6 +46,7 @@ function daysBetween(start, end) {
 export default function TimeOff() {
   const { isAdmin, isManager } = useRole()
   const { user } = useAuth()
+  const canManageAll = isAdmin || isManager
   const [requests, setRequests]   = useState([])
   const [policies, setPolicies]   = useState([])
   const [members, setMembers]     = useState([])
@@ -65,9 +66,17 @@ export default function TimeOff() {
 
   useEffect(() => {
     initDB()
-      .then(() => Promise.all([dbGetTimeOffRequests(), dbGetTimeOffPolicies(), dbGetAllMembers()]))
+      .then(() => Promise.all([
+        dbGetTimeOffRequests(),
+        dbGetTimeOffPolicies(),
+        canManageAll ? dbGetAllMembers() : Promise.resolve([]),
+      ]))
       .then(([reqs, pols, mems]) => {
-        setRequests(reqs || [])
+        // Employees only see their own requests
+        const filtered = canManageAll
+          ? (reqs || [])
+          : (reqs || []).filter(r => r.user_email === user?.email)
+        setRequests(filtered)
         setPolicies(pols || [])
         setMembers(mems || [])
         setLoading(false)
@@ -89,8 +98,10 @@ export default function TimeOff() {
     if (!fStart || !fEnd) { toast.error('Elige las fechas'); return }
     setSaving(true)
     try {
-      const member = members.find(m => m.user_email === fEmployee) ||
-                     { user_email: user?.email, user_name: user?.user_metadata?.full_name || user?.email }
+      // Admins can pick any member; employees always use their own account
+      const member = canManageAll && fEmployee
+        ? (members.find(m => m.user_email === fEmployee) || { user_email: fEmployee, user_name: fEmployee })
+        : { user_email: user?.email, user_name: user?.user_name || user?.user_metadata?.full_name || user?.email }
       const policy = policies.find(p => p.id === fPolicy)
       const newR = await dbCreateTimeOffRequest({
         userEmail: member.user_email,
@@ -121,12 +132,10 @@ export default function TimeOff() {
             {loading ? 'Cargando…' : `${requests.length} solicitudes · ${policies.length} políticas`}
           </p>
         </div>
-        {(isAdmin || isManager) && (
-          <button onClick={() => setShowForm(v => !v)}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px', borderRadius: 10, background: '#F59E0B', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-            <Plus size={15} /> Nueva solicitud
-          </button>
-        )}
+        <button onClick={() => setShowForm(v => !v)}
+          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px', borderRadius: 10, background: '#F59E0B', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+          <Plus size={15} /> Nueva solicitud
+        </button>
       </div>
 
       {/* Create form */}
@@ -137,7 +146,8 @@ export default function TimeOff() {
             <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)' }}><X size={16} /></button>
           </div>
           <form onSubmit={handleCreate}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: canManageAll ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
+              {canManageAll && (
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Empleado</label>
                 <select value={fEmployee} onChange={e => setFEmployee(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
@@ -145,6 +155,7 @@ export default function TimeOff() {
                   {members.map(m => <option key={m.id} value={m.user_email}>{m.user_name || m.user_email}</option>)}
                 </select>
               </div>
+              )}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Política</label>
                 <select value={fPolicy} onChange={e => setFPolicy(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
@@ -191,12 +202,6 @@ export default function TimeOff() {
         <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
           <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid #F59E0B', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
         </div>
-      ) : requests.length === 0 && policies.length === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px 0', gap: 12 }}>
-          <CalendarOff size={40} style={{ color: 'var(--c-text-4)' }} />
-          <p style={{ fontSize: 14, color: 'var(--c-text-3)', margin: 0 }}>Sin datos de bajas</p>
-          <p style={{ fontSize: 12, color: 'var(--c-text-4)', margin: 0 }}>Importa desde Clockify o crea una solicitud</p>
-        </div>
       ) : (
         <>
           {/* Tabs */}
@@ -228,7 +233,16 @@ export default function TimeOff() {
                 ))}
               </div>
 
-              {/* Filters */}
+              {requests.length === 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 0', gap: 12 }}>
+                  <CalendarOff size={36} style={{ color: 'var(--c-text-4)' }} />
+                  <p style={{ fontSize: 14, color: 'var(--c-text-3)', margin: 0 }}>Sin solicitudes todavía</p>
+                  <p style={{ fontSize: 12, color: 'var(--c-text-4)', margin: 0 }}>Pulsa «Nueva solicitud» para crear la primera</p>
+                </div>
+              )}
+
+              {/* Filters + Table — only show when there are requests */}
+              {requests.length > 0 && <>
               <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
                 <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={selectStyle}>
                   <option value="ALL">Todos los estados</option>
@@ -285,6 +299,7 @@ export default function TimeOff() {
                   )
                 })}
               </div>
+              </>}
             </>
           )}
 

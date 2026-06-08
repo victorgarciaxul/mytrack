@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { useRole } from '../context/RoleContext'
-import { loadClockifyCache, clockifyStartTimer, clockifyStopTimer, clockifyDeleteEntry, clockifyGetProjectTasks, isClockifyUser } from '../lib/clockify'
+import { loadClockifyCache, clockifyGetProjectTasks, isClockifyUser } from '../lib/clockify'
 import { getSelectedYear } from '../components/layout/TopBar'
 import { initDB, dbGetEntries, dbInsertEntry, dbDeleteEntry, dbGetMyNotes, dbSaveNote, dbShareNote, dbGetSharedNotes, dbGetAllMembers, dbUpdateNoteContent, dbUnshareNote, dbToggleReaction, ensureReactionsColumn, dbDeleteNote, getWsId, dbSaveRunningTimer, dbGetRunningTimer, dbDeleteRunningTimer } from '../lib/db'
 import { format, parseISO, isToday, isYesterday, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns'
@@ -201,12 +201,6 @@ export default function Tracker() {
     return () => window.removeEventListener('mytrack:entry-saved', onEntrySaved)
   }, [user?.email])
 
-  // Sync enabled for any user who has a clockify_user_id (all XUL team members)
-  const clockifyUserId = user?.clockify_user_id || null
-  const syncEnabled = !!clockifyUserId
-  // Track whether Clockify START succeeded so STOP knows whether to call Clockify
-  const clockifyStartedRef = React.useRef(false)
-
   // ── Cross-device timer sync ──────────────────────────────────
   // Only RESTORES a timer from Neon — never resets a running local timer.
   // This avoids race conditions where Neon hasn't saved yet but local is already running.
@@ -266,244 +260,64 @@ export default function Tracker() {
   }, [user?.email])
 
   async function handleStart() {
-    if (!selectedProject) {
-      toast.error('Selecciona un proyecto antes de iniciar')
-      return
-    }
-    if (!selectedTask) {
-      toast.error('Selecciona una tarea antes de iniciar')
-      return
-    }
-    if (syncEnabled) {
-      setSyncing(true)
-      // ── Timer ALWAYS starts in MyTrack — Clockify sync is best-effort ──
-      const startedAt = new Date().toISOString()
-      timer.start()
-      dbSaveRunningTimer({
-        userEmail: user.email,
-        workspaceId: user.workspace_id || 'xul-ws-1',
-        startedAt,
-        description: description || '',
-        projectId: selectedProject?.id || null,
-        projectName: selectedProject?.name || null,
-        projectColor: selectedProject?.color || null,
-        taskId: selectedTask?.id || null,
-        taskName: selectedTask?.name || null,
-      }).catch(() => {})
+    if (!selectedProject) { toast.error('Selecciona un proyecto antes de iniciar'); return }
+    if (!selectedTask)    { toast.error('Selecciona una tarea antes de iniciar');   return }
 
-      // Try Clockify — if it fails, timer is already running locally
-      clockifyStartedRef.current = false
-      try {
-        await clockifyStartTimer({ userId: clockifyUserId,
-          description: description || '',
-          projectId: selectedProject?.id || null,
-          taskId: selectedTask?.id || null,
-        })
-        clockifyStartedRef.current = true
-        toast.success('⏱ Timer iniciado')
-      } catch (err) {
-        const msg = err.message || ''
-        // Retry without task (task completed / task required error)
-        if (selectedTask && msg.includes('501')) {
-          try {
-            await clockifyStartTimer({ userId: clockifyUserId,
-              description: description || '',
-              projectId: selectedProject?.id || null,
-              taskId: null,
-            })
-            clockifyStartedRef.current = true
-            setSelectedTask(null)
-            toast('⏱ Timer iniciado (tarea omitida en Clockify)', { duration: 3500 })
-          } catch {
-            toast('⏱ Timer iniciado en MyTrack · Sin sync Clockify', { duration: 3500 })
-          }
-        } else {
-          toast('⏱ Timer iniciado en MyTrack · Sin sync Clockify', { duration: 3500 })
-        }
-      } finally {
-        setSyncing(false)
-      }
-    } else {
-      const startedAt = new Date().toISOString()
-      timer.start()
-      // Save to Neon so other devices can see the running timer
-      dbSaveRunningTimer({
-        userEmail: user.email,
-        workspaceId: user.workspace_id || 'xul-ws-1',
-        startedAt,
-        description: description || '',
-        projectId: selectedProject?.id || null,
-        projectName: selectedProject?.name || null,
-        projectColor: selectedProject?.color || null,
-        taskId: selectedTask?.id || null,
-        taskName: selectedTask?.name || null,
-      }).catch(err => console.warn('Save running timer error:', err))
-    }
+    const startedAt = new Date().toISOString()
+    timer.start()
+    dbSaveRunningTimer({
+      userEmail: user.email,
+      workspaceId: user.workspace_id || 'xul-ws-1',
+      startedAt,
+      description:   description || '',
+      projectId:     selectedProject.id,
+      projectName:   selectedProject.name,
+      projectColor:  selectedProject.color,
+      taskId:        selectedTask.id,
+      taskName:      selectedTask.name,
+    }).catch(err => console.warn('Save running timer error:', err))
   }
 
   async function handleStop() {
     const secs = timer.stop()
-    // Always clear the running timer from Neon (cross-device cleanup)
-    dbDeleteRunningTimer(user.email).catch(err => console.warn('Delete running timer error:', err))
+    dbDeleteRunningTimer(user.email).catch(() => {})
     if (secs < 5) { timer.reset(); return }
 
-    if (syncEnabled) {
-      setSyncing(true)
-      // Compute fallback times upfront — needed if Clockify fails
-      const endTime   = new Date()
-      const startTime = new Date(endTime.getTime() - secs * 1000)
-
-      // Helper: parse ISO 8601 duration (e.g. "PT18M23S") → seconds
-      function parseDuration(val) {
-        if (!val) return null
-        if (typeof val === 'number') return val
-        const m = String(val).match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/)
-        if (!m) return null
-        return Math.round((Number(m[1] || 0) * 3600) + (Number(m[2] || 0) * 60) + Number(m[3] || 0))
-      }
-
-      // Only call Clockify stop if the start also went through Clockify
-      if (!clockifyStartedRef.current) {
-        // Clockify was never started — save directly to Neon
-        try {
-          await initDB()
-          const saved = await dbInsertEntry({
-            userEmail: user.email,
-            workspaceId: user.workspace_id || 'xul-ws-1',
-            projectId: selectedProject?.id || null,
-            projectName: selectedProject?.name || null,
-            projectColor: selectedProject?.color || null,
-            taskId: selectedTask?.id || null,
-            taskName: selectedTask?.name || null,
-            description: description || '(sin descripción)',
-            startTime: startTime.toISOString(),
-            endTime: endTime.toISOString(),
-            duration: secs,
-          })
-          if (saved) {
-            setEntries(prev => [{
-              id: saved.id, description: saved.description,
-              start_time: saved.start_time, end_time: saved.end_time, duration: saved.duration,
-              projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color } : null,
-              tasks: selectedTask ? { name: selectedTask.name } : null,
-            }, ...prev])
-            window.dispatchEvent(new CustomEvent('mytrack:entry-saved', { detail: { year: new Date().getFullYear() } }))
-          }
-          toast.success('Tiempo registrado')
-        } catch (err) {
-          toast.error('Error al guardar: ' + err.message)
-        } finally {
-          setSyncing(false)
-        }
-        timer.reset(); setDescription(''); setSelectedProject(null); setSelectedTask(null)
-        localStorage.removeItem(ACTIVE_KEY)
-        return
-      }
-
-      try {
-        const saved = await clockifyStopTimer(clockifyUserId)
-        // Parse duration: Clockify may return ISO 8601 string (e.g. "PT18M23S") or seconds
-        const duration = parseDuration(saved.timeInterval?.duration) || secs
-        const entry = {
-          id: saved.id,
-          description: saved.description || description || '(sin descripción)',
-          start_time: saved.timeInterval?.start,
-          end_time: saved.timeInterval?.end,
-          duration,
-          projects: selectedProject
-            ? { name: selectedProject.name, color: selectedProject.color, clients: selectedProject.clients }
-            : null,
-          tasks: selectedTask ? { name: selectedTask.name } : null,
-        }
-        setEntries(prev => [entry, ...prev])
-        // Save to Neon
-        initDB().then(() => dbInsertEntry({
-          id: saved.id,
-          userEmail: user.email,
-          workspaceId: user.workspace_id || 'xul-ws-1',
-          projectId: selectedProject?.id || null,
-          projectName: selectedProject?.name || null,
-          projectColor: selectedProject?.color || null,
-          clientName: selectedProject?.clients?.name || null,
-          taskId: selectedTask?.id || null,
-          taskName: selectedTask?.name || null,
-          description: entry.description,
-          startTime: entry.start_time,
-          endTime: entry.end_time,
-          duration,
-          billable: true,
-        })).then(() => {
-          window.dispatchEvent(new CustomEvent('mytrack:entry-saved', {
-            detail: { year: new Date(entry.start_time).getFullYear() }
-          }))
-        }).catch(err => console.warn('Neon save error:', err.message))
-        toast.success('✅ Tiempo registrado')
-      } catch (err) {
-        // Clockify stop failed — ALWAYS save to Neon so the entry is not lost
-        const localEntry = {
-          userEmail:    user.email,
-          workspaceId:  user.workspace_id || 'xul-ws-1',
-          projectId:    selectedProject?.id || null,
-          projectName:  selectedProject?.name || null,
-          projectColor: selectedProject?.color || null,
-          taskId:       selectedTask?.id || null,
-          taskName:     selectedTask?.name || null,
-          description:  description || '(sin descripción)',
-          startTime:    startTime.toISOString(),
-          endTime:      endTime.toISOString(),
-          duration:     secs,
-        }
-        initDB().then(() => dbInsertEntry(localEntry)).then(saved => {
-          if (saved) {
-            setEntries(prev => [{
-              id: saved.id, description: saved.description,
-              start_time: saved.start_time, end_time: saved.end_time, duration: saved.duration,
-              projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color } : null,
-              tasks: selectedTask ? { name: selectedTask.name } : null,
-            }, ...prev])
-            window.dispatchEvent(new CustomEvent('mytrack:entry-saved', { detail: { year: new Date().getFullYear() } }))
-          }
-        }).catch(e => console.warn('Neon fallback error:', e))
-        toast('⏱ Tiempo guardado en MyTrack · Clockify sin sync', { duration: 4000 })
-      } finally {
-        setSyncing(false)
-      }
-    } else {
-      // Other users: save to Neon
-      const start = new Date(Date.now() - secs * 1000)
-      const end = new Date()
-      try {
-        await initDB()
-        const saved = await dbInsertEntry({
-          userEmail: user.email,
-          workspaceId: user.workspace_id || 'xul-ws-1',
-          projectId: selectedProject?.id || null,
-          projectName: selectedProject?.name || null,
-          projectColor: selectedProject?.color || null,
-          taskId: selectedTask?.id || null,
-          taskName: selectedTask?.name || null,
-          description: description || '(sin descripción)',
-          startTime: start.toISOString(),
-          endTime: end.toISOString(),
-          duration: secs,
-        })
+    const endTime   = new Date()
+    const startTime = new Date(endTime.getTime() - secs * 1000)
+    setSyncing(true)
+    try {
+      await initDB()
+      const saved = await dbInsertEntry({
+        userEmail:    user.email,
+        workspaceId:  user.workspace_id || 'xul-ws-1',
+        projectId:    selectedProject?.id    || null,
+        projectName:  selectedProject?.name  || null,
+        projectColor: selectedProject?.color || null,
+        clientName:   selectedProject?.client_name || null,
+        taskId:       selectedTask?.id   || null,
+        taskName:     selectedTask?.name || null,
+        description:  description || '(sin descripción)',
+        startTime:    startTime.toISOString(),
+        endTime:      endTime.toISOString(),
+        duration:     secs,
+      })
+      if (saved) {
         setEntries(prev => [{
-          id: saved.id,
-          description: saved.description,
-          start_time: saved.start_time,
-          end_time: saved.end_time,
-          duration: saved.duration,
+          id: saved.id, description: saved.description,
+          start_time: saved.start_time, end_time: saved.end_time, duration: saved.duration,
           projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color } : null,
-          tasks: selectedTask ? { name: selectedTask.name } : null,
+          tasks:    selectedTask    ? { name: selectedTask.name }    : null,
         }, ...prev])
-        // Notify Calendar to refresh in real time
         window.dispatchEvent(new CustomEvent('mytrack:entry-saved', {
           detail: { year: new Date().getFullYear() }
         }))
-        toast.success('Tiempo registrado')
-      } catch (err) {
-        toast.error('Error al guardar: ' + err.message)
       }
+      toast.success('✅ Tiempo registrado')
+    } catch (err) {
+      toast.error('Error al guardar: ' + err.message)
+    } finally {
+      setSyncing(false)
     }
 
     timer.reset()
@@ -515,7 +329,7 @@ export default function Tracker() {
 
   async function deleteEntry(id) {
     try {
-      if (!syncEnabled) await dbDeleteEntry(id)
+      await dbDeleteEntry(id)
       setEntries(e => e.filter(x => x.id !== id))
       setConfirmDeleteId(null)
       toast.success('Entrada eliminada')
@@ -573,69 +387,20 @@ export default function Tracker() {
       return alreadyThere ? prev : [restoredTask, ...prev]
     })
 
-    if (syncEnabled) {
-      setSyncing(true)
-      // ── Timer ALWAYS starts in MyTrack — Clockify sync is best-effort ──
-      const startedAt = new Date().toISOString()
-      timer.start()
-      dbSaveRunningTimer({
-        userEmail: user.email,
-        workspaceId: user.workspace_id || 'xul-ws-1',
-        startedAt,
-        description: e.description || '',
-        projectId: proj?.id || null,
-        projectName: proj?.name || null,
-        projectColor: proj?.color || null,
-        taskId: e.task_id || null,
-        taskName: e.tasks?.name || null,
-      }).catch(() => {})
-
-      clockifyStartedRef.current = false
-      try {
-        await clockifyStartTimer({ userId: clockifyUserId,
-          description: e.description || '',
-          projectId: proj?.id || null,
-          taskId: e.task_id || null,
-        })
-        clockifyStartedRef.current = true
-        toast.success('⏱ Timer reactivado')
-      } catch (err) {
-        const msg = err.message || ''
-        if (e.task_id && msg.includes('501')) {
-          try {
-            await clockifyStartTimer({ userId: clockifyUserId,
-              description: e.description || '',
-              projectId: proj?.id || null,
-              taskId: null,
-            })
-            clockifyStartedRef.current = true
-            setSelectedTask(null)
-            toast('⏱ Timer reactivado (tarea omitida en Clockify)', { duration: 3500 })
-          } catch {
-            toast('⏱ Timer reactivado en MyTrack · Sin sync Clockify', { duration: 3500 })
-          }
-        } else {
-          toast('⏱ Timer reactivado en MyTrack · Sin sync Clockify', { duration: 3500 })
-        }
-      } finally {
-        setSyncing(false)
-      }
-    } else {
-      const startedAt = new Date().toISOString()
-      timer.start()
-      dbSaveRunningTimer({
-        userEmail: user.email,
-        workspaceId: user.workspace_id || 'xul-ws-1',
-        startedAt,
-        description: e.description || '',
-        projectId: proj?.id || null,
-        projectName: proj?.name || null,
-        projectColor: proj?.color || null,
-        taskId: e.task_id || null,
-        taskName: e.tasks?.name || null,
-      }).catch(() => {})
-      toast.success('⏱ Timer reactivado')
-    }
+    const startedAt = new Date().toISOString()
+    timer.start()
+    dbSaveRunningTimer({
+      userEmail: user.email,
+      workspaceId: user.workspace_id || 'xul-ws-1',
+      startedAt,
+      description:  e.description || '',
+      projectId:    proj?.id    || null,
+      projectName:  proj?.name  || null,
+      projectColor: proj?.color || null,
+      taskId:       e.task_id   || null,
+      taskName:     e.tasks?.name || null,
+    }).catch(() => {})
+    toast.success('⏱ Timer reactivado')
   }
 
   function applyStartTimeEdit() {
@@ -761,7 +526,7 @@ export default function Tracker() {
               placeholder="¿En qué estás trabajando?"
               value={description}
               onChange={e => setDescription(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !timer.isRunning && timer.start()}
+              onKeyDown={e => e.key === 'Enter' && !timer.isRunning && handleStart()}
               style={{
                 width: '100%', border: 'none', outline: 'none', background: 'transparent',
                 fontSize: 20, fontWeight: 700, color: 'var(--c-text-1)', marginBottom: 4,
@@ -773,9 +538,15 @@ export default function Tracker() {
               <p style={{ fontSize: 12, color: '#7C4DFF', marginBottom: 14, fontWeight: 500 }}>
                 Proyecto: {selectedProject.name}
                 {selectedTask && <span style={{ color: '#9095B0' }}> › {selectedTask.name}</span>}
+                {!selectedTask && <span style={{ color: '#F59E0B', fontWeight: 600 }}> — selecciona una tarea</span>}
               </p>
             )}
-            {!selectedProject && <div style={{ marginBottom: 14 }} />}
+            {!selectedProject && !timer.isRunning && (
+              <p style={{ fontSize: 12, color: '#F59E0B', marginBottom: 14, fontWeight: 600 }}>
+                ⚠ Selecciona proyecto y tarea para empezar
+              </p>
+            )}
+            {!selectedProject && timer.isRunning && <div style={{ marginBottom: 14 }} />}
 
             {/* Timer display */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -789,15 +560,23 @@ export default function Tracker() {
               </span>
               <button
                 onClick={timer.isRunning ? handleStop : handleStart}
-                disabled={syncing}
+                disabled={syncing || (!timer.isRunning && (!selectedProject || !selectedTask))}
+                title={!timer.isRunning && !selectedProject ? 'Selecciona proyecto y tarea' : !timer.isRunning && !selectedTask ? 'Selecciona una tarea' : ''}
                 style={{
-                  width: 52, height: 52, borderRadius: '50%', border: 'none', cursor: syncing ? 'wait' : 'pointer',
-                  background: syncing ? '#94A3B8' : timer.isRunning ? '#22C55E' : 'linear-gradient(135deg,#7C4DFF,#E040FB)',
+                  width: 52, height: 52, borderRadius: '50%', border: 'none',
+                  cursor: (syncing || (!timer.isRunning && (!selectedProject || !selectedTask))) ? 'not-allowed' : 'pointer',
+                  background: syncing ? '#94A3B8'
+                    : timer.isRunning ? '#22C55E'
+                    : (!selectedProject || !selectedTask) ? '#CBD5E1'
+                    : 'linear-gradient(135deg,#7C4DFF,#E040FB)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: timer.isRunning ? '0 4px 16px rgba(34,197,94,0.4)' : '0 4px 16px rgba(124,77,255,0.4)',
+                  boxShadow: timer.isRunning ? '0 4px 16px rgba(34,197,94,0.4)'
+                    : (!selectedProject || !selectedTask) ? 'none'
+                    : '0 4px 16px rgba(124,77,255,0.4)',
                   transition: 'all 0.2s',
+                  opacity: (!timer.isRunning && (!selectedProject || !selectedTask)) ? 0.6 : 1,
                 }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.06)'}
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.transform = 'scale(1.06)' }}
                 onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
               >
                 {timer.isRunning

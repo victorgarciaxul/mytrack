@@ -262,7 +262,10 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
     setAvatarPickerOpen(false)
     setMenuOpen(false)
     // Persist to Supabase so it loads on any device
-    dbSaveAvatar(user?.email, url).catch(() => {})
+    dbSaveAvatar(user?.email, url).catch(err => {
+      console.error('Avatar save error:', err)
+      import('react-hot-toast').then(({ default: toast }) => toast.error('No se pudo guardar el avatar en el servidor'))
+    })
   }
 
   // Non-admin users viewing another workspace see a restricted view

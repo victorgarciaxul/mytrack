@@ -24,11 +24,13 @@ const WK = { weekStartsOn: 1 }
 export default function DateRangePicker({
   from, to, onChange, label = 'Rango', buttonStyle = {}, weekMode = false,
 }) {
-  const [open, setOpen]         = useState(false)
-  const [selecting, setSelecting] = useState(null)   // first anchor (week start if weekMode)
-  const [hover, setHover]       = useState(null)
+  const [open, setOpen]           = useState(false)
+  const [selecting, setSelecting] = useState(null)
+  const [hover, setHover]         = useState(null)
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(from || new Date()))
-  const containerRef            = useRef(null)
+  const [dropPos, setDropPos]     = useState({ top: 0, left: 0 })
+  const containerRef              = useRef(null)
+  const buttonRef                 = useRef(null)
 
   useEffect(() => {
     if (!open) return
@@ -37,8 +39,19 @@ export default function DateRangePicker({
         setOpen(false); setSelecting(null); setHover(null)
       }
     }
+    function onScroll() {
+      // Recompute position on scroll so it follows the button
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect()
+        setDropPos({ top: rect.bottom + 8, left: rect.left })
+      }
+    }
     document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
+    window.addEventListener('scroll', onScroll, true)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      window.removeEventListener('scroll', onScroll, true)
+    }
   }, [open])
 
   function snap(date, edge) {
@@ -111,10 +124,23 @@ export default function DateRangePicker({
       ? `${format(weekMode ? startOfWeek(from, WK) : from, 'd MMM', { locale: es })} → ${format(weekMode ? endOfWeek(to, WK) : to, 'd MMM yyyy', { locale: es })}`
       : weekMode ? 'Haz clic en cualquier día de la semana de inicio' : 'Elige la fecha de inicio'
 
+  function handleToggle() {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      // Ensure the dropdown doesn't go off-screen to the right
+      const dropWidth = 272
+      const left = Math.min(rect.left, window.innerWidth - dropWidth - 8)
+      setDropPos({ top: rect.bottom + 8, left })
+    }
+    setOpen(o => !o)
+    if (!open) setViewMonth(startOfMonth(from || new Date()))
+  }
+
   return (
     <div ref={containerRef} style={{ position: 'relative' }}>
       <button
-        onClick={() => { setOpen(o => !o); if (!open) setViewMonth(startOfMonth(from || new Date())) }}
+        ref={buttonRef}
+        onClick={handleToggle}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
@@ -132,7 +158,7 @@ export default function DateRangePicker({
       {open && (
         <div
           style={{
-            position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 300,
+            position: 'fixed', top: dropPos.top, left: dropPos.left, zIndex: 9999,
             background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)',
             borderRadius: 16, padding: 18, minWidth: 272,
             boxShadow: '0 16px 48px rgba(0,0,0,0.22)',

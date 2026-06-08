@@ -10,6 +10,7 @@ export default function StickyNote({ note, idx, members, userEmail, authorName, 
   const [draft, setDraft]           = useState(note.content || '')
   const [saving, setSaving]         = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerSearch, setPickerSearch] = useState('')
   const [emojiOpen, setEmojiOpen]   = useState(false)
   const [reactions, setReactions]   = useState(() => {
     try { return JSON.parse(note.reactions || '[]') } catch { return [] }
@@ -139,7 +140,7 @@ export default function StickyNote({ note, idx, members, userEmail, authorName, 
             onMouseLeave={e => e.currentTarget.style.background = isDirty ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.07)'}>
             {saving ? <span style={{ fontSize: 10 }}>Guardando…</span> : <><Save size={11} /><span>Guardar</span></>}
           </button>
-          <button ref={btnRef} onClick={() => setPickerOpen(p => !p)} title="Compartir"
+          <button ref={btnRef} onClick={() => { setPickerOpen(p => !p); setPickerSearch('') }} title="Compartir"
             style={{ ...btnStyle(sharedWith.length ? 'rgba(124,77,255,0.18)' : 'rgba(0,0,0,0.07)', sharedWith.length ? '#5a00cc' : '#a08000'), width: 'auto', display: 'flex', alignItems: 'center', gap: 4, padding: '0 8px', fontSize: 11, fontWeight: 600 }}
             onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.18)'}
             onMouseLeave={e => e.currentTarget.style.background = sharedWith.length ? 'rgba(124,77,255,0.18)' : 'rgba(0,0,0,0.07)'}>
@@ -194,20 +195,45 @@ export default function StickyNote({ note, idx, members, userEmail, authorName, 
 
       {/* Share picker */}
       {pickerOpen && (
-        <div ref={pickerRef} style={{ position: 'absolute', bottom: 'calc(100% + 4px)', right: 0, zIndex: 300, width: 230, background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', borderRadius: 12, boxShadow: '0 8px 28px rgba(0,0,0,0.16)', overflow: 'hidden' }}>
+        <div ref={pickerRef} style={{ position: 'absolute', bottom: 'calc(100% + 4px)', right: 0, zIndex: 300, width: 240, background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', borderRadius: 12, boxShadow: '0 8px 28px rgba(0,0,0,0.16)', overflow: 'hidden' }}>
           <div style={{ padding: '9px 12px 5px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--c-text-4)' }}>Compartir con</div>
-          <PickerRow icon={<div style={{ width: 26, height: 26, borderRadius: 8, background: '#7C4DFF20', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={13} style={{ color: '#7C4DFF' }} /></div>} label="Todo el equipo" checked={isSharedAll} onClick={() => toggle('all')} />
-          <div style={{ height: 1, background: 'var(--c-border-light)', margin: '2px 8px' }} />
+          {/* Search box */}
+          <div style={{ padding: '4px 10px 6px' }}>
+            <input
+              autoFocus
+              value={pickerSearch}
+              onChange={e => setPickerSearch(e.target.value)}
+              placeholder="Buscar usuario…"
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                padding: '5px 9px', borderRadius: 7, border: '1px solid var(--c-border)',
+                background: 'var(--c-bg-muted)', fontSize: 12, color: 'var(--c-text-1)',
+                outline: 'none',
+              }}
+            />
+          </div>
+          {/* "Todo el equipo" — only show when search is empty */}
+          {!pickerSearch && (
+            <>
+              <PickerRow icon={<div style={{ width: 26, height: 26, borderRadius: 8, background: '#7C4DFF20', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={13} style={{ color: '#7C4DFF' }} /></div>} label="Todo el equipo" checked={isSharedAll} onClick={() => toggle('all')} />
+              <div style={{ height: 1, background: 'var(--c-border-light)', margin: '2px 8px' }} />
+            </>
+          )}
           <div style={{ maxHeight: 200, overflowY: 'auto' }}>
             {members.length === 0 && <p style={{ fontSize: 12, color: 'var(--c-text-4)', textAlign: 'center', padding: '12px 0', margin: 0 }}>Cargando…</p>}
-            {members.map(m => {
-              const initials = m.user_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'
-              return (
-                <PickerRow key={m.user_email}
-                  icon={<div style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg,#7C4DFF,#E040FB)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: '#fff' }}>{initials}</div>}
-                  label={m.user_name} checked={sharedWith.includes(m.user_email)} onClick={() => toggle(m.user_email)} />
-              )
-            })}
+            {members
+              .filter(m => !pickerSearch || m.user_name?.toLowerCase().includes(pickerSearch.toLowerCase()) || m.user_email?.toLowerCase().includes(pickerSearch.toLowerCase()))
+              .map(m => {
+                const initials = m.user_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'
+                return (
+                  <PickerRow key={m.user_email}
+                    icon={<div style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg,#7C4DFF,#E040FB)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: '#fff' }}>{initials}</div>}
+                    label={m.user_name} checked={sharedWith.includes(m.user_email)} onClick={() => toggle(m.user_email)} />
+                )
+              })}
+            {pickerSearch && members.filter(m => m.user_name?.toLowerCase().includes(pickerSearch.toLowerCase()) || m.user_email?.toLowerCase().includes(pickerSearch.toLowerCase())).length === 0 && (
+              <p style={{ fontSize: 12, color: 'var(--c-text-4)', textAlign: 'center', padding: '10px 0', margin: 0 }}>Sin resultados</p>
+            )}
           </div>
         </div>
       )}

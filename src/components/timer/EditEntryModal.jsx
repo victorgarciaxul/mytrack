@@ -3,7 +3,7 @@ import { X } from 'lucide-react'
 import SearchableDropdown from '../ui/SearchableDropdown'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import { isClockifyUser, clockifyGetProjectTasks } from '../../lib/clockify'
-import { initDB, dbInsertEntry } from '../../lib/db'
+import { initDB, dbInsertEntry, dbGetTasksForProject } from '../../lib/db'
 import { format, parseISO } from 'date-fns'
 import toast from 'react-hot-toast'
 
@@ -30,9 +30,24 @@ export default function EditEntryModal({ entry, onClose, onSaved, user }) {
   useEffect(() => {
     if (!projectId) { setProjectTasks([]); return }
     setLoadingTasks(true)
-    clockifyGetProjectTasks(projectId)
-      .then(t => { setProjectTasks(t); setLoadingTasks(false) })
-      .catch(() => setLoadingTasks(false))
+    // Load from Supabase first (reliable for all users), then merge Clockify extras
+    dbGetTasksForProject(projectId)
+      .then(supabaseTasks => {
+        const localTasks = supabaseTasks.map(t => ({ id: t.id, name: t.name }))
+        return clockifyGetProjectTasks(projectId)
+          .then(apiTasks => {
+            const localIds = new Set(localTasks.map(t => t.id))
+            const merged = [...localTasks, ...apiTasks.filter(t => !localIds.has(t.id))]
+            setProjectTasks(merged.length > 0 ? merged : localTasks)
+          })
+          .catch(() => setProjectTasks(localTasks))
+      })
+      .catch(() => {
+        clockifyGetProjectTasks(projectId)
+          .then(tasks => setProjectTasks(tasks))
+          .catch(() => setProjectTasks([]))
+      })
+      .finally(() => setLoadingTasks(false))
   }, [projectId])
 
   async function handleSave() {
@@ -40,8 +55,11 @@ export default function EditEntryModal({ entry, onClose, onSaved, user }) {
     const end   = new Date(`${date}T${endTime}`)
     if (end <= start) { toast.error('La hora de fin debe ser posterior al inicio'); return }
     const duration = Math.floor((end - start) / 1000)
-    const project  = projects.find(p => p.id === projectId)
-    const task     = projectTasks.find(t => t.id === taskId)
+    // Try to find project in workspace list; fall back to the original entry data
+    const project  = projects.find(p => p.id === projectId) ||
+                     (projectId === (entry.project_id || '') ? entry.projects : null)
+    const task     = projectTasks.find(t => t.id === taskId) ||
+                     (taskId === (entry.task_id || '') ? entry.tasks : null)
 
     setSaving(true)
     try {

@@ -61,6 +61,30 @@ export function AuthProvider({ children }) {
   })
   const [loading, setLoading] = useState(!DEMO_MODE)
 
+  // In DEMO_MODE: refresh clockify_user_id from DB on every app load.
+  // Users who logged in before this field was added have it missing in localStorage,
+  // which breaks Clockify sync (syncEnabled = !!clockify_user_id).
+  useEffect(() => {
+    if (!DEMO_MODE || !user?.email) return
+    import('../lib/db').then(({ supabaseClient }) =>
+      supabaseClient
+        .from('workspace_members')
+        .select('clockify_user_id, weekly_hours')
+        .eq('user_email', user.email)
+        .limit(1)
+    ).then(({ data: rows }) => {
+      const data = rows?.[0]
+      if (!data) return
+      const needsUpdate =
+        data.clockify_user_id !== user.clockify_user_id ||
+        data.weekly_hours !== user.weekly_hours
+      if (!needsUpdate) return
+      const updated = { ...user, clockify_user_id: data.clockify_user_id ?? null, weekly_hours: data.weekly_hours ?? null }
+      setUser(updated)
+      try { localStorage.setItem('mytrack-demo-user', JSON.stringify(updated)) } catch {}
+    }).catch(() => {})
+  }, [user?.email])
+
   useEffect(() => {
     if (DEMO_MODE) return
     supabase.auth.getSession().then(({ data: { session } }) => {

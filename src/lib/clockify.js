@@ -287,8 +287,9 @@ export async function importFromClockify(onStatus, since = null) {
 const _taskCache = {}
 export async function clockifyGetProjectTasks(projectId) {
   if (_taskCache[projectId]) return _taskCache[projectId]
+  const cid = toClockifyId(projectId)   // strip -xul / -fundacion suffix
   try {
-    const data = await fetchAll(`/workspaces/${WORKSPACE_ID}/projects/${projectId}/tasks?status=ACTIVE`, 100)
+    const data = await fetchAll(`/workspaces/${WORKSPACE_ID}/projects/${cid}/tasks?status=ACTIVE`, 100)
     const tasks = data.map(t => ({ id: t.id, name: t.name, project_id: projectId }))
     _taskCache[projectId] = tasks
     return tasks
@@ -322,13 +323,21 @@ export async function clockifyGetAllTasks(projects) {
 }
 
 /** Start a running timer in Clockify for a specific user. Returns the new entry object. */
+/** Strip the internal -xul / -fundacion suffix so Clockify gets its original ID */
+function toClockifyId(id) {
+  if (!id) return id
+  return String(id).replace(/-xul$/, '').replace(/-fundacion$/, '')
+}
+
 export async function clockifyStartTimer({ description, projectId, taskId, userId }) {
-  const uid = userId || CLOCKIFY_USER_ID
+  const uid  = userId || CLOCKIFY_USER_ID
+  const pid  = toClockifyId(projectId)
+  const tid  = toClockifyId(taskId)
   const body = {
     start: new Date().toISOString(),
     description: description || '',
-    ...(projectId && { projectId }),
-    ...(taskId    && { taskId }),
+    ...(pid && { projectId: pid }),
+    ...(tid && { taskId:    tid }),
     billable: true,
   }
 
@@ -379,12 +388,14 @@ export async function clockifyStopTimer(userId) {
 /** Create a complete manual time entry for a specific user. Returns the new entry. */
 export async function clockifyCreateEntry({ description, projectId, taskId, start, end, userId }) {
   const uid = userId || CLOCKIFY_USER_ID
+  const pid = toClockifyId(projectId)
+  const tid = toClockifyId(taskId)
   const body = {
     start: new Date(start).toISOString(),
     end:   new Date(end).toISOString(),
     description: description || '',
-    ...(projectId && { projectId }),
-    ...(taskId    && { taskId }),
+    ...(pid && { projectId: pid }),
+    ...(tid && { taskId:    tid }),
     billable: true,
   }
   const res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/user/${uid}/time-entries`, {

@@ -75,7 +75,7 @@ export function WorkspaceProvider({ children }) {
     if (isDemo) return
     const { data: allData } = await supabase
       .from('projects')
-      .select('*, clients(name)')
+      .select('*')
       .eq('workspace_id', wsId)
       .eq('archived', false)
       .order('name')

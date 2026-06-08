@@ -4,10 +4,13 @@ import {
   Plus, Trash2, ChevronDown, ChevronUp, Users, User, X
 } from 'lucide-react'
 import DateRangePicker from '../components/ui/DateRangePicker'
+import SearchableDropdown from '../components/ui/SearchableDropdown'
 import { useRole } from '../context/RoleContext'
 import { useAuth } from '../context/AuthContext'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-import { initDB, sql, dbGetCompensations, dbAddCompensation, dbDeleteCompensation, dbGetWeeklyHours, getWsId, supabaseClient } from '../lib/db'
+import { initDB, sql, dbGetCompensations, dbAddCompensation, dbDeleteCompensation, dbGetWeeklyHours, dbGetVacations, dbAddVacation, dbDeleteVacation, dbBulkUpsertVacations, getWsId, supabaseClient } from '../lib/db'
+import { fetchAndParseVacations } from '../lib/icalVacations'
+import toast from 'react-hot-toast'
 import {
   format, startOfWeek, endOfWeek, addWeeks, subWeeks,
   parseISO, startOfYear, endOfYear, startOfDay, endOfDay,
@@ -139,6 +142,139 @@ function AddCompModal({ members, onAdd, onClose, loading }) {
   )
 }
 
+// ── Add vacation modal ────────────────────────────────────────────────────────
+function AddVacModal({ members, vacations, onAdd, onDelete, onClose, loading }) {
+  const [email, setEmail]   = useState('')
+  const [dateFrom, setDateFrom] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [dateTo, setDateTo]   = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [hours, setHours]   = useState('7.5')
+  const [desc, setDesc]     = useState('Vacaciones')
+  const [tab, setTab]       = useState('add')  // 'add' | 'list'
+
+  // Date range → array of working days (Mon–Fri)
+  function workingDays(from, to) {
+    const days = []
+    let d = parseISO(from)
+    const end = parseISO(to)
+    while (d <= end) {
+      const dow = d.getDay()
+      if (dow !== 0 && dow !== 6) days.push(format(d, 'yyyy-MM-dd'))
+      d = new Date(d.getTime() + 86400000)
+    }
+    return days
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!email) return
+    const days = workingDays(dateFrom, dateTo)
+    for (const date of days) {
+      await onAdd({ userEmail: email, date, hours: parseFloat(hours), description: desc })
+    }
+  }
+
+  const memberVacs = vacations
+    .filter(v => !email || v.user_email === email)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 50)
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: 'var(--c-bg-surface)', borderRadius: 18, padding: '24px', width: '100%', maxWidth: 460, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--c-text-1)' }}>Gestión de vacaciones</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-4)', display: 'flex' }}><X size={18} /></button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: 'var(--c-bg-muted)', borderRadius: 9, padding: 3 }}>
+          {[['add', 'Añadir días'], ['list', 'Ver registros']].map(([v, l]) => (
+            <button key={v} onClick={() => setTab(v)} style={{
+              flex: 1, padding: '7px 0', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none',
+              background: tab === v ? 'var(--c-bg-surface)' : 'transparent',
+              color: tab === v ? 'var(--c-text-1)' : 'var(--c-text-4)',
+              boxShadow: tab === v ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+            }}>{l}</button>
+          ))}
+        </div>
+
+        {tab === 'add' && (
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-3)' }}>
+              Persona
+              <select value={email} onChange={e => setEmail(e.target.value)} required style={selectStyle}>
+                <option value=''>Seleccionar…</option>
+                {members.map(m => <option key={m.user_email} value={m.user_email}>{m.user_name}</option>)}
+              </select>
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-3)' }}>
+                Desde
+                <input type='date' value={dateFrom} onChange={e => setDateFrom(e.target.value)} required style={inputStyle} />
+              </label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-3)' }}>
+                Hasta
+                <input type='date' value={dateTo} min={dateFrom} onChange={e => setDateTo(e.target.value)} required style={inputStyle} />
+              </label>
+            </div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-3)' }}>
+              Horas/día
+              <div style={{ position: 'relative' }}>
+                <input type='number' step='0.5' min='0.5' max='12' value={hours} onChange={e => setHours(e.target.value)} required style={{ ...inputStyle, paddingRight: 32 }} />
+                <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--c-text-4)' }}>h</span>
+              </div>
+            </label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-3)' }}>
+              Descripción
+              <input value={desc} onChange={e => setDesc(e.target.value)} style={inputStyle} />
+            </label>
+            <p style={{ margin: 0, fontSize: 11, color: 'var(--c-text-4)' }}>
+              Se añadirán {workingDays(dateFrom, dateTo).length} día(s) laborable(s) × {hours}h = <strong>{(workingDays(dateFrom, dateTo).length * parseFloat(hours || 0)).toFixed(1)}h</strong> en total
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button type='button' onClick={onClose} style={btnSecondary}>Cancelar</button>
+              <button type='submit' disabled={loading} style={{ ...btnPrimary, background: '#10B981' }}>
+                {loading ? 'Guardando…' : 'Añadir vacaciones'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {tab === 'list' && (
+          <div>
+            <div style={{ marginBottom: 12 }}>
+              <select value={email} onChange={e => setEmail(e.target.value)} style={{ ...selectStyle, marginTop: 0 }}>
+                <option value=''>Todos los miembros</option>
+                {members.map(m => <option key={m.user_email} value={m.user_email}>{m.user_name}</option>)}
+              </select>
+            </div>
+            {memberVacs.length === 0 ? (
+              <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--c-text-4)', fontSize: 13 }}>Sin registros</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {memberVacs.map(v => {
+                  const mb = members.find(m => m.user_email === v.user_email)
+                  return (
+                    <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 9, background: 'var(--c-bg-muted)', border: '1px solid var(--c-border-light)' }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)' }}>{mb?.user_name || v.user_email}</div>
+                        <div style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{format(parseISO(v.date), 'd MMM yyyy', { locale: es })} · {v.hours}h · {v.description}</div>
+                      </div>
+                      <button onClick={() => onDelete(v.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', display: 'flex', padding: 4, borderRadius: 6, opacity: 0.7 }}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function Overtime() {
   const { user } = useAuth()
@@ -154,14 +290,13 @@ export default function Overtime() {
   const [viewMode, setViewMode]   = useState(() => isAdmin ? 'team' : 'mine')
   const [filterUser, setFilterUser] = useState('all')
   const [expandedUser, setExpandedUser] = useState(null)
-  const [showModal, setShowModal] = useState(false)
-  const [saving, setSaving]       = useState(false)
+  const [showModal, setShowModal]   = useState(false)
+  const [showVacModal, setShowVacModal] = useState(false)
+  const [vacations, setVacations]   = useState([])
+  const [syncing, setSyncing]       = useState(false)
+  const [saving, setSaving]         = useState(false)
   // Date range — default: last complete week (Mon–Sun)
-  const [rangeBounds, setRangeBounds] = useState(() => {
-    const lastWeekStart = startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 })
-    const lastWeekEnd   = endOfWeek(subWeeks(new Date(), 1),   { weekStartsOn: 1 })
-    return { from: lastWeekStart, to: lastWeekEnd }
-  })
+  const [rangeBounds, setRangeBounds] = useState({ from: null, to: null })
 
   // Sync viewMode once role is loaded
   useEffect(() => {
@@ -173,16 +308,27 @@ export default function Overtime() {
     setLoading(true)
     await initDB()
 
-    // Members via native Supabase (no RPC dependency)
+    // Members via native Supabase — exclude users who belong to multiple workspaces
+    // (admins registered in both xul+fundacion should only appear in xul-ws-1)
+    const wsId = getWsId()
     supabaseClient
       .from('workspace_members')
       .select('id, user_name, user_email, group_name, weekly_hours')
-      .eq('workspace_id', getWsId())
+      .eq('workspace_id', wsId)
       .order('user_name')
-      .then(({ data }) => setMembers((data || []).map(m => ({
-        ...m,
-        weekly_hours: m.weekly_hours ?? 37.5,
-      }))))
+      .then(async ({ data }) => {
+        let members = (data || []).map(m => ({ ...m, weekly_hours: m.weekly_hours ?? 37.5 }))
+        // For non-primary workspaces (fundacion), remove users who are also in xul-ws-1
+        if (wsId !== 'xul-ws-1') {
+          const { data: xulMembers } = await supabaseClient
+            .from('workspace_members')
+            .select('user_email')
+            .eq('workspace_id', 'xul-ws-1')
+          const xulEmails = new Set((xulMembers || []).map(m => m.user_email))
+          members = members.filter(m => !xulEmails.has(m.user_email))
+        }
+        setMembers(members)
+      })
       .catch(e => console.error('Overtime members error:', e))
 
     // Compensations
@@ -190,8 +336,13 @@ export default function Overtime() {
       .then(setComps)
       .catch(e => console.error('Overtime comps error:', e))
 
+    // Vacations
+    dbGetVacations()
+      .then(setVacations)
+      .catch(e => console.error('Overtime vacations error:', e))
+
     // Weekly hours (main data) — critical path
-    const from = format(subWeeks(new Date(), 52), 'yyyy-MM-dd')
+    const from = format(startOfYear(new Date()), 'yyyy-MM-dd')
     const to   = format(addWeeks(new Date(), 1), 'yyyy-MM-dd')
     dbGetWeeklyHours(null, from, to)
       .then(setWeeklyRaw)
@@ -205,16 +356,20 @@ export default function Overtime() {
   const userData = useMemo(() => {
     const map = {}
 
+    // Current week Monday — exclude it (only show completed weeks)
+    const currentWeekKey = weekKey(new Date())
+
     // Group weekly hours per user per week — filtered by rangeBounds
     weeklyRaw.forEach(row => {
       const email = row.user_email
       const wk = typeof row.week_start === 'string'
         ? row.week_start.slice(0, 10)
         : format(new Date(row.week_start), 'yyyy-MM-dd')
+      if (wk >= currentWeekKey) return  // skip current (incomplete) week
       const wkDate = parseISO(wk)
-      if (wkDate < rangeBounds.from || wkDate > rangeBounds.to) return  // outside range
+      if (rangeBounds.from && wkDate < rangeBounds.from) return
+      if (rangeBounds.to   && wkDate > rangeBounds.to)   return
       const h = parseFloat(row.total_seconds) / 3600
-
       if (!map[email]) map[email] = { email, weeks: {} }
       map[email].weeks[wk] = (map[email].weeks[wk] || 0) + h
     })
@@ -223,40 +378,63 @@ export default function Overtime() {
     comps.forEach(c => {
       const email = c.user_email
       const wkDate = new Date(c.week_start)
-      if (wkDate < rangeBounds.from || wkDate > rangeBounds.to) return
+      if (rangeBounds.from && wkDate < rangeBounds.from) return
+      if (rangeBounds.to   && wkDate > rangeBounds.to)   return
       if (!map[email]) map[email] = { email, weeks: {} }
       map[email].compEntries = map[email].compEntries || []
       map[email].compEntries.push(c)
     })
 
-    // Compute balances per user
-    return Object.entries(map).map(([email, data]) => {
+    // Index vacations by user + week
+    const vacByUserWeek = {}  // { 'email|wk': [{ hours, date, description, id }] }
+    vacations.forEach(v => {
+      const wk = weekKey(parseISO(v.date))
+      const wkDate = parseISO(wk)
+      if (rangeBounds.from && wkDate < rangeBounds.from) return
+      if (rangeBounds.to   && wkDate > rangeBounds.to)   return
+      const key = `${v.user_email}|${wk}`
+      if (!vacByUserWeek[key]) vacByUserWeek[key] = []
+      vacByUserWeek[key].push(v)
+      // Ensure user appears in map even if they have no tracked hours that week
+      if (!map[v.user_email]) map[v.user_email] = { email: v.user_email, weeks: {} }
+    })
+
+    // Compute balances per user — only for members of the active workspace
+    const workspaceEmails = new Set(members.map(m => m.user_email))
+    return Object.entries(map).filter(([email]) => workspaceEmails.has(email)).map(([email, data]) => {
       const mb = members.find(m => m.user_email === email)
       const name = mb?.user_name || email
       const group = mb?.group_name || ''
       const stdHours = parseFloat(mb?.weekly_hours ?? STANDARD_HOURS)
 
-      const weekEntries = Object.entries(data.weeks || {}).map(([wk, h]) => {
+      // Collect all weeks that have tracked hours OR vacations
+      const allWeeks = new Set([
+        ...Object.keys(data.weeks || {}),
+        ...Object.keys(vacByUserWeek).filter(k => k.startsWith(email + '|')).map(k => k.split('|')[1]),
+      ])
+
+      const weekEntries = [...allWeeks].map(wk => {
+        const trackedH  = data.weeks?.[wk] || 0
+        const vacRows   = vacByUserWeek[`${email}|${wk}`] || []
+        const vacH      = vacRows.reduce((s, v) => s + Number(v.hours), 0)
+        const h         = trackedH + vacH          // effective hours (tracked + vacation)
         const diff      = h - stdHours
-        const overtime  = Math.max(0, diff)    // hours ABOVE weekly target → ACUMULADO
-        const undertime = Math.max(0, -diff)   // hours BELOW weekly target → DEBIDO
+        const overtime  = Math.max(0, diff)
+        const undertime = Math.max(0, -diff)
         const compEntries = (data.compEntries || []).filter(c => c.week_start === wk)
         const compUsed = compEntries.reduce((s, c) => s + parseFloat(c.comp_hours), 0)
-        return { wk, h, overtime, undertime, compUsed, compEntries, diff }
+        return { wk, h, trackedH, vacH, vacRows, overtime, undertime, compUsed, compEntries, diff }
       }).sort((a, b) => b.wk.localeCompare(a.wk))
 
-      // ACUMULADO = sum of hours worked above 37.5h/week
       const acumulado  = weekEntries.reduce((s, w) => s + w.overtime, 0)
-      // DEBIDO = sum of hours worked below 37.5h/week (hours owed to employer)
       const debido     = weekEntries.reduce((s, w) => s + w.undertime, 0)
-      // COMPENSADO = comp hours taken (kept for compat / cards)
       const compensado = (data.compEntries || []).reduce((s, c) => s + parseFloat(c.comp_hours), 0)
+      const totalVacH  = weekEntries.reduce((s, w) => s + w.vacH, 0)
 
-      return { email, name, group, stdHours, weekEntries, acumulado, compensado, debido,
-        // keep old names for compat
+      return { email, name, group, stdHours, weekEntries, acumulado, compensado, debido, totalVacH,
         totalOvertime: acumulado, totalCompUsed: compensado, balance: debido }
     }).sort((a, b) => b.debido - a.debido)
-  }, [weeklyRaw, comps, members, rangeBounds])
+  }, [weeklyRaw, comps, vacations, members, rangeBounds])
 
   const myData = useMemo(() => userData.find(u => u.email === myEmail), [userData, myEmail])
 
@@ -276,6 +454,33 @@ export default function Overtime() {
       console.error(e)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleSyncCalendar() {
+    setSyncing(true)
+    try {
+      // Load members from ALL workspaces so fundacion users also match
+      const { data: allMembers } = await supabaseClient
+        .from('workspace_members')
+        .select('user_email, user_name, weekly_hours, workspace_id')
+      const { rows, unmatched } = await fetchAndParseVacations(allMembers || members, '2024-01-01')
+      if (rows.length === 0) {
+        toast('No se encontraron eventos nuevos')
+        return
+      }
+      // Bulk upsert — single DB call
+      const imported = await dbBulkUpsertVacations(rows, myEmail)
+      const updated = await dbGetVacations()
+      setVacations(updated)
+      const msg = unmatched.length
+        ? `✅ ${imported} días importados. Sin match: ${unmatched.join(', ')}`
+        : `✅ ${imported} días importados desde Google Calendar`
+      toast.success(msg, { duration: 6000 })
+    } catch (err) {
+      toast.error('Error: ' + err.message)
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -334,8 +539,13 @@ export default function Overtime() {
             </div>
           )}
           {isAdmin && (
+            <button onClick={handleSyncCalendar} disabled={syncing} style={{ ...btnPrimary, background: '#10B981' }}>
+              {syncing ? 'Sincronizando…' : 'Sync Google Cal'}
+            </button>
+          )}
+          {isAdmin && (
             <button onClick={() => setShowModal(true)} style={btnPrimary}>
-              <Plus size={14} /> Registrar compensación
+              <Plus size={14} /> Compensación
             </button>
           )}
         </div>
@@ -391,17 +601,26 @@ export default function Overtime() {
         <>
           {/* Filter */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-            <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={{ ...selectStyle, maxWidth: 220 }}>
-              <option value='all'>Todos los miembros</option>
-              {members.map(m => <option key={m.user_email} value={m.user_email}>{m.user_name}</option>)}
-            </select>
+            <div style={{ width: 220 }}>
+              <SearchableDropdown
+                value={filterUser === 'all' ? null : filterUser}
+                onChange={opt => setFilterUser(opt?.value || 'all')}
+                options={members.map(m => ({ value: m.user_email, label: m.user_name }))}
+                placeholder="Todos los miembros"
+                clearLabel="Todos los miembros"
+              />
+            </div>
             <span style={{ fontSize: 12, color: 'var(--c-text-4)' }}>{filteredTeam.filter(u => u.balance > 0).length} personas con horas pendientes</span>
           </div>
 
           {/* Team table */}
           <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 90px' : '1fr 120px 120px', padding: '10px 18px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 110px 110px 110px', padding: '10px 18px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Persona</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#10B981' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
+                Vacaciones
+              </span>
               {!isMobile && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#3B82F6' }}>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#3B82F6', display: 'inline-block' }} />
@@ -428,12 +647,32 @@ export default function Overtime() {
         </>
       )}
 
-      {/* Modal */}
       {showModal && (
         <AddCompModal
           members={members}
           onAdd={handleAddComp}
           onClose={() => setShowModal(false)}
+          loading={saving}
+        />
+      )}
+      {showVacModal && (
+        <AddVacModal
+          members={members}
+          vacations={vacations}
+          onAdd={async ({ userEmail, date, hours, description }) => {
+            setSaving(true)
+            try {
+              await dbAddVacation({ userEmail, date, hours, description, createdBy: myEmail })
+              const updated = await dbGetVacations()
+              setVacations(updated)
+            } catch(e) { console.error(e) } finally { setSaving(false) }
+          }}
+          onDelete={async (id) => {
+            await dbDeleteVacation(id)
+            const updated = await dbGetVacations()
+            setVacations(updated)
+          }}
+          onClose={() => setShowVacModal(false)}
           loading={saving}
         />
       )}
@@ -443,26 +682,27 @@ export default function Overtime() {
 
 // ── Week row (my view) ────────────────────────────────────────────────────────
 function WeekRow({ row, stdHours, isMobile, isAdmin, onDeleteComp }) {
-  const isOver = row.diff > 0.1
+  const isOver  = row.diff > 0.1
   const isUnder = row.diff < -0.1
   const hasComp = row.compUsed > 0
+  const hasVac  = row.vacH > 0
 
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: isMobile ? '1fr 60px 60px' : '180px 80px 80px 80px 80px 1fr',
+      gridTemplateColumns: isMobile ? '1fr 60px 60px' : '180px 90px 70px 80px 80px 1fr',
       padding: '10px 18px',
       borderBottom: '1px solid var(--c-border-light)',
       alignItems: 'center',
-      background: isOver ? '#F59E0B08' : hasComp ? '#10B98108' : 'transparent',
+      background: hasVac ? '#10B98106' : isOver ? '#F59E0B08' : 'transparent',
     }}>
-      <span style={{ fontSize: 13, color: 'var(--c-text-2)', fontWeight: 500 }}>{weekLabel(row.wk)}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 13, color: 'var(--c-text-2)', fontWeight: 500 }}>{weekLabel(row.wk)}</span>
+        {hasVac && <span title={`${row.vacH}h de vacaciones`} style={{ fontSize: 10, background: '#10B98122', color: '#10B981', borderRadius: 5, padding: '1px 5px', fontWeight: 600 }}>🏖 {row.vacH}h vac</span>}
+      </div>
       <span style={{ fontSize: 13, color: 'var(--c-text-1)', fontWeight: 600 }}>{fmtH(row.h)}</span>
       {!isMobile && <span style={{ fontSize: 12, color: 'var(--c-text-4)' }}>{stdHours ?? STANDARD_HOURS}h</span>}
-      <span style={{
-        fontSize: 13, fontWeight: 700,
-        color: isOver ? '#F59E0B' : isUnder ? '#EF4444' : '#10B981',
-      }}>
+      <span style={{ fontSize: 13, fontWeight: 700, color: isOver ? '#F59E0B' : isUnder ? '#EF4444' : '#10B981' }}>
         {isOver ? '+' : ''}{fmtH(row.diff)}
       </span>
       {!isMobile && (
@@ -548,6 +788,7 @@ function WeekTaskBreakdown({ userEmail, wk }) {
 function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
   const deb = u.debido    ?? 0
   const acu = u.acumulado ?? 0
+  const vac = u.totalVacH ?? 0
   const [openWeeks, setOpenWeeks] = useState({})
   function toggleWeek(wk) { setOpenWeeks(p => ({ ...p, [wk]: !p[wk] })) }
 
@@ -563,7 +804,7 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
         onClick={onToggle}
         style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr 90px' : '1fr 120px 120px',
+          gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 110px 110px 110px',
           padding: '12px 18px',
           borderBottom: '1px solid var(--c-border-light)',
           cursor: 'pointer', alignItems: 'center',
@@ -598,6 +839,10 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
           </div>
           {expanded ? <ChevronUp size={12} color='var(--c-text-4)' /> : <ChevronDown size={12} color='var(--c-text-4)' />}
         </div>
+        {/* Vacaciones */}
+        <span style={{ fontSize: 13, color: '#10B981', fontWeight: vac > 0 ? 700 : 400 }}>
+          {vac > 0 ? `${Math.round(vac / (u.stdHours / 5))}d · ${fmtHShort(vac)}` : '—'}
+        </span>
         {!isMobile && (
           <span style={{ fontSize: 13, color: '#3B82F6', fontWeight: hasAcu ? 700 : 400 }}>
             {hasAcu ? fmtHShort(acu) : '—'}

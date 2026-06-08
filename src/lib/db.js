@@ -555,30 +555,51 @@ export async function dbGetAvatar(userEmail) {
 export async function dbGetEntries(userEmail, year) {
   const from = `${year}-01-01T00:00:00.000Z`
   const to   = `${year + 1}-01-01T00:00:00.000Z`
-  const { data, error } = await _supabase
-    .from('time_entries')
-    .select('*')
-    .eq('user_email', userEmail)
-    .not('end_time', 'is', null)
-    .gte('start_time', from)
-    .lt('start_time', to)
-    .order('start_time', { ascending: false })
-  if (error) throw new Error(error.message)
-  return (data || []).map(normEntry)
+  // Supabase default limit is 1000. We paginate to fetch ALL entries for the year.
+  const PAGE = 1000
+  let all = []
+  let page = 0
+  while (true) {
+    const { data, error } = await _supabase
+      .from('time_entries')
+      .select('*')
+      .eq('user_email', userEmail)
+      .not('end_time', 'is', null)
+      .gte('start_time', from)
+      .lt('start_time', to)
+      .order('start_time', { ascending: false })
+      .range(page * PAGE, (page + 1) * PAGE - 1)
+    if (error) throw new Error(error.message)
+    if (!data || data.length === 0) break
+    all = all.concat(data)
+    if (data.length < PAGE) break   // last page
+    page++
+  }
+  return all.map(normEntry)
 }
 
 /** All workspace entries in a date range (for Reports page) */
 export async function dbGetEntriesForPeriod(from, to) {
-  const { data, error } = await _supabase
-    .from('time_entries')
-    .select('*')
-    .eq('workspace_id', getWsId())
-    .not('end_time', 'is', null)
-    .gte('start_time', from.toISOString())
-    .lte('start_time', to.toISOString())
-    .order('start_time', { ascending: false })
-  if (error) throw new Error(error.message)
-  return (data || []).map(normEntry)
+  const PAGE = 1000
+  let all = []
+  let page = 0
+  while (true) {
+    const { data, error } = await _supabase
+      .from('time_entries')
+      .select('*')
+      .eq('workspace_id', getWsId())
+      .not('end_time', 'is', null)
+      .gte('start_time', from.toISOString())
+      .lte('start_time', to.toISOString())
+      .order('start_time', { ascending: false })
+      .range(page * PAGE, (page + 1) * PAGE - 1)
+    if (error) throw new Error(error.message)
+    if (!data || data.length === 0) break
+    all = all.concat(data)
+    if (data.length < PAGE) break
+    page++
+  }
+  return all.map(normEntry)
 }
 
 export async function dbInsertEntry({
@@ -698,18 +719,21 @@ export async function dbGetAvailableYears(userEmail) {
 
 export async function dbGetProjects({ userEmail, isAdmin } = {}) {
   const wsId = getWsId()
-  const { data, error } = await _supabase.from('projects').select('*, clients(name)')
+  const { data, error } = await _supabase.from('projects').select('*')
     .eq('workspace_id', wsId).eq('archived', false).order('name')
   if (error) throw new Error(error.message)
-  const all = data || []
+  // Normalise: some rows have client_name directly on the column
+  const all = (data || []).map(p => ({ ...p, client_name: p.client_name || null }))
   // Admins see everything; employees only see projects they're assigned to
   // (if a project has NO members assigned, everyone sees it — opt-in model)
   if (isAdmin || !userEmail) return all
   const { data: memberships } = await _supabase.from('project_members')
     .select('project_id').eq('user_email', userEmail)
   if (!memberships || memberships.length === 0) return all  // no memberships set yet → show all
-  const myProjectIds = new Set(memberships.map(m => m.project_id))
-  return all.filter(p => myProjectIds.has(p.id))
+  // Strip workspace suffixes (-xul, -fundacion) for cross-workspace compatibility
+  const stripSuffix = id => String(id || '').replace(/-xul$/, '').replace(/-fundacion$/, '')
+  const myProjectIds = new Set(memberships.map(m => stripSuffix(m.project_id)))
+  return all.filter(p => myProjectIds.has(stripSuffix(p.id)))
 }
 
 export async function dbGetProjectMembers(projectId) {
@@ -783,9 +807,16 @@ export async function dbDeleteGroup(id) {
 // ── Tasks ──────────────────────────────────────────────────────
 
 export async function dbGetTasksForProject(projectId) {
+  // Try with the ID as-is first
   const { data } = await _supabase.from('tasks').select('*')
     .eq('project_id', projectId).eq('archived', false).order('created_at')
-  return data || []
+  if (data && data.length > 0) return data
+  // Fallback: strip -xul / -fundacion suffix (tasks may be stored with bare Clockify IDs)
+  const bareId = String(projectId || '').replace(/-xul$/, '').replace(/-fundacion$/, '')
+  if (bareId === projectId) return data || []
+  const { data: data2 } = await _supabase.from('tasks').select('*')
+    .eq('project_id', bareId).eq('archived', false).order('created_at')
+  return data2 || []
 }
 
 export async function dbGetAllTasks() {
@@ -1094,30 +1125,87 @@ export async function dbDeleteCompensation(id) {
 
 /** Get weekly hours per user from time_entries */
 export async function dbGetWeeklyHours(userEmail, fromDate, toDate) {
-  let q = _supabase.from('time_entries')
-    .select('user_email, start_time, duration')
-    .eq('workspace_id', getWsId())
-    .gte('start_time', typeof fromDate === 'string' ? fromDate : fromDate.toISOString())
-    .lte('start_time', typeof toDate === 'string' ? toDate : toDate.toISOString())
-    .gt('duration', 0)
-  if (userEmail) q = q.eq('user_email', userEmail)
-  const { data } = await q
-  // Aggregate by week in JS (DATE_TRUNC equivalent)
-  const map = {}
-  ;(data || []).forEach(e => {
-    const d = new Date(e.start_time)
-    const day = d.getDay()
-    const diff = (day === 0 ? -6 : 1) - day  // Monday-based
-    const monday = new Date(d)
-    monday.setDate(d.getDate() + diff)
-    monday.setHours(0, 0, 0, 0)
-    // Use local date to avoid UTC offset shifting the day (e.g. Spain UTC+2)
-    const mm = String(monday.getMonth() + 1).padStart(2, '0')
-    const dd = String(monday.getDate()).padStart(2, '0')
-    const weekStart = `${monday.getFullYear()}-${mm}-${dd}`
-    const key = `${e.user_email}|${weekStart}`
-    if (!map[key]) map[key] = { user_email: e.user_email, week_start: weekStart, total_seconds: 0 }
-    map[key].total_seconds += Number(e.duration) || 0
+  const from = typeof fromDate === 'string' ? fromDate : fromDate.toISOString()
+  const to   = typeof toDate   === 'string' ? toDate   : toDate.toISOString()
+  const { data, error } = await _supabase.rpc('get_weekly_hours', {
+    p_workspace_id: getWsId(),
+    p_from:         from,
+    p_to:           to,
+    p_user_email:   userEmail || null,
   })
-  return Object.values(map).sort((a, b) => b.week_start.localeCompare(a.week_start) || a.user_email.localeCompare(b.user_email))
+  if (error) throw new Error(error.message)
+  return (data || []).map(r => ({
+    user_email:    r.user_email,
+    week_start:    r.week_start,
+    total_seconds: Number(r.total_seconds),
+  }))
+}
+
+// ── Vacations ─────────────────────────────────────────────────────
+
+/** Get all vacation days for a workspace (optionally filtered by user) */
+export async function dbGetVacations({ userEmail } = {}) {
+  let q = _supabase.from('vacations').select('*').eq('workspace_id', getWsId()).order('date', { ascending: false })
+  if (userEmail) q = q.eq('user_email', userEmail)
+  const { data, error } = await q
+  if (error) throw new Error(error.message)
+  return data || []
+}
+
+/** Add a vacation day (or range) for a user */
+/** Bulk upsert vacation rows — single DB call instead of one per day */
+export async function dbBulkUpsertVacations(rows, createdBy) {
+  const wsId = getWsId()
+  const data = rows.map(r => ({
+    workspace_id: r.workspaceId || wsId,
+    user_email:   r.userEmail,
+    date:         r.date,
+    hours:        r.hours ?? 7.5,
+    description:  r.description || 'Vacaciones (Google Calendar)',
+    created_by:   createdBy || '',
+  }))
+  // Supabase upsert in chunks of 500 to stay within request limits
+  const CHUNK = 500
+  for (let i = 0; i < data.length; i += CHUNK) {
+    const { error } = await _supabase.from('vacations')
+      .upsert(data.slice(i, i + CHUNK), { onConflict: 'user_email,date' })
+    if (error) throw new Error(error.message)
+  }
+  return data.length
+}
+
+export async function dbAddVacation({ userEmail, date, hours, description, createdBy }) {
+  const { data, error } = await _supabase.from('vacations')
+    .upsert({
+      workspace_id: getWsId(),
+      user_email:   userEmail,
+      date,
+      hours:        hours ?? 7.5,
+      description:  description || 'Vacaciones',
+      created_by:   createdBy || '',
+    }, { onConflict: 'user_email,date' })
+    .select().single()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+/** Delete a vacation day by id */
+export async function dbDeleteVacation(id) {
+  await _supabase.from('vacations').delete().eq('id', id)
+}
+
+/** Get vacation totals per user for a date range (for Compensación) */
+export async function dbGetVacationHours(fromDate, toDate, userEmail) {
+  let q = _supabase.from('vacations').select('user_email, hours')
+    .eq('workspace_id', getWsId())
+    .gte('date', fromDate).lte('date', toDate)
+  if (userEmail) q = q.eq('user_email', userEmail)
+  const { data, error } = await q
+  if (error) throw new Error(error.message)
+  // Sum hours per user
+  const totals = {}
+  for (const row of data || []) {
+    totals[row.user_email] = (totals[row.user_email] || 0) + Number(row.hours)
+  }
+  return totals  // { 'email@xul.es': 37.5, ... }
 }

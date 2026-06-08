@@ -251,10 +251,12 @@ export default function TimeOff() {
                   <option value="REJECTED">Rechazadas</option>
                   <option value="WITHDRAWN">Retiradas</option>
                 </select>
-                <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={selectStyle}>
-                  <option value="ALL">Todos los empleados</option>
-                  {users.map(u => <option key={u} value={u}>{u}</option>)}
-                </select>
+                {canManageAll && (
+                  <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={selectStyle}>
+                    <option value="ALL">Todos los empleados</option>
+                    {users.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                )}
                 <span style={{ fontSize: 12, color: 'var(--c-text-3)', alignSelf: 'center', marginLeft: 4 }}>
                   {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
                 </span>
@@ -262,8 +264,8 @@ export default function TimeOff() {
 
               {/* Table */}
               <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 90px 1.5fr', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
-                  {['Empleado', 'Período', 'Días', 'Estado'].map(h => (
+                <div style={{ display: 'grid', gridTemplateColumns: canManageAll ? '2fr 2fr 90px 1.5fr' : '2fr 90px 1.5fr', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+                  {(canManageAll ? ['Empleado', 'Período', 'Días', 'Estado'] : ['Período', 'Días', 'Estado']).map(h => (
                     <span key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-4)' }}>{h}</span>
                   ))}
                 </div>
@@ -274,10 +276,11 @@ export default function TimeOff() {
                   const days  = daysBetween(r.start_date, r.end_date)
                   return (
                     <div key={r.id}
-                      style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 90px 1.5fr', padding: '14px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
+                      style={{ display: 'grid', gridTemplateColumns: canManageAll ? '2fr 2fr 90px 1.5fr' : '2fr 90px 1.5fr', padding: '14px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
+                      {canManageAll && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{ width: 32, height: 32, borderRadius: 8, background: color + '20', border: `2px solid ${color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                           <span style={{ fontSize: 11, fontWeight: 700, color }}>{initials(r.user_name)}</span>
@@ -287,6 +290,7 @@ export default function TimeOff() {
                           {r.policy_name && <p style={{ fontSize: 11, color: 'var(--c-text-3)', margin: 0 }}>{r.policy_name}</p>}
                         </div>
                       </div>
+                      )}
                       <div>
                         <p style={{ fontSize: 13, color: 'var(--c-text-1)', margin: 0 }}>
                           {r.start_date && r.end_date ? `${fmtDate(r.start_date)} – ${fmtDate(r.end_date)}` : fmtDate(r.start_date || r.end_date)}

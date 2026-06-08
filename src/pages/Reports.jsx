@@ -149,8 +149,17 @@ export default function Reports() {
     ? entries.filter(e => e.user_email?.endsWith('@fundacionxul.org'))
     : entries
 
-  const projects  = [...new Set(baseEntries.map(e => e.project_name || 'Sin proyecto'))].sort()
-  const clients   = [...new Set(baseEntries.map(e => e.client_name  || 'Sin cliente'))].sort()
+  // Filter options are cross-constrained: picking a client limits projects shown, and vice versa
+  const projects = [...new Set(
+    baseEntries
+      .filter(e => filterClient  === 'ALL' || (e.client_name  || 'Sin cliente')  === filterClient)
+      .map(e => e.project_name || 'Sin proyecto')
+  )].sort()
+  const clients  = [...new Set(
+    baseEntries
+      .filter(e => filterProject === 'ALL' || (e.project_name || 'Sin proyecto') === filterProject)
+      .map(e => e.client_name  || 'Sin cliente')
+  )].sort()
   // In Fundación always show both users, even if one has no entries in this period
   const users = isFundacion
     ? ['anarojas@fundacionxul.org', 'cristinareyes@fundacionxul.org']
@@ -332,11 +341,29 @@ export default function Reports() {
             ))}
           </select>
         )}
-        <select value={filterProject} onChange={e => setFilterProject(e.target.value)} style={selectStyle}>
+        <select value={filterProject} onChange={e => {
+          setFilterProject(e.target.value)
+          // If the currently selected client is no longer valid with this project, reset it
+          if (filterClient !== 'ALL') {
+            const validClients = new Set(baseEntries
+              .filter(en => e.target.value === 'ALL' || (en.project_name || 'Sin proyecto') === e.target.value)
+              .map(en => en.client_name || 'Sin cliente'))
+            if (!validClients.has(filterClient)) setFilterClient('ALL')
+          }
+        }} style={selectStyle}>
           <option value="ALL">Todos los proyectos</option>
           {projects.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
-        <select value={filterClient} onChange={e => setFilterClient(e.target.value)} style={selectStyle}>
+        <select value={filterClient} onChange={e => {
+          setFilterClient(e.target.value)
+          // If the currently selected project is no longer valid with this client, reset it
+          if (filterProject !== 'ALL') {
+            const validProjects = new Set(baseEntries
+              .filter(en => e.target.value === 'ALL' || (en.client_name || 'Sin cliente') === e.target.value)
+              .map(en => en.project_name || 'Sin proyecto'))
+            if (!validProjects.has(filterProject)) setFilterProject('ALL')
+          }
+        }} style={selectStyle}>
           <option value="ALL">Todos los clientes</option>
           {clients.map(c => <option key={c} value={c}>{c}</option>)}
         </select>

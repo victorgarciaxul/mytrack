@@ -207,7 +207,7 @@ export default function Calendar() {
         display: 'flex',
         flexDirection: 'column',
         gap: isMobile ? 12 : 20,
-        boxSizing: 'border-box',
+        boxSizing: 'border-box', overflow: 'hidden',
       }}>
 
         {/* ── Header ── */}
@@ -294,7 +294,7 @@ export default function Calendar() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
           {/* Day labels */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridTemplateRows: `repeat(${days.length / 7}, 1fr)`, gap: 4, marginBottom: 6 }}>
             {(isMobile ? DAY_LABELS_MOB : DAY_LABELS).map((d, i) => (
               <div key={d} style={{
                 textAlign: 'center',
@@ -310,7 +310,7 @@ export default function Calendar() {
 
           {/* Grid */}
           <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
+            display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridTemplateRows: `repeat(${days.length / 7}, 1fr)`,
             gap: 4, flex: 1, position: 'relative',
           }}>
             {loading && (
@@ -369,9 +369,9 @@ export default function Calendar() {
                       opacity: inMonth ? 1 : 0.3,
                       transition: 'border-color 0.15s, background 0.15s',
                       height: '100%',
-                      boxSizing: 'border-box',
+                      boxSizing: 'border-box', overflow: 'hidden',
                       display: 'flex', flexDirection: 'column',
-                      minHeight: isMobile ? 64 : 110,
+                      
                       overflow: 'hidden',
                     }}
                   >

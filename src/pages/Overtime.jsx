@@ -659,13 +659,13 @@ export default function Overtime() {
                 </span>
               )}
               {!isMobile && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#F59E0B' }}>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', display: 'inline-block' }} />
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: 'var(--c-text-3)' }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--c-text-3)', display: 'inline-block' }} />
                   Debido
                 </span>
               )}
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: 'var(--c-text-3)' }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--c-text-3)', display: 'inline-block' }} />
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#F59E0B' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', display: 'inline-block' }} />
                 Balance
               </span>
             </div>
@@ -887,7 +887,7 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
           </span>
         )}
         {!isMobile && (
-          <span style={{ fontSize: 13, color: '#F59E0B', fontWeight: deb > 0.05 ? 700 : 400 }}>
+          <span style={{ fontSize: 13, color: 'var(--c-text-3)', fontWeight: deb > 0.05 ? 700 : 400 }}>
             {deb > 0.05 ? fmtHShort(deb) : '—'}
           </span>
         )}

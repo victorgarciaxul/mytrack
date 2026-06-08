@@ -86,12 +86,17 @@ export function AuthProvider({ children }) {
         )
         const member = await Promise.race([dbLogin, timeout])
         if (member) {
+          // Always start admins in their primary workspace (email domain based)
+          // so that fundacion-ws-1 vs xul-ws-1 ordering in DB doesn't affect login
+          const wsId = member.user_email.endsWith('@fundacionxul.org')
+            ? 'fundacion-ws-1'
+            : 'xul-ws-1'
           const u = {
             id: member.id,
             email: member.user_email,
             user_metadata: { full_name: member.user_name },
             role: member.role,
-            workspace_id: member.workspace_id,
+            workspace_id: wsId,
             clockify_user_id: member.clockify_user_id,
           }
           setUser(u)

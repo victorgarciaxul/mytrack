@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Moon, Sun, Calendar, Menu, Download } from 'lucide-react'
+import { Bell, Moon, Sun, Calendar, Menu, Download, Smartphone, X } from 'lucide-react'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { useAuth } from '../../context/AuthContext'
 import { useRole } from '../../context/RoleContext'
@@ -15,12 +15,108 @@ export function getSelectedYear() {
   return saved ? Number(saved) : new Date().getFullYear()
 }
 
+function InstallModal({ onClose }) {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+  const isAndroid = /Android/.test(navigator.userAgent)
+
+  const steps = isIOS ? [
+    { icon: '1', text: 'Abre esta página en **Safari** (no Chrome ni Firefox)' },
+    { icon: '2', text: 'Pulsa el botón de **compartir** (cuadrado con flecha ↑) en la barra inferior' },
+    { icon: '3', text: 'Desplázate y pulsa **"Añadir a pantalla de inicio"**' },
+    { icon: '4', text: 'Ponle el nombre **MyTrack** y pulsa **Añadir**' },
+  ] : isAndroid ? [
+    { icon: '1', text: 'Abre esta página en **Chrome**' },
+    { icon: '2', text: 'Pulsa el menú de los **tres puntos** (arriba a la derecha)' },
+    { icon: '3', text: 'Pulsa **"Añadir a pantalla de inicio"** o **"Instalar app"**' },
+    { icon: '4', text: 'Confirma pulsando **Instalar**' },
+  ] : [
+    { icon: '📱', text: '**iPhone / iPad:** Abre en Safari → Compartir → "Añadir a pantalla de inicio"' },
+    { icon: '🤖', text: '**Android:** Abre en Chrome → Menú ⋮ → "Añadir a pantalla de inicio"' },
+  ]
+
+  const device = isIOS ? '📱 iPhone / iPad' : isAndroid ? '🤖 Android' : '📱 Móvil'
+
+  function renderText(text) {
+    const parts = text.split(/\*\*(.*?)\*\*/)
+    return parts.map((p, i) => i % 2 === 1
+      ? <strong key={i}>{p}</strong>
+      : <span key={i}>{p}</span>
+    )
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 20, fontFamily: 'Inter, system-ui, sans-serif',
+    }} onClick={onClose}>
+      <div style={{
+        background: 'var(--c-bg-surface, #1e1b2e)',
+        borderRadius: 18, padding: '28px 28px 24px',
+        maxWidth: 420, width: '100%',
+        boxShadow: '0 24px 60px rgba(0,0,0,0.4)',
+        border: '1px solid rgba(124,77,255,0.2)',
+      }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 12,
+              background: 'linear-gradient(135deg,#7C4DFF,#5C35CC)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Smartphone size={18} color="#fff" />
+            </div>
+            <div>
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--c-text-1,#fff)', margin: 0 }}>Instalar MyTrack</p>
+              <p style={{ fontSize: 11, color: 'var(--c-text-3,#aaa)', margin: 0 }}>Como app en tu {device}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3,#aaa)', padding: 4 }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Steps */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+          {steps.map((s, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{
+                minWidth: 26, height: 26, borderRadius: 8,
+                background: 'rgba(124,77,255,0.15)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 12, fontWeight: 700, color: '#7C4DFF', flexShrink: 0,
+              }}>{s.icon}</div>
+              <p style={{ fontSize: 13, color: 'var(--c-text-2,#ccc)', margin: 0, lineHeight: 1.5 }}>
+                {renderText(s.text)}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer note */}
+        <div style={{
+          background: 'rgba(124,77,255,0.08)', borderRadius: 10, padding: '10px 14px',
+          border: '1px solid rgba(124,77,255,0.15)',
+        }}>
+          <p style={{ fontSize: 12, color: 'var(--c-text-3,#aaa)', margin: 0, lineHeight: 1.5 }}>
+            ✅ Una vez instalada se abre a <strong>pantalla completa</strong>, sin barra del navegador, y se actualiza automáticamente.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function TopBar({ onMenuClick }) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { unreadCount, isAdmin } = useRole()
   const { isDark, toggle } = useTheme()
   const isMobile = useMediaQuery('(max-width: 768px)')
+  const [showInstall, setShowInstall] = useState(false)
 
   // Years from Clockify cache (owner only) or Neon (everyone else)
   const cacheYears = useMemo(() => {
@@ -93,6 +189,26 @@ export default function TopBar({ onMenuClick }) {
 
       <div style={{ flex: 1 }} />
 
+      {/* Install app button */}
+      <button
+        onClick={() => setShowInstall(true)}
+        title="Instalar como app en el móvil"
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          fontSize: 12.5, color: '#fff', fontWeight: 600,
+          background: 'rgba(255,255,255,0.13)',
+          padding: '5px 12px', borderRadius: 20,
+          border: '1px solid rgba(255,255,255,0.25)',
+          whiteSpace: 'nowrap', flexShrink: 0,
+          cursor: 'pointer', transition: 'background 0.15s',
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.22)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.13)'}
+      >
+        <Smartphone size={12} />
+        {!isMobile && 'Instalar app'}
+      </button>
+
       {/* Tutorial download link — role-specific */}
       <a
         href={isAdmin ? '/tutoriales/MyTrack_Tutorial_Admin.pdf' : '/tutoriales/MyTrack_Tutorial_Empleado.pdf'}
@@ -150,6 +266,9 @@ export default function TopBar({ onMenuClick }) {
       >
         {isDark ? <Sun size={14} /> : <Moon size={14} />}
       </button>
+
+      {/* Install modal */}
+      {showInstall && <InstallModal onClose={() => setShowInstall(false)} />}
 
       {/* Bell */}
       <button onClick={() => navigate('/notifications')} style={{

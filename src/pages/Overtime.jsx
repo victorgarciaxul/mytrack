@@ -646,7 +646,7 @@ export default function Overtime() {
 
           {/* Team table */}
           <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 110px 90px 90px 100px', padding: '10px 18px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 120px 110px 100px 110px', padding: '10px 18px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Persona</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#10B981' }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
@@ -842,7 +842,7 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
         onClick={onToggle}
         style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 110px 90px 90px 100px',
+          gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 120px 110px 100px 110px',
           padding: '12px 18px',
           borderBottom: '1px solid var(--c-border-light)',
           cursor: 'pointer', alignItems: 'center',

@@ -646,7 +646,7 @@ export default function Overtime() {
 
           {/* Team table */}
           <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 110px 110px 110px', padding: '10px 18px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 110px 90px 90px 100px', padding: '10px 18px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Persona</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#10B981' }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
@@ -656,6 +656,12 @@ export default function Overtime() {
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#3B82F6' }}>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#3B82F6', display: 'inline-block' }} />
                   Acumulado
+                </span>
+              )}
+              {!isMobile && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#F59E0B' }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', display: 'inline-block' }} />
+                  Debido
                 </span>
               )}
               <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: 'var(--c-text-3)' }}>
@@ -824,11 +830,11 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
   const [openWeeks, setOpenWeeks] = useState({})
   function toggleWeek(wk) { setOpenWeeks(p => ({ ...p, [wk]: !p[wk] })) }
 
-  // Status dot: red = owes hours, blue = surplus, green = neutral
+  // Status dot based on net balance
   const hasDeb = bal > 0.05
-  const hasAcu = bal < -0.05
-  const dotColor = hasDeb ? '#EF4444' : hasAcu ? '#3B82F6' : '#10B981'
-  const dotTitle = hasDeb ? `Debe ${fmtHShort(bal)}` : hasAcu ? `Acumulado ${fmtHShort(-bal)}` : 'Al día'
+  const hasSurplus = bal < -0.05
+  const dotColor = hasDeb ? '#EF4444' : hasSurplus ? '#3B82F6' : '#10B981'
+  const dotTitle = hasDeb ? `Balance: ${fmtHShort(bal)}` : hasSurplus ? `Surplus: ${fmtHShort(-bal)}` : 'Al día'
 
   return (
     <>
@@ -836,7 +842,7 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
         onClick={onToggle}
         style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 110px 110px 110px',
+          gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 110px 90px 90px 100px',
           padding: '12px 18px',
           borderBottom: '1px solid var(--c-border-light)',
           cursor: 'pointer', alignItems: 'center',
@@ -876,12 +882,17 @@ function UserRow({ u, isMobile, expanded, onToggle, onDeleteComp }) {
           {vac > 0 ? `${Math.round(vac / (u.stdHours / 5))}d · ${fmtHShort(vac)}` : '—'}
         </span>
         {!isMobile && (
-          <span style={{ fontSize: 13, color: '#3B82F6', fontWeight: hasAcu ? 700 : 400 }}>
-            {hasAcu ? fmtHShort(acu) : '—'}
+          <span style={{ fontSize: 13, color: '#3B82F6', fontWeight: acu > 0.05 ? 700 : 400 }}>
+            {acu > 0.05 ? fmtHShort(acu) : '—'}
           </span>
         )}
-        <span style={{ fontSize: 14, fontWeight: 800, color: bal > 0.05 ? '#EF4444' : bal < -0.05 ? '#3B82F6' : '#10B981', letterSpacing: '-0.3px' }}>
-          {Math.abs(bal) > 0.05 ? `${bal > 0 ? '+' : '−'}${fmtHShort(Math.abs(bal))}` : '—'}
+        {!isMobile && (
+          <span style={{ fontSize: 13, color: '#F59E0B', fontWeight: deb > 0.05 ? 700 : 400 }}>
+            {deb > 0.05 ? fmtHShort(deb) : '—'}
+          </span>
+        )}
+        <span style={{ fontSize: 14, fontWeight: 800, color: hasDeb ? '#EF4444' : hasSurplus ? '#3B82F6' : '#10B981', letterSpacing: '-0.3px' }}>
+          {Math.abs(bal) > 0.05 ? fmtHShort(bal) : '—'}
         </span>
       </div>
 

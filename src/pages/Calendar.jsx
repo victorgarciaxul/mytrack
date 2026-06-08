@@ -201,16 +201,14 @@ export default function Calendar() {
       `}</style>
 
       <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
         padding: isMobile ? '14px' : '20px 24px',
         fontFamily: 'Inter, system-ui, sans-serif',
-        flex: 1,
         display: 'flex',
         flexDirection: 'column',
         gap: isMobile ? 10 : 14,
         boxSizing: 'border-box',
         overflow: 'hidden',
-        minHeight: 0,
-        width: '100%',
       }}>
 
         {/* ── Header ── */}

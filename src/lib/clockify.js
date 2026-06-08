@@ -214,6 +214,8 @@ export async function importFromClockify(onStatus, since = null) {
       )
       for (const e of userRaw) {
         const entry = mapEntry(e)
+        // Skip running timers (no end_time) — they should not be persisted as completed entries
+        if (!entry.end_time) continue
         const proj = entry.project_id ? projectMap[entry.project_id] : null
         newEntriesForNeon.push({
           ...entry,

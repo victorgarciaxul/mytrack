@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { Play, Square, Plus, ChevronDown, Clock, Zap, Briefcase, Pencil, Trash2, Share2, Check, Smile, X, RefreshCw } from 'lucide-react'
 import { useTimerContext } from '../context/TimerContext'
@@ -204,6 +204,8 @@ export default function Tracker() {
   // Sync enabled for any user who has a clockify_user_id (all XUL team members)
   const clockifyUserId = user?.clockify_user_id || null
   const syncEnabled = !!clockifyUserId
+  // Track whether Clockify START succeeded so STOP knows whether to call Clockify
+  const clockifyStartedRef = React.useRef(false)
 
   // ── Cross-device timer sync ──────────────────────────────────
   // Only RESTORES a timer from Neon — never resets a running local timer.
@@ -290,12 +292,14 @@ export default function Tracker() {
       }).catch(() => {})
 
       // Try Clockify — if it fails, timer is already running locally
+      clockifyStartedRef.current = false
       try {
         await clockifyStartTimer({ userId: clockifyUserId,
           description: description || '',
           projectId: selectedProject?.id || null,
           taskId: selectedTask?.id || null,
         })
+        clockifyStartedRef.current = true
         toast.success('⏱ Timer iniciado')
       } catch (err) {
         const msg = err.message || ''
@@ -307,6 +311,7 @@ export default function Tracker() {
               projectId: selectedProject?.id || null,
               taskId: null,
             })
+            clockifyStartedRef.current = true
             setSelectedTask(null)
             toast('⏱ Timer iniciado (tarea omitida en Clockify)', { duration: 3500 })
           } catch {
@@ -348,11 +353,57 @@ export default function Tracker() {
       const endTime   = new Date()
       const startTime = new Date(endTime.getTime() - secs * 1000)
 
+      // Helper: parse ISO 8601 duration (e.g. "PT18M23S") → seconds
+      function parseDuration(val) {
+        if (!val) return null
+        if (typeof val === 'number') return val
+        const m = String(val).match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/)
+        if (!m) return null
+        return Math.round((Number(m[1] || 0) * 3600) + (Number(m[2] || 0) * 60) + Number(m[3] || 0))
+      }
+
+      // Only call Clockify stop if the start also went through Clockify
+      if (!clockifyStartedRef.current) {
+        // Clockify was never started — save directly to Neon
+        try {
+          await initDB()
+          const saved = await dbInsertEntry({
+            userEmail: user.email,
+            workspaceId: user.workspace_id || 'xul-ws-1',
+            projectId: selectedProject?.id || null,
+            projectName: selectedProject?.name || null,
+            projectColor: selectedProject?.color || null,
+            taskId: selectedTask?.id || null,
+            taskName: selectedTask?.name || null,
+            description: description || '(sin descripción)',
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+            duration: secs,
+          })
+          if (saved) {
+            setEntries(prev => [{
+              id: saved.id, description: saved.description,
+              start_time: saved.start_time, end_time: saved.end_time, duration: saved.duration,
+              projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color } : null,
+              tasks: selectedTask ? { name: selectedTask.name } : null,
+            }, ...prev])
+            window.dispatchEvent(new CustomEvent('mytrack:entry-saved', { detail: { year: new Date().getFullYear() } }))
+          }
+          toast.success('Tiempo registrado')
+        } catch (err) {
+          toast.error('Error al guardar: ' + err.message)
+        } finally {
+          setSyncing(false)
+        }
+        timer.reset(); setDescription(''); setSelectedProject(null); setSelectedTask(null)
+        localStorage.removeItem(ACTIVE_KEY)
+        return
+      }
+
       try {
         const saved = await clockifyStopTimer(clockifyUserId)
-        const duration = saved.timeInterval?.duration
-          ? Math.round(saved.timeInterval.duration / 1000)
-          : secs
+        // Parse duration: Clockify may return ISO 8601 string (e.g. "PT18M23S") or seconds
+        const duration = parseDuration(saved.timeInterval?.duration) || secs
         const entry = {
           id: saved.id,
           description: saved.description || description || '(sin descripción)',
@@ -539,12 +590,14 @@ export default function Tracker() {
         taskName: e.tasks?.name || null,
       }).catch(() => {})
 
+      clockifyStartedRef.current = false
       try {
         await clockifyStartTimer({ userId: clockifyUserId,
           description: e.description || '',
           projectId: proj?.id || null,
           taskId: e.task_id || null,
         })
+        clockifyStartedRef.current = true
         toast.success('⏱ Timer reactivado')
       } catch (err) {
         const msg = err.message || ''
@@ -555,6 +608,7 @@ export default function Tracker() {
               projectId: proj?.id || null,
               taskId: null,
             })
+            clockifyStartedRef.current = true
             setSelectedTask(null)
             toast('⏱ Timer reactivado (tarea omitida en Clockify)', { duration: 3500 })
           } catch {

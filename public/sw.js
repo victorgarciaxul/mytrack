@@ -1,5 +1,5 @@
 // MyTrack Service Worker — cache-first para assets, network-first para navegación
-const CACHE = 'mytrack-v9'
+const CACHE = 'mytrack-v10'
 
 // Al instalar: precachear la shell
 self.addEventListener('install', e => {

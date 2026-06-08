@@ -562,17 +562,21 @@ export default function Overtime() {
             const acu  = myData?.acumulado ?? 0
             const deb  = myData?.debido    ?? 0
             const vac  = myData?.totalVacH ?? 0
-            const net  = Math.max(0, deb - acu)   // net hours still owed
-            const isOk = net < 0.05
+            const net    = deb - acu   // positive = owes company, negative = company owes you
+            const isOk   = Math.abs(net) < 0.05
+            const isSurplus = net < -0.05
+            const balColor  = isOk ? '#10B981' : isSurplus ? '#3B82F6' : '#EF4444'
+            const balLabel  = isOk ? 'Al día ✓' : isSurplus ? `La empresa te debe ${fmtHShort(-net)}` : `Debes ${fmtHShort(net)} a la empresa`
+            const balValue  = isOk ? '—' : isSurplus ? `−${fmtHShort(-net)}` : `+${fmtHShort(net)}`
             return (
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
                 {/* Net balance — the number that matters */}
                 <BalanceCard
-                  icon={isOk ? CheckCircle2 : TrendingDown}
+                  icon={isOk ? CheckCircle2 : isSurplus ? TrendingUp : TrendingDown}
                   label='BALANCE'
-                  value={fmtHShort(net)}
-                  color={isOk ? '#10B981' : '#EF4444'}
-                  sub={isOk ? 'Al día ✓' : `Debido ${fmtHShort(deb)} − Acumulado ${fmtHShort(acu)}`}
+                  value={balValue}
+                  color={balColor}
+                  sub={balLabel}
                 />
                 <BalanceCard
                   icon={TrendingUp} label='ACUMULADO'

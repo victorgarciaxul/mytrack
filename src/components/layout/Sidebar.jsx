@@ -56,9 +56,9 @@ function storeAvatar(email, url) {
 }
 
 // ── Avatar picker panel ───────────────────────────────────────────
-function AvatarPickerPanel({ selected, onSelect, onClose, pos }) {
+function AvatarPickerPanel({ selected, onSelect, onClose, pos, panelRef }) {
   return (
-    <div style={{
+    <div ref={panelRef} style={{
       position: 'fixed',
       bottom: pos.bottom,
       left: pos.left,
@@ -219,6 +219,7 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
   const [pickerPos, setPickerPos] = useState({ bottom: 80, left: 8 })
   const menuRef = useRef(null)
   const userBtnRef = useRef(null)
+  const pickerRef = useRef(null)
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'
   const userInitials = userName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
@@ -234,7 +235,9 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
 
   useEffect(() => {
     function handleClick(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
+      const inMenu   = menuRef.current   && menuRef.current.contains(e.target)
+      const inPicker = pickerRef.current && pickerRef.current.contains(e.target)
+      if (!inMenu && !inPicker) {
         setMenuOpen(false)
         setAvatarPickerOpen(false)
       }
@@ -501,6 +504,7 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
               onSelect={handleAvatarSelect}
               onClose={() => setAvatarPickerOpen(false)}
               pos={pickerPos}
+              panelRef={pickerRef}
             />,
             document.body
           )}

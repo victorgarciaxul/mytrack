@@ -557,22 +557,46 @@ export default function Overtime() {
       {/* ── MY VIEW ─────────────────────────────────────────────────────── */}
       {!showTeamView && (
         <>
-          {/* Balance cards: ACUMULADO / COMPENSADO / DEBIDO */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
-            <BalanceCard
-              icon={TrendingUp} label='ACUMULADO'
-              value={myData ? fmtHShort(myData.acumulado) : '0h'}
-              color='#7C4DFF'
-              sub='Semanas por encima de 37,5h'
-            />
-            <BalanceCard
-              icon={myData?.debido > 0.05 ? TrendingDown : CheckCircle2}
-              label='DEBIDO'
-              value={myData ? fmtHShort(myData.debido) : '0h'}
-              color={!myData || myData.debido < 0.05 ? '#10B981' : '#EF4444'}
-              sub={myData?.debido > 0.05 ? 'Horas por debajo del estándar' : 'Sin horas pendientes'}
-            />
-          </div>
+          {/* Balance cards */}
+          {(() => {
+            const acu  = myData?.acumulado ?? 0
+            const deb  = myData?.debido    ?? 0
+            const vac  = myData?.totalVacH ?? 0
+            const net  = Math.max(0, deb - acu)   // net hours still owed
+            const isOk = net < 0.05
+            return (
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+                {/* Net balance — the number that matters */}
+                <BalanceCard
+                  icon={isOk ? CheckCircle2 : TrendingDown}
+                  label='BALANCE'
+                  value={fmtHShort(net)}
+                  color={isOk ? '#10B981' : '#EF4444'}
+                  sub={isOk ? 'Al día ✓' : `Debido ${fmtHShort(deb)} − Acumulado ${fmtHShort(acu)}`}
+                />
+                <BalanceCard
+                  icon={TrendingUp} label='ACUMULADO'
+                  value={fmtHShort(acu)}
+                  color='#7C4DFF'
+                  sub='Semanas por encima del estándar'
+                />
+                <BalanceCard
+                  icon={TrendingDown} label='DEBIDO'
+                  value={fmtHShort(deb)}
+                  color={deb > 0.05 ? '#F59E0B' : '#10B981'}
+                  sub='Semanas por debajo del estándar'
+                />
+                {vac > 0 && (
+                  <BalanceCard
+                    icon={CheckCircle2} label='VACACIONES'
+                    value={`${Math.round(vac / (myData.stdHours / 5))}d · ${fmtHShort(vac)}`}
+                    color='#10B981'
+                    sub='Ya incluidas en el cálculo'
+                  />
+                )}
+              </div>
+            )
+          })()}
 
           {/* Weekly table */}
           <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>

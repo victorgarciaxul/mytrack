@@ -386,12 +386,15 @@ export default function Overtime() {
     })
 
     // Index vacations by user + week
+    // Align vacation date window to the same minimum as weekly hours (start of current year)
+    const vacMinDate = rangeBounds.from || startOfYear(new Date())
+    const vacMaxDate = rangeBounds.to   || null
     const vacByUserWeek = {}  // { 'email|wk': [{ hours, date, description, id }] }
     vacations.forEach(v => {
       const wk = weekKey(parseISO(v.date))
       const wkDate = parseISO(wk)
-      if (rangeBounds.from && wkDate < rangeBounds.from) return
-      if (rangeBounds.to   && wkDate > rangeBounds.to)   return
+      if (wkDate < vacMinDate) return
+      if (vacMaxDate && wkDate > vacMaxDate) return
       const key = `${v.user_email}|${wk}`
       if (!vacByUserWeek[key]) vacByUserWeek[key] = []
       vacByUserWeek[key].push(v)

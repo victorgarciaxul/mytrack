@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -196,6 +197,54 @@ export default function Reports() {
     return Object.values(map).sort((a, b) => b.secs - a.secs)
   }, [filtered])
 
+  function exportToExcel() {
+    const wb = XLSX.utils.book_new()
+
+    // ── Hoja 1: Resumen por proyecto ──
+    const resumidoData = [
+      ['#', 'Proyecto', 'Cliente', 'Entradas', 'Duración (h)', 'Facturable (h)'],
+      ...grouped.map((g, i) => [
+        i + 1,
+        g.name,
+        g.client || '',
+        g.count,
+        parseFloat((g.secs / 3600).toFixed(2)),
+        parseFloat((g.billable / 3600).toFixed(2)),
+      ]),
+      ['', 'TOTAL', '', filtered.length, parseFloat((totalSecs / 3600).toFixed(2)), parseFloat((billableSecs / 3600).toFixed(2))],
+    ]
+    const ws1 = XLSX.utils.aoa_to_sheet(resumidoData)
+    ws1['!cols'] = [{ wch: 4 }, { wch: 36 }, { wch: 24 }, { wch: 10 }, { wch: 14 }, { wch: 16 }]
+    XLSX.utils.book_append_sheet(wb, ws1, 'Resumen')
+
+    // ── Hoja 2: Detallado ──
+    const detalladoData = [
+      ['Descripción', 'Proyecto', 'Cliente', 'Usuario', 'Fecha', 'Hora inicio', 'Duración (h)', 'Facturable'],
+      ...filtered.map(e => {
+        const dt = e.start_time ? parseISO(e.start_time) : null
+        return [
+          e.description || '',
+          e.project_name || 'Sin proyecto',
+          e.client_name  || 'Sin cliente',
+          e.user_email   || '',
+          dt ? format(dt, 'dd/MM/yyyy') : '',
+          dt ? format(dt, 'HH:mm')      : '',
+          parseFloat(((Number(e.duration) || 0) / 3600).toFixed(2)),
+          e.billable ? 'Sí' : 'No',
+        ]
+      }),
+    ]
+    const ws2 = XLSX.utils.aoa_to_sheet(detalladoData)
+    ws2['!cols'] = [{ wch: 40 }, { wch: 30 }, { wch: 24 }, { wch: 28 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 10 }]
+    XLSX.utils.book_append_sheet(wb, ws2, 'Detallado')
+
+    // File name with range
+    const fromStr = format(from, 'dd-MM-yyyy')
+    const toStr   = format(to,   'dd-MM-yyyy')
+    const fileName = `informe_${fromStr}_${toStr}.xlsx`
+    XLSX.writeFile(wb, fileName)
+  }
+
   const selectStyle = {
     background: 'var(--c-bg-muted)', border: '1px solid var(--c-border-light)',
     borderRadius: 8, padding: '6px 12px', fontSize: 12, color: 'var(--c-text-1)',
@@ -316,6 +365,27 @@ export default function Reports() {
           <span style={{ fontSize: 11, color: 'var(--c-text-3)', fontWeight: 600 }}>PROYECTOS</span>
           <span style={{ fontSize: 16, fontWeight: 700, color: '#03A9F4' }}>{pieData.length}</span>
         </div>
+
+        <div style={{ flex: 1 }} />
+
+        <button
+          onClick={exportToExcel}
+          disabled={filtered.length === 0}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '7px 14px', borderRadius: 9,
+            background: filtered.length === 0 ? 'var(--c-bg-muted)' : '#217346',
+            border: '1px solid ' + (filtered.length === 0 ? 'var(--c-border-light)' : '#1a5c38'),
+            color: filtered.length === 0 ? 'var(--c-text-4)' : '#fff',
+            fontSize: 12, fontWeight: 600, cursor: filtered.length === 0 ? 'not-allowed' : 'pointer',
+            transition: 'opacity 0.15s',
+          }}
+          onMouseEnter={e => { if (filtered.length > 0) e.currentTarget.style.opacity = '0.85' }}
+          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+        >
+          <Download size={14} />
+          Excel
+        </button>
       </div>
 
       {/* ── Body ── */}

@@ -696,11 +696,34 @@ export async function dbGetAvailableYears(userEmail) {
 
 // ── Projects & Clients ────────────────────────────────────────
 
-export async function dbGetProjects() {
-  const { data, error } = await _supabase.from('projects').select('*')
-    .eq('workspace_id', getWsId()).eq('archived', false).order('name')
+export async function dbGetProjects({ userEmail, isAdmin } = {}) {
+  const wsId = getWsId()
+  const { data, error } = await _supabase.from('projects').select('*, clients(name)')
+    .eq('workspace_id', wsId).eq('archived', false).order('name')
   if (error) throw new Error(error.message)
-  return data || []
+  const all = data || []
+  // Admins see everything; employees only see projects they're assigned to
+  // (if a project has NO members assigned, everyone sees it — opt-in model)
+  if (isAdmin || !userEmail) return all
+  const { data: memberships } = await _supabase.from('project_members')
+    .select('project_id').eq('user_email', userEmail)
+  if (!memberships || memberships.length === 0) return all  // no memberships set yet → show all
+  const myProjectIds = new Set(memberships.map(m => m.project_id))
+  return all.filter(p => myProjectIds.has(p.id))
+}
+
+export async function dbGetProjectMembers(projectId) {
+  const { data } = await _supabase.from('project_members').select('user_email').eq('project_id', projectId)
+  return (data || []).map(r => r.user_email)
+}
+
+export async function dbSetProjectMembers(projectId, userEmails, workspaceId) {
+  const wsId = workspaceId || getWsId()
+  await _supabase.from('project_members').delete().eq('project_id', projectId)
+  if (userEmails.length === 0) return
+  await _supabase.from('project_members').insert(
+    userEmails.map(email => ({ project_id: projectId, user_email: email, workspace_id: wsId }))
+  )
 }
 
 export async function dbGetProjectsWithHours() {

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
+import { useRole } from './RoleContext'
 import { loadClockifyCache, isClockifyUser } from '../lib/clockify'
 import { initDB, dbGetProjects, dbGetClients, dbGetAllTasks } from '../lib/db'
 
@@ -26,6 +27,7 @@ function getInitialData(isDemo, email) {
 
 export function WorkspaceProvider({ children }) {
   const { user, isDemo } = useAuth()
+  const { isAdmin } = useRole()
   const init = getInitialData(isDemo, user?.email)
   const [workspace, setWorkspace] = useState(init.ws)
   const [projects, setProjects] = useState(init.projects)
@@ -38,7 +40,7 @@ export function WorkspaceProvider({ children }) {
     if (isDemo) {
       // Load projects, clients AND tasks from Supabase
       initDB()
-        .then(() => Promise.all([dbGetProjects(), dbGetClients(), dbGetAllTasks()]))
+        .then(() => Promise.all([dbGetProjects({ userEmail: user?.email, isAdmin }), dbGetClients(), dbGetAllTasks()]))
         .then(([neonProjects, neonClients, neonTasks]) => {
           if (neonProjects?.length) {
             setProjects(neonProjects.map(p => ({
@@ -71,14 +73,24 @@ export function WorkspaceProvider({ children }) {
 
   async function loadProjects(wsId) {
     if (isDemo) return
-    const { data } = await supabase
+    const { data: allData } = await supabase
       .from('projects')
       .select('*, clients(name)')
       .eq('workspace_id', wsId)
       .eq('archived', false)
       .order('name')
-    setProjects(data || [])
-    if (data) loadTasks(data.map(p => p.id))
+    let data = allData || []
+    // Filter by membership for non-admins
+    if (!isAdmin && user?.email) {
+      const { data: memberships } = await supabase.from('project_members')
+        .select('project_id').eq('user_email', user.email)
+      if (memberships && memberships.length > 0) {
+        const myIds = new Set(memberships.map(m => m.project_id))
+        data = data.filter(p => myIds.has(p.id))
+      }
+    }
+    setProjects(data)
+    if (data.length) loadTasks(data.map(p => p.id))
   }
 
   async function loadTasks(projectIds) {

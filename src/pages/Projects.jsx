@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Briefcase, Search, Globe, Lock, Plus, X, Check, Trash2,
          ChevronDown, ChevronRight, ListTodo, Circle, CheckCircle2,
-         Pencil, Archive, ArchiveRestore } from 'lucide-react'
+         Pencil, Archive, ArchiveRestore, Users } from 'lucide-react'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { initDB, dbGetAllProjectsWithHours, dbGetClients, dbGetTasksForProject,
          dbCreateProject, dbDeleteProject, dbUpdateProject, dbArchiveProject,
-         dbCreateTask, dbDeleteTask, dbToggleTaskStatus } from '../lib/db'
+         dbCreateTask, dbDeleteTask, dbToggleTaskStatus,
+         dbGetProjectMembers, dbSetProjectMembers, dbGetAllMembers } from '../lib/db'
 import { useRole } from '../context/RoleContext'
 import toast from 'react-hot-toast'
 
@@ -24,6 +25,81 @@ const inputStyle = {
   background: 'var(--c-bg-muted)', border: '1px solid var(--c-border-light)',
   borderRadius: 8, padding: '8px 12px', fontSize: 13, color: 'var(--c-text-1)',
   outline: 'none', width: '100%', boxSizing: 'border-box',
+}
+
+// ── Members panel ──────────────────────────────────────────────
+function MembersPanel({ project }) {
+  const [allMembers, setAllMembers] = useState([])
+  const [assigned, setAssigned]     = useState([])  // set of emails
+  const [saving, setSaving]         = useState(false)
+
+  useEffect(() => {
+    Promise.all([dbGetAllMembers(), dbGetProjectMembers(project.id)])
+      .then(([members, memberEmails]) => {
+        setAllMembers(members || [])
+        setAssigned(new Set(memberEmails))
+      })
+      .catch(() => {})
+  }, [project.id])
+
+  async function toggle(email) {
+    const next = new Set(assigned)
+    next.has(email) ? next.delete(email) : next.add(email)
+    setAssigned(next)
+    setSaving(true)
+    try {
+      await dbSetProjectMembers(project.id, [...next])
+    } catch { toast.error('Error al guardar miembros') }
+    setSaving(false)
+  }
+
+  async function assignAll() {
+    const emails = allMembers.map(m => m.user_email)
+    setAssigned(new Set(emails))
+    setSaving(true)
+    try { await dbSetProjectMembers(project.id, emails) }
+    catch { toast.error('Error') }
+    setSaving(false)
+  }
+
+  async function clearAll() {
+    setAssigned(new Set())
+    setSaving(true)
+    try { await dbSetProjectMembers(project.id, []) }
+    catch { toast.error('Error') }
+    setSaving(false)
+  }
+
+  const color = project.color || '#7C4DFF'
+  return (
+    <div style={{ padding: '12px 20px 16px', borderTop: '1px solid var(--c-border-light)', background: 'var(--c-bg-muted)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Users size={11} /> Miembros del proyecto
+          {saving && <span style={{ fontSize: 10, color: color, fontWeight: 600 }}>Guardando…</span>}
+        </span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={assignAll} style={{ padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: color + '18', color, border: 'none', cursor: 'pointer' }}>Todos</button>
+          <button onClick={clearAll} style={{ padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: 'var(--c-bg-surface)', color: 'var(--c-text-3)', border: '1px solid var(--c-border-light)', cursor: 'pointer' }}>Ninguno</button>
+        </div>
+      </div>
+      <p style={{ fontSize: 11, color: 'var(--c-text-4)', margin: '0 0 10px' }}>
+        {assigned.size === 0 ? 'Sin restricciones — todos los usuarios ven este proyecto' : `${assigned.size} usuario${assigned.size !== 1 ? 's' : ''} asignado${assigned.size !== 1 ? 's' : ''}`}
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {allMembers.map(m => {
+          const isOn = assigned.has(m.user_email)
+          return (
+            <button key={m.user_email} onClick={() => toggle(m.user_email)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 8, fontSize: 12, fontWeight: isOn ? 600 : 400, cursor: 'pointer', border: `1.5px solid ${isOn ? color : 'var(--c-border-light)'}`, background: isOn ? color + '18' : 'var(--c-bg-surface)', color: isOn ? color : 'var(--c-text-2)', transition: 'all 0.12s' }}>
+              {isOn && <Check size={11} />}
+              {m.user_name || m.user_email.split('@')[0]}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 // ── Task panel ─────────────────────────────────────────────────
@@ -303,6 +379,7 @@ function ProjectRow({ project, canEdit, expanded, setExpanded, onEdit, onArchive
       </div>
 
       {isExp && <TaskPanel project={project} canEdit={canEdit} />}
+      {isExp && canEdit && <MembersPanel project={project} />}
     </div>
   )
 }

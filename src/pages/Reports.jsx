@@ -29,14 +29,16 @@ function fmtH(secs) {
 }
 
 const RANGE_TYPES = [
-  { label: 'Semana', value: 'week' },
-  { label: 'Mes',    value: 'month' },
+  { label: 'Semana',       value: 'week'   },
+  { label: 'Mes',          value: 'month'  },
+  { label: 'Personalizado', value: 'custom' },
 ]
 const TABS = ['Resumido', 'Detallado']
 
 function getRange(type, anchor) {
   if (type === 'week') return { from: startOfWeek(anchor, { weekStartsOn: 1 }), to: endOfWeek(anchor, { weekStartsOn: 1 }) }
-  return { from: startOfMonth(anchor), to: endOfMonth(anchor) }
+  if (type === 'month') return { from: startOfMonth(anchor), to: endOfMonth(anchor) }
+  return null // custom — handled separately
 }
 function shiftAnchor(type, anchor, dir) {
   if (type === 'week') return dir > 0 ? addWeeks(anchor, 1) : subWeeks(anchor, 1)
@@ -49,6 +51,11 @@ function rangeLabel(type, from, to) {
     return `${s} – ${e}`
   }
   return format(from, 'MMMM yyyy', { locale: es })
+}
+function toLocalDateStr(d) {
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
 }
 
 const CustomTooltip = ({ active, payload }) => {
@@ -71,15 +78,26 @@ export default function Reports() {
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(false)
 
+  // Custom range state
+  const today = toLocalDateStr(new Date())
+  const [customFrom, setCustomFrom] = useState(today)
+  const [customTo,   setCustomTo]   = useState(today)
+
   // Filter state — non-admins are locked to their own email
   const [filterProject,  setFilterProject]  = useState('ALL')
   const [filterClient,   setFilterClient]   = useState('ALL')
   const [filterBillable, setFilterBillable] = useState('ALL')
   const [filterUser,     setFilterUser]     = useState('ALL')
 
-  const { from, to } = getRange(rangeType, anchor)
+  const stdRange = rangeType !== 'custom' ? getRange(rangeType, anchor) : null
+  const from = rangeType === 'custom' ? parseISO(customFrom) : stdRange.from
+  const to   = rangeType === 'custom' ? parseISO(customTo)   : stdRange.to
 
-  useEffect(() => { loadData() }, [rangeType, anchor])
+  useEffect(() => {
+    // Don't fetch if custom range is invalid
+    if (rangeType === 'custom' && (!customFrom || !customTo || customFrom > customTo)) return
+    loadData()
+  }, [rangeType, anchor, customFrom, customTo])
 
   async function loadData() {
     setLoading(true)
@@ -147,7 +165,8 @@ export default function Reports() {
     const secs = filtered
       .filter(e => { try { return format(parseISO(e.start_time), 'yyyy-MM-dd') === key } catch { return false } })
       .reduce((s, e) => s + (Number(e.duration) || 0), 0)
-    return { name: format(day, rangeType === 'week' ? 'EEE' : 'd', { locale: es }), horas: parseFloat((secs / 3600).toFixed(2)) }
+    const labelFmt = rangeType === 'week' ? 'EEE' : rangeType === 'month' ? 'd' : 'd MMM'
+    return { name: format(day, labelFmt, { locale: es }), horas: parseFloat((secs / 3600).toFixed(2)) }
   })
 
   // Pie chart by project
@@ -213,20 +232,41 @@ export default function Reports() {
           }}>{r.label}</button>
         ))}
 
-        {/* Period navigator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 4 }}>
-          <button onClick={() => setAnchor(a => shiftAnchor(rangeType, a, -1))}
-            style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid var(--c-border-light)', background: 'var(--c-bg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ChevronLeft size={14} style={{ color: 'var(--c-text-3)' }} />
-          </button>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)', minWidth: 150, textAlign: 'center' }}>
-            {rangeLabel(rangeType, from, to)}
-          </span>
-          <button onClick={() => setAnchor(a => shiftAnchor(rangeType, a, 1))}
-            style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid var(--c-border-light)', background: 'var(--c-bg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ChevronRight size={14} style={{ color: 'var(--c-text-3)' }} />
-          </button>
-        </div>
+        {/* Period navigator — hidden in custom mode */}
+        {rangeType !== 'custom' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 4 }}>
+            <button onClick={() => setAnchor(a => shiftAnchor(rangeType, a, -1))}
+              style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid var(--c-border-light)', background: 'var(--c-bg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ChevronLeft size={14} style={{ color: 'var(--c-text-3)' }} />
+            </button>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)', minWidth: 150, textAlign: 'center' }}>
+              {rangeLabel(rangeType, from, to)}
+            </span>
+            <button onClick={() => setAnchor(a => shiftAnchor(rangeType, a, 1))}
+              style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid var(--c-border-light)', background: 'var(--c-bg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ChevronRight size={14} style={{ color: 'var(--c-text-3)' }} />
+            </button>
+          </div>
+        )}
+
+        {/* Custom date pickers */}
+        {rangeType === 'custom' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
+            <input
+              type="date" value={customFrom}
+              max={customTo}
+              onChange={e => setCustomFrom(e.target.value)}
+              style={{ background: 'var(--c-bg-muted)', border: '1px solid var(--c-border-light)', borderRadius: 8, padding: '5px 10px', fontSize: 12, color: 'var(--c-text-1)', outline: 'none', cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: 12, color: 'var(--c-text-3)', fontWeight: 600 }}>—</span>
+            <input
+              type="date" value={customTo}
+              min={customFrom}
+              onChange={e => setCustomTo(e.target.value)}
+              style={{ background: 'var(--c-bg-muted)', border: '1px solid var(--c-border-light)', borderRadius: 8, padding: '5px 10px', fontSize: 12, color: 'var(--c-text-1)', outline: 'none', cursor: 'pointer' }}
+            />
+          </div>
+        )}
 
         <div style={{ flex: 1 }} />
 

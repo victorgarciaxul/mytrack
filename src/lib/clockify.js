@@ -2,12 +2,17 @@
 const API_KEY      = 'MDQ0YTczODctZGNhMC00YjE1LTkxNzktMzdjYjM4YTVlMmM4'
 const WORKSPACE_ID = '5e67ae37a4ec9a653886c794'
 
-/** Only this user syncs to Clockify */
+/** Legacy: owner email kept for import/cache functions */
 export const CLOCKIFY_OWNER_EMAIL = 'victorgarcia@xul.es'
 
-/** Returns true if the given email should sync with Clockify */
-export function isClockifyUser(email) {
-  return email === CLOCKIFY_OWNER_EMAIL
+/**
+ * Returns true if this user should sync with Clockify.
+ * Now accepts either an email string (legacy) or a user object with clockify_user_id.
+ */
+export function isClockifyUser(emailOrUser) {
+  if (!emailOrUser) return false
+  if (typeof emailOrUser === 'string') return emailOrUser === CLOCKIFY_OWNER_EMAIL
+  return !!emailOrUser.clockify_user_id
 }
 const BASE        = 'https://api.clockify.me/api/v1'
 const CACHE_KEY   = 'mytrack-clockify-cache'
@@ -314,8 +319,9 @@ export async function clockifyGetAllTasks(projects) {
   return all
 }
 
-/** Start a running timer in Clockify. Returns the new entry object. */
-export async function clockifyStartTimer({ description, projectId, taskId }) {
+/** Start a running timer in Clockify for a specific user. Returns the new entry object. */
+export async function clockifyStartTimer({ description, projectId, taskId, userId }) {
+  const uid = userId || CLOCKIFY_USER_ID
   const body = {
     start: new Date().toISOString(),
     description: description || '',
@@ -324,9 +330,8 @@ export async function clockifyStartTimer({ description, projectId, taskId }) {
     billable: true,
   }
 
-  console.log('[Clockify] Starting timer with body:', JSON.stringify(body))
-
-  let res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/time-entries`, {
+  // Use user-specific endpoint so admin API key creates entry for the correct user
+  let res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/user/${uid}/time-entries`, {
     method: 'POST',
     headers: { ...h, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -334,16 +339,15 @@ export async function clockifyStartTimer({ description, projectId, taskId }) {
 
   // 400 almost always means there's already a running timer — stop it first, then retry
   if (res.status === 400) {
-    await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/user/${CLOCKIFY_USER_ID}/time-entries`, {
+    await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/user/${uid}/time-entries`, {
       method: 'PATCH',
       headers: { ...h, 'Content-Type': 'application/json' },
       body: JSON.stringify({ end: new Date().toISOString() }),
-    }).catch(() => {}) // ignore if nothing was running
+    }).catch(() => {})
 
-    // small gap so Clockify registers the stop
     await new Promise(r => setTimeout(r, 300))
 
-    res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/time-entries`, {
+    res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/user/${uid}/time-entries`, {
       method: 'POST',
       headers: { ...h, 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...body, start: new Date().toISOString() }),
@@ -357,10 +361,11 @@ export async function clockifyStartTimer({ description, projectId, taskId }) {
   return res.json()
 }
 
-/** Stop the currently running timer. Returns the updated entry. */
+/** Stop the currently running timer for a user. Returns the updated entry. */
 export async function clockifyStopTimer(userId) {
+  const uid = userId || CLOCKIFY_USER_ID
   const body = { end: new Date().toISOString() }
-  const res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/user/${userId}/time-entries`, {
+  const res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/user/${uid}/time-entries`, {
     method: 'PATCH',
     headers: { ...h, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -369,8 +374,9 @@ export async function clockifyStopTimer(userId) {
   return res.json()
 }
 
-/** Create a complete manual time entry. Returns the new entry. */
-export async function clockifyCreateEntry({ description, projectId, taskId, start, end }) {
+/** Create a complete manual time entry for a specific user. Returns the new entry. */
+export async function clockifyCreateEntry({ description, projectId, taskId, start, end, userId }) {
+  const uid = userId || CLOCKIFY_USER_ID
   const body = {
     start: new Date(start).toISOString(),
     end:   new Date(end).toISOString(),
@@ -379,7 +385,7 @@ export async function clockifyCreateEntry({ description, projectId, taskId, star
     ...(taskId    && { taskId }),
     billable: true,
   }
-  const res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/time-entries`, {
+  const res = await fetch(`${BASE}/workspaces/${WORKSPACE_ID}/user/${uid}/time-entries`, {
     method: 'POST',
     headers: { ...h, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

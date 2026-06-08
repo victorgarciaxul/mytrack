@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { useRole } from '../context/RoleContext'
-import { loadClockifyCache, clockifyStartTimer, clockifyStopTimer, clockifyDeleteEntry, getClockifyUserId, isClockifyUser, clockifyGetProjectTasks } from '../lib/clockify'
+import { loadClockifyCache, clockifyStartTimer, clockifyStopTimer, clockifyDeleteEntry, clockifyGetProjectTasks } from '../lib/clockify'
 import { getSelectedYear } from '../components/layout/TopBar'
 import { initDB, dbGetEntries, dbInsertEntry, dbDeleteEntry, dbGetMyNotes, dbSaveNote, dbShareNote, dbGetSharedNotes, dbGetAllMembers, dbUpdateNoteContent, dbUnshareNote, dbToggleReaction, ensureReactionsColumn, dbDeleteNote, getWsId, dbSaveRunningTimer, dbGetRunningTimer, dbDeleteRunningTimer } from '../lib/db'
 import { format, parseISO, isToday, isYesterday, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns'
@@ -201,7 +201,9 @@ export default function Tracker() {
     return () => window.removeEventListener('mytrack:entry-saved', onEntrySaved)
   }, [user?.email])
 
-  const syncEnabled = isClockifyUser(user?.email)
+  // Sync enabled for any user who has a clockify_user_id (all XUL team members)
+  const clockifyUserId = user?.clockify_user_id || null
+  const syncEnabled = !!clockifyUserId
 
   // ── Cross-device timer sync ──────────────────────────────────
   // Only RESTORES a timer from Neon — never resets a running local timer.
@@ -289,7 +291,7 @@ export default function Tracker() {
 
       // Try Clockify — if it fails, timer is already running locally
       try {
-        await clockifyStartTimer({
+        await clockifyStartTimer({ userId: clockifyUserId,
           description: description || '',
           projectId: selectedProject?.id || null,
           taskId: selectedTask?.id || null,
@@ -300,7 +302,7 @@ export default function Tracker() {
         // Retry without task (task completed / task required error)
         if (selectedTask && msg.includes('501')) {
           try {
-            await clockifyStartTimer({
+            await clockifyStartTimer({ userId: clockifyUserId,
               description: description || '',
               projectId: selectedProject?.id || null,
               taskId: null,
@@ -347,8 +349,7 @@ export default function Tracker() {
       const startTime = new Date(endTime.getTime() - secs * 1000)
 
       try {
-        const userId = getClockifyUserId()
-        const saved = await clockifyStopTimer(userId)
+        const saved = await clockifyStopTimer(clockifyUserId)
         const duration = saved.timeInterval?.duration
           ? Math.round(saved.timeInterval.duration / 1000)
           : secs
@@ -539,7 +540,7 @@ export default function Tracker() {
       }).catch(() => {})
 
       try {
-        await clockifyStartTimer({
+        await clockifyStartTimer({ userId: clockifyUserId,
           description: e.description || '',
           projectId: proj?.id || null,
           taskId: e.task_id || null,
@@ -549,7 +550,7 @@ export default function Tracker() {
         const msg = err.message || ''
         if (e.task_id && msg.includes('501')) {
           try {
-            await clockifyStartTimer({
+            await clockifyStartTimer({ userId: clockifyUserId,
               description: e.description || '',
               projectId: proj?.id || null,
               taskId: null,

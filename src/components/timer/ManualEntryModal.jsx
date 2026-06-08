@@ -42,8 +42,9 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
     const duration = Math.floor((end - start) / 1000)
     setSaving(true)
 
-    // ── Clockify sync — only for the Clockify owner ──
-    const syncEnabled = isClockifyUser(user?.email)
+    // ── Clockify sync — for all users with a clockify_user_id ──
+    const clockifyUserId = user?.clockify_user_id || null
+    const syncEnabled = !!clockifyUserId
     if (syncEnabled) {
       const project = projects.find(p => p.id === projectId)
       const task = projectTasks.find(t => t.id === taskId)
@@ -54,6 +55,7 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
           taskId: taskId || null,
           start: start.toISOString(),
           end: end.toISOString(),
+          userId: clockifyUserId,
         })
         const entry = {
           id: saved.id,

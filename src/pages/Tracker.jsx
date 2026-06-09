@@ -755,11 +755,15 @@ export default function Tracker() {
                     </p>
                     <p style={{ fontSize: 11, color: 'var(--c-text-3)', margin: '2px 0 0', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                       {e.projects?.name || 'Sin proyecto'}
-                      {e.tasks && <span style={{ color: '#7C4DFF' }}> · {e.tasks.name}</span>}
                       {isMobile && e.end_time && (
                         <span style={{ color: 'var(--c-text-4)' }}> · {format(parseISO(e.start_time), 'HH:mm')}–{format(parseISO(e.end_time), 'HH:mm')}</span>
                       )}
                     </p>
+                    {e.tasks && (
+                      <p style={{ fontSize: 11, color: '#7C4DFF', margin: '1px 0 0', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontWeight: 500 }}>
+                        {e.tasks.name}
+                      </p>
+                    )}
                   </div>
                   {!isMobile && e.end_time && (
                     <span style={{ fontSize: 11, color: 'var(--c-text-3)', flexShrink: 0 }}>

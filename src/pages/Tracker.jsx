@@ -45,6 +45,36 @@ export default function Tracker() {
 
   const ACTIVE_KEY = 'mytrack-active-entry'
 
+  // Persist description to localStorage synchronously (don't wait for useEffect).
+  // This prevents losing the description if the user navigates away faster than
+  // React's render/effect cycle can complete.
+  function persistDescription(val) {
+    try {
+      const cur = JSON.parse(localStorage.getItem(ACTIVE_KEY) || '{}')
+      localStorage.setItem(ACTIVE_KEY, JSON.stringify({ ...cur, description: val }))
+    } catch {}
+  }
+
+  // Debounced DB update so running_timers.description stays in sync too
+  const descSaveTimerRef = useRef(null)
+  function scheduleDescriptionSync(val) {
+    clearTimeout(descSaveTimerRef.current)
+    descSaveTimerRef.current = setTimeout(() => {
+      if (!user?.email || !timer.isRunning) return
+      dbSaveRunningTimer({
+        userEmail: user.email,
+        workspaceId: user.workspace_id || 'xul-ws-1',
+        startedAt: new Date(JSON.parse(localStorage.getItem('mytrack-timer-state') || '{}').startedAt || Date.now()).toISOString(),
+        description: val,
+        projectId:    selectedProject?.id   || null,
+        projectName:  selectedProject?.name || null,
+        projectColor: selectedProject?.color || null,
+        taskId:       selectedTask?.id   || null,
+        taskName:     selectedTask?.name || null,
+      }).catch(() => {})
+    }, 1500)
+  }
+
   const [description, setDescription] = useState(() => {
     try { return JSON.parse(localStorage.getItem(ACTIVE_KEY))?.description || '' } catch { return '' }
   })
@@ -525,7 +555,12 @@ export default function Tracker() {
             <input
               placeholder="¿En qué estás trabajando?"
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={e => {
+                const val = e.target.value
+                setDescription(val)
+                persistDescription(val)        // sync write — survives fast navigation
+                scheduleDescriptionSync(val)   // debounced DB update
+              }}
               onKeyDown={e => e.key === 'Enter' && !timer.isRunning && handleStart()}
               style={{
                 width: '100%', border: 'none', outline: 'none', background: 'transparent',
@@ -718,7 +753,7 @@ export default function Tracker() {
                     <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--c-text-1)', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                       {e.description}
                     </p>
-                    <p style={{ fontSize: 11, color: 'var(--c-text-3)', margin: '2px 0 0' }}>
+                    <p style={{ fontSize: 11, color: 'var(--c-text-3)', margin: '2px 0 0', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                       {e.projects?.name || 'Sin proyecto'}
                       {e.tasks && <span style={{ color: '#7C4DFF' }}> · {e.tasks.name}</span>}
                       {isMobile && e.end_time && (

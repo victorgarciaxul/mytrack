@@ -189,6 +189,17 @@ export async function importFromClockify(onStatus, since = null) {
   )
   const projectMap = Object.fromEntries(projects.map(p => [p.id, p]))
 
+  // Build task map { taskId → taskName } across all projects
+  onStatus('Cargando tareas…', 33)
+  const taskMap = {}
+  for (const p of projects) {
+    try {
+      const tasks = await fetchAll(`/workspaces/${WORKSPACE_ID}/projects/${p.id}/tasks?status=ACTIVE`, 100)
+      const done  = await fetchAll(`/workspaces/${WORKSPACE_ID}/projects/${p.id}/tasks?status=DONE`, 100)
+      ;[...tasks, ...done].forEach(t => { taskMap[t.id] = t.name })
+    } catch { /* skip */ }
+  }
+
   // Fetch entries for ALL workspace users (filtered by since if incremental)
   const newEntriesForNeon = []
 
@@ -223,6 +234,7 @@ export async function importFromClockify(onStatus, since = null) {
           project_name: proj?.name || null,
           project_color: proj?.color || null,
           client_name: proj?.clients?.name || null,
+          task_name: entry.task_id ? (taskMap[entry.task_id] || null) : null,
         })
       }
     } catch (err) {

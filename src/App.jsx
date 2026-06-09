@@ -47,6 +47,7 @@ import TimeOff from './pages/TimeOff'
 import Clients from './pages/Clients'
 import Costs from './pages/Costs'
 import Overtime from './pages/Overtime'
+import EnDirecto from './pages/EnDirecto'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -89,6 +90,7 @@ function App() {
             <Route path="clients" element={<Clients />} />
             <Route path="costs" element={<Costs />} />
             <Route path="overtime" element={<Overtime />} />
+            <Route path="en-directo" element={<EnDirecto />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

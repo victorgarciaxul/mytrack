@@ -6,7 +6,7 @@ import {
   Clock, BarChart2, Briefcase, Users, Settings,
   HelpCircle, ChevronDown, Plus, CalendarDays,
   Bell, LogOut, Tag, CalendarOff, Building2,
-  ChevronsLeft, ChevronsRight, X, Check, CircleDollarSign, AlarmClock,
+  ChevronsLeft, ChevronsRight, X, Check, CircleDollarSign, AlarmClock, Radio,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
@@ -192,7 +192,7 @@ function WorkspaceSwitcher({ collapsed, user, isAdmin, switchWorkspace, isDark }
 export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
   const { user, signOut, switchWorkspace } = useAuth()
   const { workspace } = useWorkspace()
-  const { isManager, isAdmin, unreadCount } = useRole()
+  const { isManager, isAdmin, unreadCount, costProjects } = useRole()
   const { isDark } = useTheme()
   const location = useLocation()
   const { resetTour } = useTour()
@@ -285,7 +285,8 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
     { to: '/tags',      icon: Tag,         label: 'Etiquetas' },
     { to: '/time-off',  icon: CalendarOff, label: 'Bajas'     },
     { to: '/team', icon: Users, label: 'Equipo' },
-    ...(isAdmin ? [{ to: '/costs', icon: CircleDollarSign, label: 'Costes' }] : []),
+    ...((isAdmin || costProjects?.length > 0) ? [{ to: '/costs', icon: CircleDollarSign, label: 'Costes' }] : []),
+    ...(isAdmin ? [{ to: '/en-directo', icon: Radio, label: 'En directo' }] : []),
   ]
 
   const W = collapsed ? 56 : 240

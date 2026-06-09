@@ -736,7 +736,20 @@ export default function Tracker() {
                 <p style={{ fontSize: 13, color: 'var(--c-text-3)', textAlign: 'center', padding: '24px 0' }}>
                   Sin entradas aún
                 </p>
-              ) : recentEntries.map((e, i) => (
+              ) : recentEntries.map((e, i) => {
+                // Day separator
+                const eDay = e.start_time ? format(parseISO(e.start_time), 'yyyy-MM-dd') : null
+                const prevDay = i > 0 && recentEntries[i-1].start_time ? format(parseISO(recentEntries[i-1].start_time), 'yyyy-MM-dd') : null
+                const showDaySep = eDay && eDay !== prevDay
+                const dayLabel = eDay ? format(parseISO(e.start_time), "EEEE d 'de' MMMM", { locale: es }) : null
+                return (<>
+                {showDaySep && (
+                  <div key={`day-${eDay}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0 4px' }}>
+                    <div style={{ flex: 1, height: 1, background: 'var(--c-border-light)' }} />
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--c-text-4)', textTransform: 'capitalize', letterSpacing: '0.04em', flexShrink: 0 }}>{dayLabel}</span>
+                    <div style={{ flex: 1, height: 1, background: 'var(--c-border-light)' }} />
+                  </div>
+                )}
                 <div key={e.id} style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '9px 0',
@@ -827,7 +840,8 @@ export default function Tracker() {
                     </button>
                   )}
                 </div>
-              ))}
+                </>)
+              })}
             </div>
           </Card>
         </div>

@@ -744,10 +744,17 @@ export default function Tracker() {
                 const dayLabel = eDay ? format(parseISO(e.start_time), "EEEE d 'de' MMMM", { locale: es }) : null
                 return (<>
                 {showDaySep && (
-                  <div key={`day-${eDay}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0 4px' }}>
-                    <div style={{ flex: 1, height: 1, background: 'var(--c-border-light)' }} />
-                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--c-text-4)', textTransform: 'capitalize', letterSpacing: '0.04em', flexShrink: 0 }}>{dayLabel}</span>
-                    <div style={{ flex: 1, height: 1, background: 'var(--c-border-light)' }} />
+                  <div key={`day-${eDay}`} style={{ padding: i === 0 ? '4px 0 6px' : '14px 0 6px' }}>
+                    <span style={{
+                      display: 'inline-block',
+                      fontSize: 11, fontWeight: 700,
+                      color: '#7C4DFF',
+                      background: '#7C4DFF14',
+                      borderRadius: 6,
+                      padding: '3px 10px',
+                      textTransform: 'capitalize',
+                      letterSpacing: '0.03em',
+                    }}>{dayLabel}</span>
                   </div>
                 )}
                 <div key={e.id} style={{

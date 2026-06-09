@@ -7,6 +7,9 @@ const NOTE_COLORS = ['#FFF176', '#FFF59D', '#FFEE58']
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '🎉', '👀', '🔥']
 
 export default function StickyNote({ note, idx, members, userEmail, authorName, onChange, onDelete }) {
+  // Is this note shared TO me (i.e. I'm not the author)?
+  const isReadOnly = !!(note.author_email && note.author_email !== userEmail)
+
   const [draft, setDraft]           = useState(note.content || '')
   const [saving, setSaving]         = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -115,41 +118,51 @@ export default function StickyNote({ note, idx, members, userEmail, authorName, 
     <div style={{ position: 'relative' }}>
       <div style={{ borderRadius: 12, background: bg, boxShadow: '2px 4px 14px rgba(0,0,0,0.10)', overflow: 'hidden' }}>
 
+        {/* Author label for read-only notes */}
+        {isReadOnly && note.author_name && (
+          <div style={{ padding: '8px 12px 0', fontSize: 10, fontWeight: 700, color: '#a08000', opacity: 0.7, letterSpacing: '0.04em' }}>
+            ✏️ {note.author_name}
+          </div>
+        )}
+
         <textarea
           value={draft}
-          onChange={e => setDraft(e.target.value)}
-          placeholder="Escribe una nota..."
-          style={{ width: '100%', minHeight: 80, background: 'transparent', border: 'none', outline: 'none', resize: 'none', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 13, lineHeight: 1.5, color: '#4a3f00', boxSizing: 'border-box', padding: '12px 12px 4px' }}
+          onChange={isReadOnly ? undefined : e => setDraft(e.target.value)}
+          readOnly={isReadOnly}
+          placeholder={isReadOnly ? '' : 'Escribe una nota...'}
+          style={{ width: '100%', minHeight: 80, background: 'transparent', border: 'none', outline: 'none', resize: 'none', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 13, lineHeight: 1.5, color: '#4a3f00', boxSizing: 'border-box', padding: '12px 12px 4px', cursor: isReadOnly ? 'default' : 'text' }}
         />
 
-        {/* Toolbar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px 8px', justifyContent: 'flex-end' }}>
-          <button onClick={handleClear} title="Limpiar" style={btnStyle('transparent', '#a08000')}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.1)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-            <RotateCcw size={12} />
-          </button>
-          <button onClick={handleDelete} title="Borrar nota" style={btnStyle('transparent', '#c0392b')}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(192,57,43,0.12)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-            <Trash2 size={12} />
-          </button>
-          <button onClick={handleSave} title="Guardar"
-            style={{ ...btnStyle(isDirty ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.07)', isDirty ? '#4a3000' : '#a08000'), width: 'auto', display: 'flex', alignItems: 'center', gap: 4, padding: '0 8px', fontSize: 11, fontWeight: 600 }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.18)'}
-            onMouseLeave={e => e.currentTarget.style.background = isDirty ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.07)'}>
-            {saving ? <span style={{ fontSize: 10 }}>Guardando…</span> : <><Save size={11} /><span>Guardar</span></>}
-          </button>
-          <button ref={btnRef} onClick={() => { setPickerOpen(p => !p); setPickerSearch('') }} title="Compartir"
-            style={{ ...btnStyle(sharedWith.length ? 'rgba(124,77,255,0.18)' : 'rgba(0,0,0,0.07)', sharedWith.length ? '#5a00cc' : '#a08000'), width: 'auto', display: 'flex', alignItems: 'center', gap: 4, padding: '0 8px', fontSize: 11, fontWeight: 600 }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.18)'}
-            onMouseLeave={e => e.currentTarget.style.background = sharedWith.length ? 'rgba(124,77,255,0.18)' : 'rgba(0,0,0,0.07)'}>
-            <Share2 size={11} /><span>Compartir</span>
-          </button>
-        </div>
+        {/* Toolbar — only for the author */}
+        {!isReadOnly && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px 8px', justifyContent: 'flex-end' }}>
+            <button onClick={handleClear} title="Limpiar" style={btnStyle('transparent', '#a08000')}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.1)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <RotateCcw size={12} />
+            </button>
+            <button onClick={handleDelete} title="Borrar nota" style={btnStyle('transparent', '#c0392b')}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(192,57,43,0.12)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <Trash2 size={12} />
+            </button>
+            <button onClick={handleSave} title="Guardar"
+              style={{ ...btnStyle(isDirty ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.07)', isDirty ? '#4a3000' : '#a08000'), width: 'auto', display: 'flex', alignItems: 'center', gap: 4, padding: '0 8px', fontSize: 11, fontWeight: 600 }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.18)'}
+              onMouseLeave={e => e.currentTarget.style.background = isDirty ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.07)'}>
+              {saving ? <span style={{ fontSize: 10 }}>Guardando…</span> : <><Save size={11} /><span>Guardar</span></>}
+            </button>
+            <button ref={btnRef} onClick={() => { setPickerOpen(p => !p); setPickerSearch('') }} title="Compartir"
+              style={{ ...btnStyle(sharedWith.length ? 'rgba(124,77,255,0.18)' : 'rgba(0,0,0,0.07)', sharedWith.length ? '#5a00cc' : '#a08000'), width: 'auto', display: 'flex', alignItems: 'center', gap: 4, padding: '0 8px', fontSize: 11, fontWeight: 600 }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.18)'}
+              onMouseLeave={e => e.currentTarget.style.background = sharedWith.length ? 'rgba(124,77,255,0.18)' : 'rgba(0,0,0,0.07)'}>
+              <Share2 size={11} /><span>Compartir</span>
+            </button>
+          </div>
+        )}
 
-        {/* Shared-with chips */}
-        {sharedWith.length > 0 && (
+        {/* Shared-with chips — only visible to author */}
+        {!isReadOnly && sharedWith.length > 0 && (
           <div style={{ padding: '0 8px 6px', display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {isSharedAll ? (
               <Chip label="Todo el equipo" icon={<Users size={9} />} onRemove={() => toggle('all')} />

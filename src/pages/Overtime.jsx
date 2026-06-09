@@ -4,6 +4,7 @@ import {
   Plus, Trash2, ChevronDown, ChevronUp, Users, User, X
 } from 'lucide-react'
 import DateRangePicker from '../components/ui/DateRangePicker'
+import { effectiveWeeklyHours } from '../lib/holidays'
 import SearchableDropdown from '../components/ui/SearchableDropdown'
 import { useRole } from '../context/RoleContext'
 import { useAuth } from '../context/AuthContext'
@@ -422,7 +423,8 @@ export default function Overtime() {
         const vacRows   = vacByUserWeek[`${email}|${wk}`] || []
         const vacH      = vacRows.reduce((s, v) => s + Number(v.hours), 0)
         const h         = trackedH + vacH          // effective hours (tracked + vacation)
-        const diff      = h - stdHours
+        const effStdH   = effectiveWeeklyHours(email, wk, stdHours) // stdHours minus holidays
+        const diff      = h - effStdH
         const overtime  = Math.max(0, diff)
         const undertime = Math.max(0, -diff)
         const compEntries = (data.compEntries || []).filter(c => c.week_start === wk)

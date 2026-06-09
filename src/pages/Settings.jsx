@@ -19,8 +19,17 @@ function ClockifyImportCard({ onImported }) {
     setLoading(true)
     setProgress(0)
     try {
-      // 1. Import from Clockify API — incremental if we have a previous import
-      const since = cache?.importedAt || null
+      // 1. Import from Clockify API — incremental if we have a previous import.
+      // Always go back to start of yesterday at minimum so entries logged before
+      // the last sync (same day) are never missed.
+      let since = null
+      if (cache?.importedAt) {
+        const startOfYesterday = new Date()
+        startOfYesterday.setDate(startOfYesterday.getDate() - 1)
+        startOfYesterday.setHours(0, 0, 0, 0)
+        const lastImport = new Date(cache.importedAt)
+        since = (lastImport < startOfYesterday ? lastImport : startOfYesterday).toISOString()
+      }
       const result = await importFromClockify((msg, pct) => {
         setStatus(msg)
         setProgress(pct)

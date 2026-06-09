@@ -161,12 +161,13 @@ export default function Tracker() {
         .then(apiTasks => {
           const localIds = new Set(localTasks.map(t => t.id))
           const merged = [...localTasks, ...apiTasks.filter(t => !localIds.has(t.id))]
-          setProjectTasks(merged.length > 0 ? merged : localTasks)
+          const sorted = (merged.length > 0 ? merged : localTasks).sort((a, b) => a.name.localeCompare(b.name, 'es'))
+          setProjectTasks(sorted)
         })
-        .catch(() => setProjectTasks(localTasks))
+        .catch(() => setProjectTasks([...localTasks].sort((a, b) => a.name.localeCompare(b.name, 'es'))))
     }).catch(() => {
       // Fallback to WorkspaceContext if Supabase fails
-      const localTasks = getTasksForProject(selectedProject.id).map(t => ({ id: t.id, name: t.name }))
+      const localTasks = getTasksForProject(selectedProject.id).map(t => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name, 'es'))
       setProjectTasks(localTasks)
     }).finally(() => setLoadingTasks(false))
   }, [selectedProject?.id])

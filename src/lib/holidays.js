@@ -162,13 +162,36 @@ export function countHolidaysInWeek(email, weekStart) {
 }
 
 /**
- * Returns effective weekly hours owed, discounting holidays.
+ * Returns effective weekly hours owed, discounting holidays and applying
+ * summer schedule (35h/week from 1 Jul to 31 Aug).
+ *
+ * For weeks that straddle the summer boundary, each working day is rated
+ * at its own daily rate (summer or normal) and then holidays are subtracted.
+ *
  * @param {string} email
  * @param {string} weekStart  YYYY-MM-DD (Monday)
  * @param {number} stdWeeklyHours  e.g. 37.5
  */
 export function effectiveWeeklyHours(email, weekStart, stdWeeklyHours) {
-  const dailyH = stdWeeklyHours / 5
-  const holidays = countHolidaysInWeek(email, weekStart)
-  return dailyH * (5 - holidays)
+  const SUMMER_WEEKLY = 35
+  const normalDaily   = stdWeeklyHours / 5
+  const summerDaily   = SUMMER_WEEKLY / 5
+
+  // Build the 5 weekdays of this week and check holidays
+  const year = parseInt(weekStart.slice(0, 4), 10)
+  const holidays2026 = getHolidaysForUser(email, year)
+  const holidays2027 = getHolidaysForUser(email, year + 1)
+  const allHolidays  = new Set([...holidays2026, ...holidays2027])
+
+  let total = 0
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(weekStart + 'T12:00:00')
+    d.setDate(d.getDate() + i)
+    const ds    = d.toISOString().slice(0, 10)
+    if (allHolidays.has(ds)) continue          // holiday → 0h this day
+    const month = d.getMonth() + 1             // 1-based
+    const daily = (month === 7 || month === 8) ? summerDaily : normalDaily
+    total += daily
+  }
+  return total
 }

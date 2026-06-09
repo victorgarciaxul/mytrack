@@ -59,7 +59,8 @@ const HOLIDAYS = {
       '2026-01-06', // Reyes (martes) ✅
       '2026-04-03', // Viernes Santo ✅
       '2026-05-01', // Fiesta del Trabajo (viernes) ✅
-      // '2026-08-15' → sábado, se pierde (pendiente compensación 14/08)
+      // '2026-08-15' → sábado, se pierde — compensado con el viernes 14/08
+      '2026-08-14', // Compensación Asunción (viernes) ✅
       '2026-10-12', // Fiesta Nacional (lunes) ✅
       // '2026-11-01' → domingo, no computa
       '2026-12-08', // Inmaculada (martes) ✅

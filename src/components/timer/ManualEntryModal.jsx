@@ -21,6 +21,7 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
   const [saving, setSaving] = useState(false)
   const [projectTasks, setProjectTasks] = useState([])
   const [loadingTasks, setLoadingTasks] = useState(false)
+  const [errors, setErrors] = useState({})
 
   useEffect(() => {
     if (!projectId) { setProjectTasks([]); setTaskId(''); return }
@@ -51,6 +52,16 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
   }
 
   async function handleSave() {
+    const newErrors = {}
+    if (!desc.trim()) newErrors.desc = true
+    if (!projectId) newErrors.projectId = true
+    if (!taskId) newErrors.taskId = true
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      toast.error('Rellena los campos obligatorios')
+      return
+    }
+    setErrors({})
     const start = new Date(`${date}T${startTime}`)
     const end = new Date(`${date}T${endTime}`)
     if (end <= start) { toast.error('La hora de fin debe ser posterior'); return }
@@ -176,34 +187,42 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
 
         <div className="px-5 py-4 space-y-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-text-3)' }}>Descripción</label>
-            <input type="text" value={desc} onChange={e => setDesc(e.target.value)}
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: errors.desc ? '#EF4444' : 'var(--c-text-3)' }}>
+              Descripción <span style={{ color: '#EF4444' }}>*</span>
+            </label>
+            <input type="text" value={desc} onChange={e => { setDesc(e.target.value); setErrors(p => ({ ...p, desc: false })) }}
               placeholder="¿En qué trabajaste?"
               className="w-full px-3.5 py-2.5 text-sm outline-none transition-all"
-              style={inputStyle}
+              style={{ ...inputStyle, borderColor: errors.desc ? '#EF4444' : 'var(--c-input-border)' }}
               onFocus={e => Object.assign(e.target.style, focusStyle)}
-              onBlur={e => Object.assign(e.target.style, { borderColor: 'var(--c-input-border)', background: 'var(--c-input-bg)' })}
+              onBlur={e => Object.assign(e.target.style, { borderColor: errors.desc ? '#EF4444' : 'var(--c-input-border)', background: 'var(--c-input-bg)' })}
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-text-3)' }}>Proyecto</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: errors.projectId ? '#EF4444' : 'var(--c-text-3)' }}>
+              Proyecto <span style={{ color: '#EF4444' }}>*</span>
+            </label>
             <SearchableDropdown
               value={projectId || null}
-              onChange={opt => handleProjectChange(opt?.value || '')}
+              onChange={opt => { handleProjectChange(opt?.value || ''); setErrors(p => ({ ...p, projectId: false })) }}
               options={projects.map(p => ({ value: p.id, label: p.name, color: p.color }))}
               placeholder="Sin proyecto"
               clearLabel="Sin proyecto"
+              error={errors.projectId}
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-text-3)' }}>Tarea</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: errors.taskId ? '#EF4444' : 'var(--c-text-3)' }}>
+              Tarea <span style={{ color: '#EF4444' }}>*</span>
+            </label>
             <SearchableDropdown
               value={taskId || null}
-              onChange={opt => setTaskId(opt?.value || '')}
+              onChange={opt => { setTaskId(opt?.value || ''); setErrors(p => ({ ...p, taskId: false })) }}
               options={projectTasks.map(t => ({ value: t.id, label: t.name, color: '#7C4DFF' }))}
               placeholder={!projectId ? 'Selecciona un proyecto primero' : loadingTasks ? 'Cargando…' : 'Sin tarea'}
               clearLabel="Sin tarea"
               disabled={!projectId || loadingTasks}
+              error={errors.taskId}
             />
           </div>
           <div>

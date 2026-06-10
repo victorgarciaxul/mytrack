@@ -22,6 +22,7 @@ export default function SearchableDropdown({
   clearLabel = 'Sin selección',
   style,
   disabled,
+  error,
 }) {
   const [open, setOpen]     = useState(false)
   const [query, setQuery]   = useState('')
@@ -73,7 +74,9 @@ export default function SearchableDropdown({
           borderRadius: 9,
           border: open
             ? '1.5px solid #7C4DFF'
-            : '1.5px solid var(--c-border)',
+            : error
+              ? '1.5px solid #EF4444'
+              : '1.5px solid var(--c-border)',
           background: open ? 'var(--c-bg-surface)' : 'var(--c-bg-muted)',
           cursor: disabled ? 'not-allowed' : 'pointer',
           fontSize: 13, color: selected ? 'var(--c-text-1)' : 'var(--c-text-4)',

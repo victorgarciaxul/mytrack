@@ -412,12 +412,7 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
           <>
             {collapsed
               ? <div style={{ height: 4, margin: '4px 0', borderTop: '1px solid var(--c-border-light)' }} />
-              : <SectionLabel extra={
-                  <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', display: 'flex', padding: 0 }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#7C4DFF'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'var(--c-text-3)'}
-                  ><Plus size={13} /></button>
-                }>Gestión</SectionLabel>
+              : <SectionLabel>Gestión</SectionLabel>
             }
             {projectNav.map(item => (
               <NavItem key={item.to} item={item} location={location} unreadCount={unreadCount} collapsed={collapsed} />

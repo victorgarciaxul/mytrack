@@ -275,7 +275,7 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
     ...(!isGuestViewing ? [{ to: '/tracker',  icon: Clock,        label: 'Registro de tiempo', badge: false }] : []),
     ...(!isGuestViewing ? [{ to: '/calendar', icon: CalendarDays, label: 'Calendario',          badge: false }] : []),
     { to: '/reports', icon: BarChart2, label: 'Informes', badge: false },
-    ...(!isGuestViewing ? [{ to: '/overtime', icon: AlarmClock, label: 'Compensación', badge: false }] : []),
+    ...(isAdmin && !isGuestViewing ? [{ to: '/overtime', icon: AlarmClock, label: 'Compensación', badge: false }] : []),
     { to: '/notifications', icon: Bell, label: 'Bandeja de entrada', badge: true },
   ]
 

@@ -37,6 +37,14 @@ function secsToHMFull(secs) {
   return `${h}h ${m}m`
 }
 
+// Convert an ISO timestamp to a YYYY-MM-DD string in Europe/Madrid timezone,
+// matching the AT TIME ZONE 'Europe/Madrid' used by get_weekly_hours in the DB.
+const _madridFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' })
+function toMadridDate(isoStr) {
+  if (!isoStr) return ''
+  return _madridFmt.format(new Date(isoStr))
+}
+
 export default function Calendar() {
   const isMobile = useMediaQuery('(max-width: 768px)')
   const { user, isDemo } = useAuth()
@@ -107,7 +115,7 @@ export default function Calendar() {
   const byDay = useMemo(() => {
     const map = {}
     entries.forEach(e => {
-      const key = format(parseISO(e.start_time), 'yyyy-MM-dd')
+      const key = toMadridDate(e.start_time)
       if (!map[key]) map[key] = []
       map[key].push(e)
     })
@@ -127,7 +135,7 @@ export default function Calendar() {
     monthEntries.reduce((sum, e) => sum + (e.duration || 0), 0), [monthEntries])
 
   const activeDays = useMemo(() =>
-    new Set(monthEntries.map(e => format(parseISO(e.start_time), 'yyyy-MM-dd'))).size, [monthEntries])
+    new Set(monthEntries.map(e => toMadridDate(e.start_time))).size, [monthEntries])
 
   const selectedEntries = selected ? (byDay[format(selected, 'yyyy-MM-dd')] || []) : []
   // Show live timer card only when modal is open for TODAY
@@ -188,12 +196,12 @@ export default function Calendar() {
         @keyframes spin { to { transform: rotate(360deg) } }
         @keyframes pulse { 0%,100% { box-shadow: 0 0 0 4px #22C55E30 } 50% { box-shadow: 0 0 0 8px #22C55E15 } }
         @keyframes slideInUp {
-          from { opacity: 0; transform: translateY(20px) scale(0.97) }
-          to   { opacity: 1; transform: translateY(0) scale(1) }
+          from { opacity: 0; transform: translateY(16px) }
+          to   { opacity: 1; transform: translateY(0) }
         }
         @keyframes slideOutDown {
-          from { opacity: 1; transform: translateY(0) scale(1) }
-          to   { opacity: 0; transform: translateY(20px) scale(0.97) }
+          from { opacity: 1; transform: translateY(0) }
+          to   { opacity: 0; transform: translateY(16px) }
         }
         .cal-day:hover .cal-day-inner { border-color: #7C4DFF55 !important; background: var(--c-bg-hover) !important; }
         .cal-day:hover .cal-heat { opacity: 0.9 !important; }

@@ -1,11 +1,27 @@
 import { useState, useEffect } from 'react'
 import { CalendarOff, CheckCircle, XCircle, AlertCircle, Plus, X } from 'lucide-react'
-import { initDB, dbGetTimeOffRequests, dbGetTimeOffPolicies, dbGetAllMembers, dbCreateTimeOffRequest } from '../lib/db'
+import { initDB, dbGetTimeOffRequests, dbGetTimeOffPolicies, dbGetAllMembers, dbCreateTimeOffRequest, dbSendNotification } from '../lib/db'
 import { format, parseISO, differenceInCalendarDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useRole } from '../context/RoleContext'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
+
+const MOTIVOS = [
+  'Vacaciones', 'Baja', 'Festivo Nacional', 'Otros', 'Festivo Autonómico',
+  'Festivo Local', 'Maternidad', 'Paternidad', 'Excedencia', 'Asuntos propios',
+  'Matrimonio/Boda', 'Mudanza / Traslado domicilio habitual', 'Fallecimiento familiar',
+  'Baja Covid19', 'ERTE', 'Permiso Retribuido Recuperable', 'Permiso', 'Lactancia',
+  'Día Libre Disposición', 'Asuntos Judiciales', 'Enfermedad', 'Enfermedad Familiar',
+  'Exámenes Oficiales', 'Huelga', 'Matrimonio Familiar', 'Nacimiento/Adopción hijo 2+1 días',
+  'Nacimiento/Adopción hijo 2 días', 'Puente Opcional',
+  'Período adicional a las vacaciones sin actividad lectiva', 'Voluntariado',
+  'No laborable', 'Vacaciones contra horas', 'Permiso 8 semanas Ley de Familia',
+  'Festivo Convenio', 'Cumpleaños Trabajador', 'Formación', 'Accidente Laboral',
+  'Horas Idiomas', 'Día compensatorio', 'Antigüedad',
+]
+
+const INMA_EMAIL = 'inmaosuna@xul.es'
 
 const STATUS_CONFIG = {
   APPROVED:  { label: 'Aprobada',  color: '#10B981', bg: '#10B98118', Icon: CheckCircle },
@@ -98,22 +114,35 @@ export default function TimeOff() {
     if (!fStart || !fEnd) { toast.error('Elige las fechas'); return }
     setSaving(true)
     try {
-      // Admins can pick any member; employees always use their own account
       const member = canManageAll && fEmployee
         ? (members.find(m => m.user_email === fEmployee) || { user_email: fEmployee, user_name: fEmployee })
         : { user_email: user?.email, user_name: user?.user_name || user?.user_metadata?.full_name || user?.email }
-      const policy = policies.find(p => p.id === fPolicy)
       const newR = await dbCreateTimeOffRequest({
-        userEmail: member.user_email,
-        userName:  member.user_name,
-        policyId:   policy?.id   || null,
-        policyName: policy?.name || null,
-        startDate: fStart,
-        endDate:   fEnd,
-        note:      fNote || null,
+        userEmail:  member.user_email,
+        userName:   member.user_name,
+        policyId:   null,
+        policyName: fPolicy || null,
+        startDate:  fStart,
+        endDate:    fEnd,
+        note:       fNote || null,
       })
       setRequests(prev => [newR, ...prev])
       toast.success('Solicitud creada')
+
+      // Notificar a Inma Osuna
+      const inma = members.find(m => m.user_email === INMA_EMAIL)
+      if (inma) {
+        const days = daysBetween(fStart, fEnd)
+        await dbSendNotification({
+          senderEmail: user?.email,
+          senderName:  member.user_name,
+          recipientIds: [inma.id],
+          type:  'time_off',
+          title: `Nueva solicitud de baja: ${fPolicy || 'Sin motivo'}`,
+          message: `${member.user_name} ha solicitado ${days ?? '?'} día(s) del ${fmtDate(fStart)} al ${fmtDate(fEnd)}${fNote ? ` — ${fNote}` : ''}`,
+        }).catch(() => {})
+      }
+
       setFEmployee(''); setFPolicy(''); setFStart(''); setFEnd(''); setFNote(''); setShowForm(false)
     } catch { toast.error('Error al crear solicitud') }
     setSaving(false)
@@ -157,10 +186,10 @@ export default function TimeOff() {
               </div>
               )}
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Política</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Motivo</label>
                 <select value={fPolicy} onChange={e => setFPolicy(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-                  <option value="">Sin política</option>
-                  {policies.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  <option value="">Sin motivo</option>
+                  {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
               <div>

@@ -12,7 +12,7 @@ const SUPABASE_URL = 'https://bjoqigbscnkqufhtgrlu.supabase.co'
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqb3FpZ2JzY25rcXVmaHRncmx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1Njk3NTQsImV4cCI6MjA5NjE0NTc1NH0.TTMiTrZKPP6MQKlXCQuNKTUuOhPCTZNWvcJoD53oTCo'
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
-const PROJECT_ID   = '667a69f4ed670144288c0ad4-xul'
+const PROJECT_ID   = '667a69f4ed670144288c0ad4'
 const PROJECT_NAME = 'Agencia Digital de Andalucía | Oficina Comunicación'
 const DESCRIPTION  = 'Tareas varias'
 const WS_ID        = 'xul-ws-1'

@@ -10,7 +10,7 @@ import { createClient } from '@supabase/supabase-js'
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
 
-const PROJECT_ID   = '667a69f4ed670144288c0ad4-xul'
+const PROJECT_ID   = '667a69f4ed670144288c0ad4'
 const PROJECT_NAME = 'Agencia Digital de Andalucía | Oficina Comunicación'
 const DESCRIPTION  = 'Tareas varias'
 const WS_ID        = 'xul-ws-1'

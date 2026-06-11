@@ -4,7 +4,7 @@ import SearchableDropdown from '../ui/SearchableDropdown'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import { useAuth } from '../../context/AuthContext'
-import { clockifyCreateEntry, isClockifyUser, clockifyGetProjectTasks } from '../../lib/clockify'
+import { clockifyGetProjectTasks } from '../../lib/clockify'
 import { initDB, dbInsertEntry, dbGetTasksForProject } from '../../lib/db'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -68,63 +68,7 @@ export default function ManualEntryModal({ onClose, onSave, projects, workspace,
     const duration = Math.floor((end - start) / 1000)
     setSaving(true)
 
-    // ── Clockify sync — for all users with a clockify_user_id ──
-    const clockifyUserId = user?.clockify_user_id || null
-    const syncEnabled = !!clockifyUserId
-    if (syncEnabled) {
-      const project = projects.find(p => p.id === projectId)
-      const task = projectTasks.find(t => t.id === taskId)
-      try {
-        const saved = await clockifyCreateEntry({
-          description: desc || '',
-          projectId: projectId || null,
-          taskId: taskId || null,
-          start: start.toISOString(),
-          end: end.toISOString(),
-          userId: clockifyUserId,
-        })
-        const entry = {
-          id: saved.id,
-          workspace_id: workspace?.id,
-          description: saved.description || desc || '(sin descripción)',
-          start_time: saved.timeInterval?.start || start.toISOString(),
-          end_time: saved.timeInterval?.end || end.toISOString(),
-          duration,
-          projects: project ? { name: project.name, color: project.color, clients: project.clients } : null,
-          tasks: task ? { name: task.name } : null,
-        }
-        onDemoSave?.(entry)
-        // Also save to Neon
-        initDB().then(() => dbInsertEntry({
-          id: saved.id,
-          userEmail: user?.email,
-          workspaceId: user?.workspace_id || 'xul-ws-1',
-          projectId: projectId || null,
-          projectName: project?.name || null,
-          projectColor: project?.color || null,
-          clientName: project?.clients?.name || null,
-          taskId: taskId || null,
-          taskName: task?.name || null,
-          description: entry.description,
-          startTime: entry.start_time,
-          endTime: entry.end_time,
-          duration,
-          billable: true,
-        })).then(() => {
-          window.dispatchEvent(new CustomEvent('mytrack:entry-saved', {
-            detail: { year: new Date(entry.start_time).getFullYear() }
-          }))
-        }).catch(err => console.warn('Neon save error:', err.message))
-        toast.success('✅ Guardado en Clockify')
-      } catch (err) {
-        toast.error('Error Clockify: ' + err.message)
-      }
-      setSaving(false)
-      onSave()
-      return
-    }
-
-    // Non-Clockify users: save to Neon
+    // Save to Neon
     const project = projects.find(p => p.id === projectId)
     const task = projectTasks.find(t => t.id === taskId)
     try {

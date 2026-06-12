@@ -467,8 +467,32 @@ export default function Tracker() {
 
   async function reactivateEntry(e) {
     if (timer.isRunning) {
-      toast.error('Para el timer actual antes de reactivar')
-      return
+      const secs = timer.stop()
+      dbDeleteRunningTimer(user.email).catch(() => {})
+      if (secs >= 5) {
+        const endTime = new Date()
+        const startTime = new Date(endTime.getTime() - secs * 1000)
+        await initDB()
+        const saved = await dbInsertEntry({
+          userEmail:    user.email,
+          workspaceId:  user.workspace_id || 'xul-ws-1',
+          projectId:    selectedProject?.id    || null,
+          projectName:  selectedProject?.name  || null,
+          projectColor: selectedProject?.color || null,
+          clientName:   selectedProject?.client_name || null,
+          taskId:       selectedTask?.id   || null,
+          taskName:     selectedTask?.name || null,
+          description:  description || '(sin descripción)',
+          startTime:    startTime.toISOString(),
+          endTime:      endTime.toISOString(),
+          duration:     secs,
+        }).catch(() => null)
+        if (saved) {
+          setEntries(prev => [{ id: saved.id, description: saved.description, start_time: saved.start_time, end_time: saved.end_time, duration: saved.duration, projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color } : null, tasks: selectedTask ? { name: selectedTask.name } : null }, ...prev])
+        }
+      }
+      timer.reset()
+      setIsMeetingTimer(false)
     }
 
     setDescription(e.description || '')

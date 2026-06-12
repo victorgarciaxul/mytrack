@@ -78,6 +78,10 @@ export default function Tracker() {
   const [description, setDescription] = useState(() => {
     try { return JSON.parse(localStorage.getItem(ACTIVE_KEY))?.description || '' } catch { return '' }
   })
+  const [descSuggestions, setDescSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [suggestionIdx, setSuggestionIdx] = useState(-1)
+  const descInputRef = useRef(null)
   const [selectedProject, setSelectedProject] = useState(() => {
     try { return JSON.parse(localStorage.getItem(ACTIVE_KEY))?.project || null } catch { return null }
   })
@@ -553,22 +557,80 @@ export default function Tracker() {
               </button>
             </div>
 
-            <input
-              placeholder="¿En qué estás trabajando?"
-              value={description}
-              onChange={e => {
-                const val = e.target.value
-                setDescription(val)
-                persistDescription(val)        // sync write — survives fast navigation
-                scheduleDescriptionSync(val)   // debounced DB update
-              }}
-              onKeyDown={e => e.key === 'Enter' && !timer.isRunning && handleStart()}
-              style={{
-                width: '100%', border: 'none', outline: 'none', background: 'transparent',
-                fontSize: 20, fontWeight: 700, color: 'var(--c-text-1)', marginBottom: 4,
-                letterSpacing: '-0.3px', boxSizing: 'border-box',
-              }}
-            />
+            <div style={{ position: 'relative', width: '100%' }}>
+              <input
+                ref={descInputRef}
+                placeholder="¿En qué estás trabajando?"
+                value={description}
+                onChange={e => {
+                  const val = e.target.value
+                  setDescription(val)
+                  persistDescription(val)
+                  scheduleDescriptionSync(val)
+                  if (val.trim().length >= 2) {
+                    const q = val.toLowerCase()
+                    const seen = new Set()
+                    const matches = entries
+                      .map(e => e.description)
+                      .filter(d => d && d !== '(sin descripción)' && d.toLowerCase().includes(q) && !seen.has(d) && seen.add(d))
+                      .slice(0, 6)
+                    setDescSuggestions(matches)
+                    setShowSuggestions(matches.length > 0)
+                    setSuggestionIdx(-1)
+                  } else {
+                    setShowSuggestions(false)
+                  }
+                }}
+                onKeyDown={e => {
+                  if (showSuggestions) {
+                    if (e.key === 'ArrowDown') { e.preventDefault(); setSuggestionIdx(i => Math.min(i + 1, descSuggestions.length - 1)) }
+                    else if (e.key === 'ArrowUp') { e.preventDefault(); setSuggestionIdx(i => Math.max(i - 1, -1)) }
+                    else if (e.key === 'Enter' && suggestionIdx >= 0) {
+                      e.preventDefault()
+                      const val = descSuggestions[suggestionIdx]
+                      setDescription(val); persistDescription(val); scheduleDescriptionSync(val)
+                      setShowSuggestions(false); setSuggestionIdx(-1)
+                    } else if (e.key === 'Escape') { setShowSuggestions(false) }
+                    else if (e.key === 'Enter') { setShowSuggestions(false); if (!timer.isRunning) handleStart() }
+                  } else if (e.key === 'Enter' && !timer.isRunning) handleStart()
+                }}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                style={{
+                  width: '100%', border: 'none', outline: 'none', background: 'transparent',
+                  fontSize: 20, fontWeight: 700, color: 'var(--c-text-1)', marginBottom: 4,
+                  letterSpacing: '-0.3px', boxSizing: 'border-box',
+                }}
+              />
+              {showSuggestions && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                  background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)',
+                  borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden',
+                  marginTop: 2,
+                }}>
+                  {descSuggestions.map((s, i) => (
+                    <div
+                      key={i}
+                      onMouseDown={() => {
+                        setDescription(s); persistDescription(s); scheduleDescriptionSync(s)
+                        setShowSuggestions(false); setSuggestionIdx(-1)
+                        descInputRef.current?.focus()
+                      }}
+                      style={{
+                        padding: '9px 14px', fontSize: 13, cursor: 'pointer',
+                        color: 'var(--c-text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        background: i === suggestionIdx ? 'rgba(124,77,255,0.08)' : 'transparent',
+                        borderBottom: i < descSuggestions.length - 1 ? '1px solid var(--c-border-light)' : 'none',
+                      }}
+                      onMouseEnter={() => setSuggestionIdx(i)}
+                      onMouseLeave={() => setSuggestionIdx(-1)}
+                    >
+                      {s}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {selectedProject && (
               <p style={{ fontSize: 12, color: '#7C4DFF', marginBottom: 14, fontWeight: 500 }}>

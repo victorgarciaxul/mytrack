@@ -355,7 +355,7 @@ export default function Tracker() {
     const startedAt = new Date().toISOString()
     timer.start()
     dbSaveRunningTimer({ userEmail: user.email, workspaceId: user.workspace_id || 'xul-ws-1', startedAt, description: 'Reunión', projectId: null, projectName: null, projectColor: null, taskId: null, taskName: null }).catch(() => {})
-    toast('📅 Reunión iniciada — asigna proyecto al terminar', { duration: 4000 })
+    toast('Reunión iniciada — asigna proyecto al terminar', { duration: 4000 })
   }
 
   async function handleStop() {
@@ -780,14 +780,14 @@ export default function Tracker() {
                   onMouseEnter={e => { e.currentTarget.style.background = '#7C4DFF12'; e.currentTarget.style.borderColor = '#7C4DFF' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#7C4DFF55' }}
                 >
-                  📅 Reunión
+                  Reunión
                 </button>
               </div>
             )}
             {isMeetingTimer && (
               <div style={{ marginTop: 10, display: 'flex', justifyContent: 'center' }}>
                 <span style={{ fontSize: 12, color: '#7C4DFF', fontWeight: 600, background: '#7C4DFF12', padding: '5px 14px', borderRadius: 20, border: '1.5px solid #7C4DFF40' }}>
-                  📅 Reunión en curso — para el timer para asignar proyecto
+                  Reunión en curso — para el timer para asignar proyecto
                 </span>
               </div>
             )}
@@ -1274,7 +1274,7 @@ function MeetingModal({ projects, getTasksForProject, description, setDescriptio
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ background: 'var(--c-bg-surface)', borderRadius: 16, padding: 28, width: 360, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
-        <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700, color: 'var(--c-text-1)' }}>📅 ¿A qué proyecto asignamos la reunión?</h3>
+        <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700, color: 'var(--c-text-1)' }}>¿A qué proyecto asignamos la reunión?</h3>
         <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--c-text-3)' }}>Elige proyecto y tarea antes de guardar.</p>
 
         <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-3)', display: 'block', marginBottom: 4 }}>Descripción</label>

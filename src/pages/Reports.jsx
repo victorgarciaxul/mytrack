@@ -153,7 +153,8 @@ export default function Reports() {
     const secs = filtered
       .filter(e => { try { return format(parseISO(e.start_time), 'yyyy-MM-dd') === key } catch { return false } })
       .reduce((s, e) => s + (Number(e.duration) || 0), 0)
-    const labelFmt = rangeType === 'week' ? 'EEE' : rangeType === 'month' ? 'd' : 'd MMM'
+    const diffDays = Math.round((to - from) / 86400000)
+    const labelFmt = diffDays <= 7 ? 'EEE' : diffDays <= 31 ? 'd' : 'd MMM'
     return { name: format(day, labelFmt, { locale: es }), horas: parseFloat((secs / 3600).toFixed(2)) }
   })
 
@@ -365,7 +366,7 @@ export default function Reports() {
               <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, padding: '18px 20px' }}>
                 <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 16px' }}>Horas por día</p>
                 <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={byDayData} barSize={rangeType === 'week' ? 28 : 14}>
+                  <BarChart data={byDayData} barSize={Math.round((to - from) / 86400000) <= 7 ? 28 : 14}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--c-border-light)" vertical={false} />
                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--c-text-3)' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: 'var(--c-text-3)' }} axisLine={false} tickLine={false} unit="h" />

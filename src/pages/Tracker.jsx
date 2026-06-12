@@ -363,8 +363,8 @@ export default function Tracker() {
     dbDeleteRunningTimer(user.email).catch(() => {})
     if (secs < 5) { timer.reset(); setIsMeetingTimer(false); return }
 
-    // Meeting timer: ask for project/task before saving
-    if (isMeetingTimer) {
+    // Meeting timer: if project+task already filled, save directly; otherwise ask
+    if (isMeetingTimer && (!selectedProject || !selectedTask)) {
       setPendingMeetingSecs(secs)
       setShowMeetingModal(true)
       return

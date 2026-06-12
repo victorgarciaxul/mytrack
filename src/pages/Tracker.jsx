@@ -383,59 +383,45 @@ export default function Tracker() {
       return
     }
 
-    // Always restore description
     setDescription(e.description || '')
 
-    // Find the project in the active (non-archived) projects list
-    const proj = e.projects?.name
-      ? projects.find(p => p.name === e.projects.name && !p.archived) || null
+    // Match project by id first, then by name, skip archived
+    const proj = e.project_id
+      ? projects.find(p => p.id === e.project_id && !p.archived)
+        || projects.find(p => p.name === e.projects?.name && !p.archived)
+        || null
       : null
 
-    if (e.projects?.name && !proj) {
-      // Project is archived — pre-fill description, clear project, let user pick a new one
-      setSelectedProject(null)
-      setSelectedTask(null)
-      toast(`📋 Descripción restaurada. El proyecto "${e.projects.name}" está archivado — elige uno activo y pulsa ▶`, { duration: 5000 })
-      return
-    }
-
-    // Validate: project + task required
-    if (!proj) {
-      setSelectedProject(null)
-      setSelectedTask(null)
-      toast.error('Esta entrada no tiene proyecto — selecciona uno y pulsa ▶')
-      return
-    }
-    if (!e.tasks?.name) {
-      setSelectedProject(proj)
-      setSelectedTask(null)
-      toast.error('Esta entrada no tiene tarea — selecciona una y pulsa ▶')
-      return
-    }
+    const restoredTask = e.task_id && e.tasks?.name
+      ? { id: e.task_id, name: e.tasks.name }
+      : e.task_id && e.task_name
+        ? { id: e.task_id, name: e.task_name }
+        : null
 
     setSelectedProject(proj)
-    const restoredTask = { id: e.task_id, name: e.tasks.name }
     setSelectedTask(restoredTask)
-    // Pre-seed task list so the dropdown shows the task immediately (before async load)
-    setProjectTasks(prev => {
-      const alreadyThere = prev.some(t => t.id === e.task_id)
-      return alreadyThere ? prev : [restoredTask, ...prev]
-    })
+
+    if (restoredTask) {
+      setProjectTasks(prev => {
+        const alreadyThere = prev.some(t => t.id === restoredTask.id)
+        return alreadyThere ? prev : [restoredTask, ...prev]
+      })
+    }
 
     const startedAt = new Date().toISOString()
     timer.start()
     dbSaveRunningTimer({
-      userEmail: user.email,
-      workspaceId: user.workspace_id || 'xul-ws-1',
+      userEmail:    user.email,
+      workspaceId:  user.workspace_id || 'xul-ws-1',
       startedAt,
       description:  e.description || '',
       projectId:    proj?.id    || null,
       projectName:  proj?.name  || null,
       projectColor: proj?.color || null,
-      taskId:       e.task_id   || null,
-      taskName:     e.tasks?.name || null,
+      taskId:       restoredTask?.id   || null,
+      taskName:     restoredTask?.name || null,
     }).catch(() => {})
-    toast.success('⏱ Timer reactivado')
+    toast.success('⏱ Timer iniciado')
   }
 
   function applyStartTimeEdit() {

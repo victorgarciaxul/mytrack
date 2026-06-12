@@ -333,8 +333,8 @@ export default function Costs() {
     ? (sortDir === 'desc' ? <ChevronDown size={12} /> : <ChevronUp size={12} />)
     : null
 
-  if (role === null || !costProjectsLoaded || (costProjectsLoaded && !hasCostAccess)) return null
-  if (loading) return (
+  if (costProjectsLoaded && !hasCostAccess) return null
+  if (role === null || !costProjectsLoaded || loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
       <div style={{ width: 28, height: 28, border: '3px solid #7C4DFF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
     </div>

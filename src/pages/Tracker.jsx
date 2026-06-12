@@ -44,6 +44,9 @@ export default function Tracker() {
   }
 
   const ACTIVE_KEY = 'mytrack-active-entry'
+  const [isMeetingTimer, setIsMeetingTimer] = useState(false)
+  const [showMeetingModal, setShowMeetingModal] = useState(false)
+  const [pendingMeetingSecs, setPendingMeetingSecs] = useState(null)
 
   // Persist description to localStorage synchronously (don't wait for useEffect).
   // This prevents losing the description if the user navigates away faster than
@@ -313,10 +316,59 @@ export default function Tracker() {
     }).catch(err => console.warn('Save running timer error:', err))
   }
 
+  async function handleMeetingStart() {
+    // Stop current timer if running
+    if (timer.isRunning) {
+      const secs = timer.stop()
+      dbDeleteRunningTimer(user.email).catch(() => {})
+      if (secs >= 5) {
+        const endTime = new Date()
+        const startTime = new Date(endTime.getTime() - secs * 1000)
+        await initDB()
+        const saved = await dbInsertEntry({
+          userEmail:    user.email,
+          workspaceId:  user.workspace_id || 'xul-ws-1',
+          projectId:    selectedProject?.id    || null,
+          projectName:  selectedProject?.name  || null,
+          projectColor: selectedProject?.color || null,
+          clientName:   selectedProject?.client_name || null,
+          taskId:       selectedTask?.id   || null,
+          taskName:     selectedTask?.name || null,
+          description:  description || '(sin descripción)',
+          startTime:    startTime.toISOString(),
+          endTime:      endTime.toISOString(),
+          duration:     secs,
+        }).catch(() => null)
+        if (saved) {
+          setEntries(prev => [{ id: saved.id, description: saved.description, start_time: saved.start_time, end_time: saved.end_time, duration: saved.duration, projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color } : null, tasks: selectedTask ? { name: selectedTask.name } : null }, ...prev])
+        }
+      }
+      timer.reset()
+    }
+
+    // Start meeting timer
+    setDescription('Reunión')
+    setSelectedProject(null)
+    setSelectedTask(null)
+    setIsMeetingTimer(true)
+    localStorage.removeItem(ACTIVE_KEY)
+    const startedAt = new Date().toISOString()
+    timer.start()
+    dbSaveRunningTimer({ userEmail: user.email, workspaceId: user.workspace_id || 'xul-ws-1', startedAt, description: 'Reunión', projectId: null, projectName: null, projectColor: null, taskId: null, taskName: null }).catch(() => {})
+    toast('📅 Reunión iniciada — asigna proyecto al terminar', { duration: 4000 })
+  }
+
   async function handleStop() {
     const secs = timer.stop()
     dbDeleteRunningTimer(user.email).catch(() => {})
-    if (secs < 5) { timer.reset(); return }
+    if (secs < 5) { timer.reset(); setIsMeetingTimer(false); return }
+
+    // Meeting timer: ask for project/task before saving
+    if (isMeetingTimer) {
+      setPendingMeetingSecs(secs)
+      setShowMeetingModal(true)
+      return
+    }
 
     const endTime   = new Date()
     const startTime = new Date(endTime.getTime() - secs * 1000)
@@ -359,6 +411,48 @@ export default function Tracker() {
     setDescription('')
     setSelectedProject(null)
     setSelectedTask(null)
+    setIsMeetingTimer(false)
+    localStorage.removeItem(ACTIVE_KEY)
+  }
+
+  async function handleMeetingSave(proj, task) {
+    const secs = pendingMeetingSecs
+    setPendingMeetingSecs(null)
+    setShowMeetingModal(false)
+    const endTime   = new Date()
+    const startTime = new Date(endTime.getTime() - secs * 1000)
+    setSyncing(true)
+    try {
+      await initDB()
+      const saved = await dbInsertEntry({
+        userEmail:    user.email,
+        workspaceId:  user.workspace_id || 'xul-ws-1',
+        projectId:    proj?.id    || null,
+        projectName:  proj?.name  || null,
+        projectColor: proj?.color || null,
+        clientName:   proj?.client_name || null,
+        taskId:       task?.id   || null,
+        taskName:     task?.name || null,
+        description:  description || 'Reunión',
+        startTime:    startTime.toISOString(),
+        endTime:      endTime.toISOString(),
+        duration:     secs,
+      })
+      if (saved) {
+        setEntries(prev => [{ id: saved.id, description: saved.description, start_time: saved.start_time, end_time: saved.end_time, duration: saved.duration, projects: proj ? { name: proj.name, color: proj.color } : null, tasks: task ? { name: task.name } : null }, ...prev])
+        window.dispatchEvent(new CustomEvent('mytrack:entry-saved', { detail: { year: new Date().getFullYear() } }))
+      }
+      toast.success('✅ Reunión registrada')
+    } catch (err) {
+      toast.error('Error al guardar: ' + err.message)
+    } finally {
+      setSyncing(false)
+    }
+    timer.reset()
+    setDescription('')
+    setSelectedProject(null)
+    setSelectedTask(null)
+    setIsMeetingTimer(false)
     localStorage.removeItem(ACTIVE_KEY)
   }
 
@@ -669,6 +763,34 @@ export default function Tracker() {
                 }
               </button>
             </div>
+
+            {/* Meeting quick button */}
+            {!isMeetingTimer && (
+              <div style={{ marginTop: 10, display: 'flex', justifyContent: 'center' }}>
+                <button
+                  onClick={handleMeetingStart}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '6px 16px', borderRadius: 20,
+                    border: '1.5px solid #7C4DFF55',
+                    background: 'transparent', cursor: 'pointer',
+                    fontSize: 12, fontWeight: 600, color: '#7C4DFF',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#7C4DFF12'; e.currentTarget.style.borderColor = '#7C4DFF' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#7C4DFF55' }}
+                >
+                  📅 Reunión
+                </button>
+              </div>
+            )}
+            {isMeetingTimer && (
+              <div style={{ marginTop: 10, display: 'flex', justifyContent: 'center' }}>
+                <span style={{ fontSize: 12, color: '#7C4DFF', fontWeight: 600, background: '#7C4DFF12', padding: '5px 14px', borderRadius: 20, border: '1.5px solid #7C4DFF40' }}>
+                  📅 Reunión en curso — para el timer para asignar proyecto
+                </span>
+              </div>
+            )}
 
             {/* Project / Task pickers */}
             <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', minWidth: 0 }}>
@@ -1115,6 +1237,91 @@ export default function Tracker() {
           onSaved={updated => { updateEntry(updated); setEditingEntry(null) }}
         />
       )}
+
+      {/* Meeting project/task picker modal */}
+      {showMeetingModal && (
+        <MeetingModal
+          projects={projects}
+          getTasksForProject={getTasksForProject}
+          description={description}
+          setDescription={setDescription}
+          onSave={handleMeetingSave}
+          onCancel={() => {
+            setShowMeetingModal(false)
+            setPendingMeetingSecs(null)
+            timer.reset()
+            setDescription('')
+            setIsMeetingTimer(false)
+            localStorage.removeItem(ACTIVE_KEY)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Meeting modal ──────────────────────────────────────────────────────────────
+function MeetingModal({ projects, getTasksForProject, description, setDescription, onSave, onCancel }) {
+  const [proj, setProj] = useState(null)
+  const [task, setTask] = useState(null)
+  const [tasks, setTasks] = useState([])
+
+  useEffect(() => {
+    if (!proj) { setTasks([]); setTask(null); return }
+    getTasksForProject(proj.id).then(t => { setTasks(t || []); setTask(null) })
+  }, [proj])
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: 'var(--c-bg-surface)', borderRadius: 16, padding: 28, width: 360, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+        <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700, color: 'var(--c-text-1)' }}>📅 ¿A qué proyecto asignamos la reunión?</h3>
+        <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--c-text-3)' }}>Elige proyecto y tarea antes de guardar.</p>
+
+        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-3)', display: 'block', marginBottom: 4 }}>Descripción</label>
+        <input
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--c-border)', background: 'var(--c-bg-muted)', color: 'var(--c-text-1)', fontSize: 13, marginBottom: 14, outline: 'none' }}
+        />
+
+        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-3)', display: 'block', marginBottom: 4 }}>Proyecto *</label>
+        <select
+          value={proj?.id || ''}
+          onChange={e => { const p = projects.find(x => x.id === e.target.value); setProj(p || null) }}
+          style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--c-border)', background: 'var(--c-bg-muted)', color: 'var(--c-text-1)', fontSize: 13, marginBottom: 14, cursor: 'pointer' }}
+        >
+          <option value="">— Selecciona proyecto —</option>
+          {projects.filter(p => !p.archived).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+
+        {proj && (
+          <>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-text-3)', display: 'block', marginBottom: 4 }}>Tarea *</label>
+            <select
+              value={task?.id || ''}
+              onChange={e => { const t = tasks.find(x => x.id === e.target.value); setTask(t || null) }}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--c-border)', background: 'var(--c-bg-muted)', color: 'var(--c-text-1)', fontSize: 13, marginBottom: 20, cursor: 'pointer' }}
+            >
+              <option value="">— Selecciona tarea —</option>
+              {tasks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </>
+        )}
+        {!proj && <div style={{ marginBottom: 20 }} />}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onCancel} style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid var(--c-border)', background: 'var(--c-bg-muted)', color: 'var(--c-text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            Descartar
+          </button>
+          <button
+            onClick={() => onSave(proj, task)}
+            disabled={!proj || !task}
+            style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: !proj || !task ? '#CBD5E1' : 'linear-gradient(135deg,#7C4DFF,#E040FB)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: !proj || !task ? 'not-allowed' : 'pointer' }}
+          >
+            Guardar reunión
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

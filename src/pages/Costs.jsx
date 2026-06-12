@@ -1,144 +1,15 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
-import { DollarSign, ChevronDown, ChevronUp, TrendingUp, Users, Briefcase, Filter, CalendarRange, ChevronLeft, ChevronRight, Building2, Percent } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { DollarSign, ChevronDown, ChevronUp, TrendingUp, Users, Briefcase, Filter, Building2, Percent } from 'lucide-react'
+import DateRangePicker from '../components/ui/DateRangePicker'
 import { useRole } from '../context/RoleContext'
 import { useNavigate } from 'react-router-dom'
 import { sql, getWsId, initDB } from '../lib/db'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, addMonths, isSameDay, getDaysInMonth, getDay, startOfDay, endOfDay } from 'date-fns'
+import { format, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-// ── Date range presets ──────────────────────────────────────────────────────
-const THIS_MONTH  = () => ({ from: startOfMonth(new Date()),  to: endOfMonth(new Date()) })
-const LAST_MONTH  = () => { const d = subMonths(new Date(), 1); return { from: startOfMonth(d), to: endOfMonth(d) } }
-const THIS_YEAR   = () => ({ from: startOfYear(new Date()),   to: endOfYear(new Date()) })
-const ALL_TIME    = () => ({ from: new Date('2020-01-01'),     to: new Date('2099-12-31') })
-
-const PRESETS = [
-  { label: 'Este mes',      fn: THIS_MONTH },
-  { label: 'Mes anterior',  fn: LAST_MONTH },
-  { label: 'Este año',      fn: THIS_YEAR  },
-  { label: 'Todo',          fn: ALL_TIME   },
-  { label: 'Rango',         fn: null },
-]
-const CUSTOM_IDX = 4
-
-// ── DateRangePicker ──────────────────────────────────────────────────────────
-const WEEK_DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
-
-function DateRangePicker({ from, to, isActive, onActivate, onChange }) {
-  const [open, setOpen]           = useState(false)
-  const [selecting, setSelecting] = useState(null)
-  const [hover, setHover]         = useState(null)
-  const [viewMonth, setViewMonth] = useState(() => startOfMonth(from || new Date()))
-  const containerRef              = useRef(null)
-
-  useEffect(() => {
-    if (!open) return
-    function onDown(e) {
-      if (!containerRef.current?.contains(e.target)) { setOpen(false); setSelecting(null); setHover(null) }
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [open])
-
-  function handleTrigger() {
-    onActivate(); setOpen(o => !o)
-    if (!open) setViewMonth(startOfMonth(from || new Date()))
-  }
-
-  function handleDayClick(date) {
-    if (!selecting) { setSelecting(date) } else {
-      const [f, t] = date < selecting
-        ? [startOfDay(date), endOfDay(selecting)]
-        : [startOfDay(selecting), endOfDay(date)]
-      onChange({ from: f, to: t })
-      setSelecting(null); setHover(null); setOpen(false)
-    }
-  }
-
-  function getDisplayRange() {
-    if (selecting) { const end = hover || selecting; return selecting <= end ? [selecting, end] : [end, selecting] }
-    return [from, to]
-  }
-  const [dFrom, dTo] = getDisplayRange()
-
-  function getDayStyle(date) {
-    const isStart = dFrom && isSameDay(date, dFrom)
-    const isEnd   = dTo   && isSameDay(date, dTo)
-    const inRange = dFrom && dTo && date > dFrom && date < dTo
-    const isToday = isSameDay(date, new Date())
-    if (isStart || isEnd) return { bg: '#7C4DFF', color: '#fff', fw: 700, radius: isStart ? '8px 0 0 8px' : '0 8px 8px 0' }
-    if (inRange)          return { bg: '#7C4DFF1A', color: '#7C4DFF', fw: 500, radius: 0 }
-    if (isToday)          return { bg: 'transparent', color: '#7C4DFF', fw: 700, radius: 8, border: '1.5px solid #7C4DFF55' }
-    return { bg: 'transparent', color: 'var(--c-text-1)', fw: 400, radius: 8 }
-  }
-
-  const firstDow = (getDay(viewMonth) + 6) % 7
-  const daysCount = getDaysInMonth(viewMonth)
-  const cells = []
-  for (let i = 0; i < firstDow; i++) cells.push(null)
-  for (let d = 1; d <= daysCount; d++) cells.push(new Date(viewMonth.getFullYear(), viewMonth.getMonth(), d))
-
-  const triggerLabel = isActive && from && to
-    ? `${format(from, 'd MMM', { locale: es })} → ${format(to, 'd MMM yy', { locale: es })}`
-    : 'Rango'
-
-  return (
-    <div ref={containerRef} style={{ position: 'relative' }}>
-      <button onClick={handleTrigger} style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-        background: isActive ? '#7C4DFF' : 'var(--c-bg-muted)',
-        color:      isActive ? '#fff'    : 'var(--c-text-3)',
-        border:     isActive ? '1.5px solid #7C4DFF' : '1.5px solid var(--c-border)',
-        transition: 'all 0.15s', whiteSpace: 'nowrap',
-      }}>
-        <CalendarRange size={13} />{triggerLabel}
-      </button>
-
-      {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 300,
-          background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)',
-          borderRadius: 16, padding: 18, minWidth: 272,
-          boxShadow: '0 16px 48px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.04)',
-        }} onClick={e => e.stopPropagation()}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <button onClick={() => setViewMonth(m => subMonths(m, 1))} style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid var(--c-border)', background: 'var(--c-bg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--c-text-3)' }}><ChevronLeft size={14} /></button>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--c-text-1)', textTransform: 'capitalize', letterSpacing: '-0.2px' }}>{format(viewMonth, 'MMMM yyyy', { locale: es })}</span>
-            <button onClick={() => setViewMonth(m => addMonths(m, 1))} style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid var(--c-border)', background: 'var(--c-bg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--c-text-3)' }}><ChevronRight size={14} /></button>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 4 }}>
-            {WEEK_DAYS.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, color: 'var(--c-text-4)', paddingBottom: 4 }}>{d}</div>)}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px 0' }}>
-            {cells.map((date, i) => {
-              if (!date) return <div key={`e${i}`} />
-              const ds = getDayStyle(date)
-              return (
-                <div key={date.getDate()} onClick={() => handleDayClick(date)}
-                  onMouseEnter={() => selecting && setHover(date)} onMouseLeave={() => setHover(null)}
-                  style={{ textAlign: 'center', fontSize: 12, fontWeight: ds.fw, padding: '6px 0', cursor: 'pointer', background: ds.bg, color: ds.color, borderRadius: ds.radius, border: ds.border || 'none', transition: 'background 0.08s', userSelect: 'none' }}
-                  onMouseOver={e => { if (!ds.bg || ds.bg === 'transparent') e.currentTarget.style.background = '#7C4DFF12' }}
-                  onMouseOut={e => { if (!ds.bg || ds.bg === 'transparent') e.currentTarget.style.background = ds.bg || 'transparent' }}
-                >{date.getDate()}</div>
-              )
-            })}
-          </div>
-          <div style={{ marginTop: 12, padding: '8px 10px', borderRadius: 8, background: 'var(--c-bg-muted)', textAlign: 'center' }}>
-            {selecting ? (
-              <span style={{ fontSize: 11, color: '#7C4DFF', fontWeight: 600 }}>Desde {format(selecting, 'd MMM', { locale: es })} → elige la fecha de fin</span>
-            ) : (from && to) ? (
-              <span style={{ fontSize: 11, color: 'var(--c-text-3)' }}>{format(from, 'd MMM', { locale: es })} → {format(to, 'd MMM yyyy', { locale: es })}</span>
-            ) : (
-              <span style={{ fontSize: 11, color: 'var(--c-text-4)' }}>Elige la fecha de inicio</span>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+// ── Date helpers ─────────────────────────────────────────────────────────────
+const THIS_MONTH = () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) })
 
 function fmtEUR(n) {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
@@ -175,16 +46,19 @@ const GRID_MOBILE  = '1fr auto'
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function Costs() {
-  const { isAdmin, role } = useRole()
+  const { isAdmin, role, costProjects } = useRole()
+  // costProjects = null → no access; array of names → restricted project-only access
+  // undefined = still loading; null = no access; array = restricted access
+  const costProjectsLoaded = costProjects !== undefined
+  const hasCostAccess = isAdmin || (costProjectsLoaded && costProjects !== null && costProjects.length > 0)
   const navigate   = useNavigate()
   const isMobile   = useMediaQuery('(max-width: 768px)')
 
   const [loading,      setLoading]      = useState(true)
   const [members,      setMembers]      = useState([])
   const [entries,      setEntries]      = useState([])
-  const [preset,       setPreset]       = useState(0)
-  const [customRange,  setCustomRange]  = useState(() => THIS_MONTH())
-  const [appliedRange, setAppliedRange] = useState(() => THIS_MONTH())
+  const [from,         setFrom]         = useState(() => THIS_MONTH().from)
+  const [to,           setTo]           = useState(() => THIS_MONTH().to)
   const [filterUser,   setFilterUser]   = useState('all')
   const [filterProj,   setFilterProj]   = useState('all')
   const [filterClient, setFilterClient] = useState('all')
@@ -194,10 +68,8 @@ export default function Costs() {
   const [expandedRow,  setExpandedRow]  = useState(null)
 
   useEffect(() => {
-    if (role !== null && !isAdmin) navigate('/tracker', { replace: true })
-  }, [role, isAdmin])
-
-  const { from, to } = appliedRange
+    if (role !== null && costProjectsLoaded && !hasCostAccess) navigate('/tracker', { replace: true })
+  }, [role, costProjectsLoaded, hasCostAccess])
 
   // ── Capacity & period cost proportional to the selected period ──────────────
   // periodCapacitySecs: reference hours for the period (1 month → 160h, 1 year → 1920h)
@@ -240,19 +112,15 @@ export default function Costs() {
     }
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appliedRange])
+  }, [from, to])
 
-  function handlePreset(i) {
-    setPreset(i)
-    if (i !== CUSTOM_IDX) setAppliedRange(PRESETS[i].fn())
-  }
-  function handleRangeChange({ from: f, to: t }) {
-    const range = { from: f, to: t }
-    setCustomRange(range)
-    setAppliedRange(range)
-  }
-
-  const dateFiltered = entries
+  // If user has restricted cost access, only show their allowed projects
+  const dateFiltered = useMemo(() => {
+    if (!costProjects || isAdmin) return entries
+    return entries.filter(e =>
+      costProjects.some(p => (e.project_name || '').toLowerCase().includes(p.toLowerCase()))
+    )
+  }, [entries, costProjects, isAdmin])
 
   const rateMap = useMemo(() => {
     const m = {}
@@ -269,8 +137,9 @@ export default function Costs() {
   const allProjects = useMemo(() => {
     const map = {}
     dateFiltered.forEach(e => {
-      if (e.project_id && !map[e.project_id])
-        map[e.project_id] = { id: e.project_id, name: e.project_name || 'Sin proyecto', color: e.project_color || '#7C4DFF' }
+      const key = e.project_id || '__none__'
+      if (!map[key])
+        map[key] = { id: key, name: e.project_name || 'Sin proyecto', color: e.project_color || '#7C4DFF' }
     })
     return Object.values(map).sort((a, b) => a.name.localeCompare(b.name))
   }, [dateFiltered])
@@ -297,7 +166,7 @@ export default function Costs() {
   const filtered = useMemo(() => {
     let rows = dateFiltered
     if (filterUser   !== 'all') rows = rows.filter(e => e.user_email === filterUser)
-    if (filterProj   !== 'all') rows = rows.filter(e => e.project_id === filterProj)
+    if (filterProj   !== 'all') rows = rows.filter(e => (e.project_name || 'Sin proyecto').toLowerCase() === filterProj)
     if (filterClient !== 'all') rows = rows.filter(e => (e.client_name || '__none__') === filterClient)
     return rows
   }, [dateFiltered, filterUser, filterProj, filterClient])
@@ -464,7 +333,7 @@ export default function Costs() {
     ? (sortDir === 'desc' ? <ChevronDown size={12} /> : <ChevronUp size={12} />)
     : null
 
-  if (role === null || (role !== null && !isAdmin)) return null
+  if (role === null || !costProjectsLoaded || (costProjectsLoaded && !hasCostAccess)) return null
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
       <div style={{ width: 28, height: 28, border: '3px solid #7C4DFF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
@@ -479,26 +348,11 @@ export default function Costs() {
         <h1 style={{ margin: '0 0 4px', fontSize: isMobile ? 18 : 22, fontWeight: 800, color: 'var(--c-text-1)', letterSpacing: '-0.5px' }}>Costes de equipo</h1>
         <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--c-text-4)' }}>Solo visible para administradores</p>
 
-        {/* Preset selector */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-          {PRESETS.slice(0, CUSTOM_IDX).map((p, i) => (
-            <button key={i} onClick={() => handlePreset(i)} style={{
-              padding: isMobile ? '7px 14px' : '6px 12px',
-              borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              background: preset === i ? '#7C4DFF' : 'var(--c-bg-muted)',
-              color:      preset === i ? '#fff'    : 'var(--c-text-3)',
-              border:     preset === i ? '1.5px solid #7C4DFF' : '1.5px solid var(--c-border)',
-              transition: 'all 0.15s',
-            }}>{p.label}</button>
-          ))}
-          <DateRangePicker
-            from={preset === CUSTOM_IDX ? customRange.from : null}
-            to={preset === CUSTOM_IDX ? customRange.to : null}
-            isActive={preset === CUSTOM_IDX}
-            onActivate={() => setPreset(CUSTOM_IDX)}
-            onChange={handleRangeChange}
-          />
-        </div>
+        {/* Date range selector */}
+        <DateRangePicker
+          from={from} to={to}
+          onChange={({ from: f, to: t }) => { setFrom(f); setTo(t) }}
+        />
       </div>
 
       {/* Stat cards */}
@@ -515,7 +369,7 @@ export default function Costs() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: isMobile ? 10 : 0, flexWrap: 'wrap' }}>
           <Filter size={13} color="var(--c-text-4)" style={{ flexShrink: 0 }} />
           <div style={{ display: 'flex', gap: 4 }}>
-            {[['project', 'Por proyecto'], ['person', 'Por persona'], ['client', 'Por cliente']].map(([v, l]) => (
+            {[['project', 'Por proyecto'], ['person', 'Por persona'], ['client', 'Por cliente']].filter(([v]) => isAdmin || v === 'project').map(([v, l]) => (
               <button key={v} onClick={() => { setViewMode(v); setExpandedRow(null) }} style={{
                 padding: '5px 11px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 background: viewMode === v ? '#7C4DFF22' : 'transparent',
@@ -525,7 +379,7 @@ export default function Costs() {
             ))}
           </div>
           {!isMobile && <div style={{ width: 1, height: 20, background: 'var(--c-border-light)' }} />}
-          {!isMobile && <>
+          {!isMobile && isAdmin && <>
             <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={{ padding: '5px 10px', borderRadius: 8, border: '1.5px solid var(--c-border)', background: 'var(--c-bg-muted)', color: 'var(--c-text-1)', fontSize: 12, cursor: 'pointer' }}>
               <option value="all">Todos los perfiles</option>
               {allUsers.map(u => <option key={u.email} value={u.email}>{u.name} ({u.rate} €/h)</option>)}
@@ -540,7 +394,7 @@ export default function Costs() {
             </select>
           </>}
         </div>
-        {isMobile && (
+        {isMobile && isAdmin && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--c-border)', background: 'var(--c-bg-muted)', color: 'var(--c-text-1)', fontSize: 13, cursor: 'pointer' }}>
               <option value="all">Todos los perfiles</option>
@@ -588,7 +442,9 @@ export default function Costs() {
                 <ProjectRow key={proj.id} proj={proj} isMobile={isMobile}
                   expanded={expandedRow === proj.id}
                   onToggle={() => setExpandedRow(expandedRow === proj.id ? null : proj.id)}
-                  periodCapacitySecs={periodCapacitySecs} />
+                  periodCapacitySecs={periodCapacitySecs}
+                  showPeople={true}
+                  showPersonCost={isAdmin} />
               ))
         )}
         {viewMode === 'person' && (
@@ -635,8 +491,8 @@ function EmptyState() {
 }
 
 // ── Project row ──────────────────────────────────────────────────────────────
-function ProjectRow({ proj, isMobile, expanded, onToggle, periodCapacitySecs }) {
-  const people = Object.values(proj.people).sort((a, b) => b.cost - a.cost)
+function ProjectRow({ proj, isMobile, expanded, onToggle, periodCapacitySecs, showPeople = true, showPersonCost = true }) {
+  const people = Object.values(proj.people || {}).sort((a, b) => b.cost - a.cost)
   return (
     <>
       <div onClick={onToggle} style={{
@@ -666,13 +522,17 @@ function ProjectRow({ proj, isMobile, expanded, onToggle, periodCapacitySecs }) 
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
             <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#7C4DFF22', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#7C4DFF' }}>{p.name.charAt(0).toUpperCase()}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#7C4DFF' }}>{(p.name || '?').charAt(0).toUpperCase()}</span>
             </div>
             <span style={{ fontSize: 12, color: 'var(--c-text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
           </div>
           {!isMobile && <span style={{ fontSize: 12, color: 'var(--c-text-3)' }}>{fmtH(p.secs)}</span>}
-          {!isMobile && <span style={{ fontSize: 11, color: '#8B5CF6', fontWeight: 600 }}>{p.personTotal ? fmtPct(p.secs / p.personTotal * 100) : '—'}</span>}
-          <span style={{ fontSize: 11, color: '#8B5CF6', fontWeight: 700, textAlign: isMobile ? 'right' : 'left' }}>{p.mc > 0 ? fmtEUR(p.imputCost) : '—'}</span>
+          {!isMobile && <span style={{ fontSize: 11, color: '#8B5CF6', fontWeight: 600 }}>
+            {showPersonCost ? (p.personTotal ? fmtPct(p.secs / p.personTotal * 100) : '—') : ''}
+          </span>}
+          <span style={{ fontSize: 11, color: '#8B5CF6', fontWeight: 700, textAlign: isMobile ? 'right' : 'left' }}>
+            {showPersonCost ? (p.mc > 0 ? fmtEUR(p.imputCost) : '—') : fmtH(p.secs)}
+          </span>
         </div>
       ))}
     </>

@@ -1,21 +1,21 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { Download, Trash2 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from 'recharts'
-import { dbGetEntriesForPeriod, getWsId } from '../lib/db'
+import { dbGetEntriesForPeriod, dbDeleteEntry, getWsId } from '../lib/db'
 import { loadClockifyCache } from '../lib/clockify'
 import { useAuth } from '../context/AuthContext'
 import { useRole } from '../context/RoleContext'
 import {
-  format, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
-  eachDayOfInterval, subWeeks, addWeeks, subMonths, addMonths,
-  parseISO, isWithinInterval,
+  format, startOfWeek, endOfWeek,
+  eachDayOfInterval, parseISO, isWithinInterval,
 } from 'date-fns'
 import { es } from 'date-fns/locale'
+import DateRangePicker from '../components/ui/DateRangePicker'
 
 // ── helpers ────────────────────────────────────────────────────
 function fmtDuration(secs) {
@@ -29,35 +29,7 @@ function fmtH(secs) {
   return (s / 3600).toFixed(2) + 'h'
 }
 
-const RANGE_TYPES = [
-  { label: 'Semana',       value: 'week'   },
-  { label: 'Mes',          value: 'month'  },
-  { label: 'Personalizado', value: 'custom' },
-]
 const TABS = ['Resumido', 'Detallado']
-
-function getRange(type, anchor) {
-  if (type === 'week') return { from: startOfWeek(anchor, { weekStartsOn: 1 }), to: endOfWeek(anchor, { weekStartsOn: 1 }) }
-  if (type === 'month') return { from: startOfMonth(anchor), to: endOfMonth(anchor) }
-  return null // custom — handled separately
-}
-function shiftAnchor(type, anchor, dir) {
-  if (type === 'week') return dir > 0 ? addWeeks(anchor, 1) : subWeeks(anchor, 1)
-  return dir > 0 ? addMonths(anchor, 1) : subMonths(anchor, 1)
-}
-function rangeLabel(type, from, to) {
-  if (type === 'week') {
-    const s = format(from, 'd MMM', { locale: es })
-    const e = format(to, 'd MMM yyyy', { locale: es })
-    return `${s} – ${e}`
-  }
-  return format(from, 'MMMM yyyy', { locale: es })
-}
-function toLocalDateStr(d) {
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${mm}-${dd}`
-}
 
 const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null
@@ -74,15 +46,13 @@ export default function Reports() {
   const { user } = useAuth()
   const { isAdmin } = useRole()
   const [tab, setTab] = useState('Resumido')
-  const [rangeType, setRangeType] = useState('week')
-  const [anchor, setAnchor] = useState(new Date())
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(false)
+  const [deletingId, setDeletingId] = useState(null)
 
-  // Custom range state
-  const today = toLocalDateStr(new Date())
-  const [customFrom, setCustomFrom] = useState(today)
-  const [customTo,   setCustomTo]   = useState(today)
+  // Date range — default to current week
+  const [from, setFrom] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }))
+  const [to,   setTo]   = useState(() => endOfWeek(new Date(), { weekStartsOn: 1 }))
 
   // Filter state — non-admins are locked to their own email
   const [filterProject,  setFilterProject]  = useState('ALL')
@@ -90,15 +60,10 @@ export default function Reports() {
   const [filterBillable, setFilterBillable] = useState('ALL')
   const [filterUser,     setFilterUser]     = useState('ALL')
 
-  const stdRange = rangeType !== 'custom' ? getRange(rangeType, anchor) : null
-  const from = rangeType === 'custom' ? parseISO(customFrom) : stdRange.from
-  const to   = rangeType === 'custom' ? parseISO(customTo)   : stdRange.to
-
   useEffect(() => {
-    // Don't fetch if custom range is invalid
-    if (rangeType === 'custom' && (!customFrom || !customTo || customFrom > customTo)) return
+    if (!from || !to) return
     loadData()
-  }, [rangeType, anchor, customFrom, customTo])
+  }, [from, to])
 
   async function loadData() {
     setLoading(true)
@@ -127,6 +92,19 @@ export default function Reports() {
     setLoading(false)
   }
 
+  async function handleDelete(id) {
+    if (!window.confirm('¿Eliminar esta entrada?')) return
+    setDeletingId(id)
+    try {
+      await dbDeleteEntry(id)
+      setEntries(prev => prev.filter(e => e.id !== id))
+    } catch (err) {
+      console.error('Error al borrar:', err)
+      alert('No se pudo borrar la entrada')
+    }
+    setDeletingId(null)
+  }
+
   // When viewing Fundación workspace, only entries from @fundacionxul.org count
   const isFundacion = getWsId() === 'fundacion-ws-1'
 
@@ -136,8 +114,8 @@ export default function Reports() {
     if (isFundacion && !e.user_email?.endsWith('@fundacionxul.org')) return false
     // Non-admins only see their own entries regardless of filter
     if (!isAdmin && e.user_email !== user?.email) return false
-    if (filterProject  !== 'ALL' && (e.project_name || 'Sin proyecto') !== filterProject) return false
-    if (filterClient   !== 'ALL' && (e.client_name  || 'Sin cliente')  !== filterClient)  return false
+    if (filterProject  !== 'ALL' && (e.project_name || 'Sin proyecto').toLowerCase() !== filterProject.toLowerCase()) return false
+    if (filterClient   !== 'ALL' && (e.client_name  || 'Sin cliente').toLowerCase()  !== filterClient.toLowerCase())  return false
     if (filterUser     !== 'ALL' && e.user_email !== filterUser) return false
     if (filterBillable === 'YES' && !e.billable) return false
     if (filterBillable === 'NO'  &&  e.billable) return false
@@ -279,52 +257,10 @@ export default function Reports() {
 
         <div style={{ width: 1, height: 24, background: 'var(--c-border-light)' }} />
 
-        {/* Range type */}
-        {RANGE_TYPES.map(r => (
-          <button key={r.value} onClick={() => setRangeType(r.value)} style={{
-            padding: '5px 12px', fontSize: 12, fontWeight: rangeType === r.value ? 700 : 500,
-            color: rangeType === r.value ? '#7C4DFF' : 'var(--c-text-3)',
-            background: rangeType === r.value ? '#7C4DFF18' : 'transparent',
-            border: '1px solid ' + (rangeType === r.value ? '#7C4DFF40' : 'transparent'),
-            borderRadius: 7, cursor: 'pointer',
-          }}>{r.label}</button>
-        ))}
-
-        {/* Period navigator — hidden in custom mode */}
-        {rangeType !== 'custom' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 4 }}>
-            <button onClick={() => setAnchor(a => shiftAnchor(rangeType, a, -1))}
-              style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid var(--c-border-light)', background: 'var(--c-bg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ChevronLeft size={14} style={{ color: 'var(--c-text-3)' }} />
-            </button>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)', minWidth: 150, textAlign: 'center' }}>
-              {rangeLabel(rangeType, from, to)}
-            </span>
-            <button onClick={() => setAnchor(a => shiftAnchor(rangeType, a, 1))}
-              style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid var(--c-border-light)', background: 'var(--c-bg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ChevronRight size={14} style={{ color: 'var(--c-text-3)' }} />
-            </button>
-          </div>
-        )}
-
-        {/* Custom date pickers */}
-        {rangeType === 'custom' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
-            <input
-              type="date" value={customFrom}
-              max={customTo}
-              onChange={e => setCustomFrom(e.target.value)}
-              style={{ background: 'var(--c-bg-muted)', border: '1px solid var(--c-border-light)', borderRadius: 8, padding: '5px 10px', fontSize: 12, color: 'var(--c-text-1)', outline: 'none', cursor: 'pointer' }}
-            />
-            <span style={{ fontSize: 12, color: 'var(--c-text-3)', fontWeight: 600 }}>—</span>
-            <input
-              type="date" value={customTo}
-              min={customFrom}
-              onChange={e => setCustomTo(e.target.value)}
-              style={{ background: 'var(--c-bg-muted)', border: '1px solid var(--c-border-light)', borderRadius: 8, padding: '5px 10px', fontSize: 12, color: 'var(--c-text-1)', outline: 'none', cursor: 'pointer' }}
-            />
-          </div>
-        )}
+        <DateRangePicker
+          from={from} to={to}
+          onChange={({ from: f, to: t }) => { setFrom(f); setTo(t) }}
+        />
 
         <div style={{ flex: 1 }} />
 
@@ -535,8 +471,8 @@ export default function Reports() {
             {tab === 'Detallado' && (
               <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
                 {/* Header */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 140px 90px', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
-                  {['Descripción', 'Proyecto', 'Fecha', 'Duración'].map(h => (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 140px 90px 36px', padding: '10px 20px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+                  {['Descripción', 'Proyecto', 'Fecha', 'Duración', ''].map(h => (
                     <span key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-4)' }}>{h}</span>
                   ))}
                 </div>
@@ -545,7 +481,7 @@ export default function Reports() {
                   <p style={{ textAlign: 'center', color: 'var(--c-text-3)', fontSize: 13, padding: '32px 0' }}>Sin entradas en este período</p>
                 ) : filtered.map(e => (
                   <div key={e.id}
-                    style={{ display: 'grid', gridTemplateColumns: '1fr 160px 140px 90px', padding: '11px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center' }}
+                    style={{ display: 'grid', gridTemplateColumns: '1fr 160px 140px 90px 36px', padding: '11px 20px', borderBottom: '1px solid var(--c-border-light)', alignItems: 'center', opacity: deletingId === e.id ? 0.4 : 1 }}
                     onMouseEnter={ev => ev.currentTarget.style.background = 'var(--c-bg-muted)'}
                     onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}
                   >
@@ -553,7 +489,7 @@ export default function Reports() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                       <span style={{ width: 3, height: 24, borderRadius: 2, background: e.project_color || '#E0E0F0', flexShrink: 0 }} />
                       <div style={{ minWidth: 0 }}>
-                        <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--c-text-1)', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                        <p style={{ fontSize: 13, fontWeight: 500, color: (!e.duration || e.duration === 0) ? '#EF4444' : 'var(--c-text-1)', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                           {e.description || <span style={{ color: 'var(--c-text-4)', fontStyle: 'italic' }}>Sin descripción</span>}
                         </p>
                         {e.user_name && <p style={{ fontSize: 11, color: 'var(--c-text-4)', margin: 0 }}>{e.user_email}</p>}
@@ -573,9 +509,21 @@ export default function Reports() {
                     </span>
 
                     {/* Duration */}
-                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', fontVariantNumeric: 'tabular-nums' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: (!e.duration || e.duration === 0) ? '#EF4444' : 'var(--c-text-1)', fontVariantNumeric: 'tabular-nums' }}>
                       {fmtDuration(e.duration)}
                     </span>
+
+                    {/* Delete */}
+                    <button
+                      onClick={() => handleDelete(e.id)}
+                      disabled={deletingId === e.id}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 6, color: 'var(--c-text-4)', display: 'flex', alignItems: 'center' }}
+                      onMouseEnter={ev => ev.currentTarget.style.color = '#EF4444'}
+                      onMouseLeave={ev => ev.currentTarget.style.color = 'var(--c-text-4)'}
+                      title="Borrar entrada"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 ))}
               </div>

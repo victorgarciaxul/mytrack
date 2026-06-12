@@ -363,12 +363,6 @@ export default function Tracker() {
     dbDeleteRunningTimer(user.email).catch(() => {})
     if (secs < 5) { timer.reset(); setIsMeetingTimer(false); return }
 
-    // Meeting timer: if project+task already filled, save directly; otherwise ask
-    if (isMeetingTimer && (!selectedProject || !selectedTask)) {
-      setPendingMeetingSecs(secs)
-      setShowMeetingModal(true)
-      return
-    }
 
     const endTime   = new Date()
     const startTime = new Date(endTime.getTime() - secs * 1000)
@@ -738,21 +732,23 @@ export default function Tracker() {
               </span>
               <button
                 onClick={timer.isRunning ? handleStop : handleStart}
-                disabled={syncing || (!timer.isRunning && (!selectedProject || !selectedTask))}
-                title={!timer.isRunning && !selectedProject ? 'Selecciona proyecto y tarea' : !timer.isRunning && !selectedTask ? 'Selecciona una tarea' : ''}
+                disabled={syncing || (!timer.isRunning && (!selectedProject || !selectedTask)) || (isMeetingTimer && (!selectedProject || !selectedTask))}
+                title={isMeetingTimer && !selectedProject ? 'Selecciona proyecto y tarea para parar la reunión' : isMeetingTimer && !selectedTask ? 'Selecciona una tarea para parar la reunión' : !timer.isRunning && !selectedProject ? 'Selecciona proyecto y tarea' : !timer.isRunning && !selectedTask ? 'Selecciona una tarea' : ''}
                 style={{
                   width: 52, height: 52, borderRadius: '50%', border: 'none',
-                  cursor: (syncing || (!timer.isRunning && (!selectedProject || !selectedTask))) ? 'not-allowed' : 'pointer',
+                  cursor: (syncing || (!timer.isRunning && (!selectedProject || !selectedTask)) || (isMeetingTimer && (!selectedProject || !selectedTask))) ? 'not-allowed' : 'pointer',
                   background: syncing ? '#94A3B8'
+                    : (isMeetingTimer && (!selectedProject || !selectedTask)) ? '#CBD5E1'
                     : timer.isRunning ? '#22C55E'
                     : (!selectedProject || !selectedTask) ? '#CBD5E1'
                     : 'linear-gradient(135deg,#7C4DFF,#E040FB)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: timer.isRunning ? '0 4px 16px rgba(34,197,94,0.4)'
+                  boxShadow: (isMeetingTimer && (!selectedProject || !selectedTask)) ? 'none'
+                    : timer.isRunning ? '0 4px 16px rgba(34,197,94,0.4)'
                     : (!selectedProject || !selectedTask) ? 'none'
                     : '0 4px 16px rgba(124,77,255,0.4)',
                   transition: 'all 0.2s',
-                  opacity: (!timer.isRunning && (!selectedProject || !selectedTask)) ? 0.6 : 1,
+                  opacity: ((!timer.isRunning && (!selectedProject || !selectedTask)) || (isMeetingTimer && (!selectedProject || !selectedTask))) ? 0.6 : 1,
                 }}
                 onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.transform = 'scale(1.06)' }}
                 onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
@@ -787,7 +783,7 @@ export default function Tracker() {
             {isMeetingTimer && (
               <div style={{ marginTop: 10, display: 'flex', justifyContent: 'center' }}>
                 <span style={{ fontSize: 12, color: '#7C4DFF', fontWeight: 600, background: '#7C4DFF12', padding: '5px 14px', borderRadius: 20, border: '1.5px solid #7C4DFF40' }}>
-                  Reunión en curso — para el timer para asignar proyecto
+                  Reunión en curso — selecciona proyecto y tarea para poder parar
                 </span>
               </div>
             )}

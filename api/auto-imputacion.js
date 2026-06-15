@@ -23,6 +23,7 @@ const USERS = [
   { email: 'pilarsalles@xul.es',     name: 'Pilar Sallés',     taskId: '673afb29c736720c7f525e81', taskName: 'Community Manager' },
   { email: 'sandravinas@xul.es',     name: 'Sandra Viñas',     taskId: '673afba6c736720c7f527126', taskName: 'Redactor' },
   { email: 'asuncionblanco@xul.es',  name: 'Asunción Blanco',  taskId: '673afb29c736720c7f525e81', taskName: 'Community Manager' },
+  { email: 'pepegomez@xul.es',       name: 'Pepe Gómez Palas', taskId: '673afba6c736720c7f527126', taskName: 'Redactor' },
 ]
 
 // ── Festivos (nacionales + convenio) que aplican a todos ───────────────────

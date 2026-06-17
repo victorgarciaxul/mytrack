@@ -256,12 +256,19 @@ export default function Tracker() {
         localStorage.removeItem(ACTIVE_KEY)
         return
       }
-      if (timer.isRunning) return  // local timer running and Neon confirms it — leave it
-      if (!running) return          // nothing to restore
-      // Timer was started on another device — restore here
-      // started_at is normalized to ISO string by dbGetRunningTimer
+      if (!running) return  // nothing to restore
+
+      // DB is source of truth — always sync started_at to catch stale localStorage
       const startedAt = running.started_at
-      timer.start(startedAt)
+      const localStartedAt = (() => { try { return JSON.parse(localStorage.getItem('mytrack-timer-state') || '{}').startedAt } catch { return null } })()
+      const dbTs = new Date(startedAt).getTime()
+      const diffMs = Math.abs(dbTs - (localStartedAt || 0))
+      // Only re-apply if timestamps differ by more than 5 seconds (avoids race on same-device start)
+      if (!timer.isRunning || diffMs > 5000) {
+        timer.start(startedAt)
+      } else {
+        return  // local timer in sync — leave it
+      }
 
       const desc = running.description || ''
       setDescription(desc)

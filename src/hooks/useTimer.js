@@ -53,12 +53,12 @@ export function useTimer() {
     return () => clearInterval(intervalRef.current)
   }, [isRunning])
 
-  const start = () => {
-    const now = Date.now()
+  const start = (startedAtISO) => {
+    const now = startedAtISO ? new Date(startedAtISO).getTime() : Date.now()
     startedAtRef.current = now
     saveTimerState({ startedAt: now })
     setIsRunning(true)
-    setElapsed(0)
+    setElapsed(Math.max(0, Math.floor((Date.now() - now) / 1000)))
   }
 
   const stop = () => {

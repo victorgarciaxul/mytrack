@@ -358,8 +358,8 @@ export default function Calendar() {
                 <div
                   key={key}
                   className="cal-day"
-                  onClick={() => (hasEntries || today) ? (isSameDay(day, selected) ? closeModal() : openModal(day)) : null}
-                  style={{ cursor: (hasEntries || today) ? 'pointer' : 'default', minHeight: 0 }}
+                  onClick={() => !isWeekend ? (isSameDay(day, selected) ? closeModal() : openModal(day)) : null}
+                  style={{ cursor: !isWeekend ? 'pointer' : 'default', minHeight: 0 }}
                 >
                   <div
                     className="cal-day-inner"

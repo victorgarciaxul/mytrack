@@ -11,6 +11,9 @@ import { es } from 'date-fns/locale'
 // ── Date helpers ─────────────────────────────────────────────────────────────
 const THIS_MONTH = () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) })
 
+// Normalise project IDs: strip workspace suffixes so -xul and bare IDs merge
+const normId = id => id ? String(id).replace(/-xul$/, '').replace(/-fundacion$/, '') : '__none__'
+
 function fmtEUR(n) {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
 }
@@ -137,7 +140,7 @@ export default function Costs() {
   const allProjects = useMemo(() => {
     const map = {}
     dateFiltered.forEach(e => {
-      const key = e.project_id || '__none__'
+      const key = normId(e.project_id)
       if (!map[key])
         map[key] = { id: key, name: e.project_name || 'Sin proyecto', color: e.project_color || '#7C4DFF' }
     })
@@ -189,7 +192,7 @@ export default function Costs() {
       const mc          = monthlyCostMap[e.user_email] || 0
       const personTotal = personTotalSecs[e.user_email] || e.duration
       const cappedTotal = Math.max(personTotal, periodCapacitySecs)
-      const projId = e.project_id || '__none__'
+      const projId = normId(e.project_id)
       if (!map[projId]) map[projId] = {
         id: projId, name: e.project_name || 'Sin proyecto', color: e.project_color || '#888',
         totalSecs: 0, totalCost: 0, totalImputCost: 0,
@@ -248,7 +251,7 @@ export default function Costs() {
       map[key].totalSecs      += e.duration
       map[key].totalCost      += cost
       map[key].totalImputCost += imputCost
-      const projId = e.project_id || '__none__'
+      const projId = normId(e.project_id)
       if (!map[key].projects[projId]) map[key].projects[projId] = {
         name: e.project_name || 'Sin proyecto', color: e.project_color || '#888',
         secs: 0, cost: 0, imputCost: 0,
@@ -289,7 +292,7 @@ export default function Costs() {
       if (mc > 0 && !map[clientKey].imputBudgets[e.user_email]) {
         map[clientKey].imputBudgets[e.user_email] = mc * periodMonths * Math.min(personTotal / periodCapacitySecs, 1)
       }
-      const projId = e.project_id || '__none__'
+      const projId = normId(e.project_id)
       if (!map[clientKey].projects[projId]) map[clientKey].projects[projId] = {
         name: e.project_name || 'Sin proyecto', color: e.project_color || '#888',
         secs: 0, cost: 0, imputCost: 0,

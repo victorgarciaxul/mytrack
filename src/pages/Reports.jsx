@@ -11,7 +11,7 @@ import { loadClockifyCache } from '../lib/clockify'
 import { useAuth } from '../context/AuthContext'
 import { useRole } from '../context/RoleContext'
 import {
-  format, startOfWeek, endOfWeek,
+  format, startOfDay, startOfWeek, endOfWeek,
   eachDayOfInterval, parseISO, isWithinInterval,
 } from 'date-fns'
 import { es } from 'date-fns/locale'

@@ -128,8 +128,7 @@ export default function DateRangePicker({ from, to, onChange }) {
 
   function shiftRange(dir) {
     if (!from || !to) return
-    const days = Math.round((to - from) / 86400000)
-    const shift = days + 1
+    const shift = Math.round((startOfDay(to) - startOfDay(from)) / 86400000) + 1
     onChange({
       from: startOfDay(dir > 0 ? addDays(from, shift) : subDays(from, shift)),
       to:   endOfDay(  dir > 0 ? addDays(to,   shift) : subDays(to,   shift)),

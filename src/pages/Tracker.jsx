@@ -676,9 +676,13 @@ export default function Tracker() {
                     const q = val.toLowerCase()
                     const seen = new Set()
                     const matches = entries
-                      .map(e => e.description)
-                      .filter(d => d && d !== '(sin descripción)' && d.toLowerCase().includes(q) && !seen.has(d) && seen.add(d))
+                      .filter(e => e.description && e.description !== '(sin descripción)' && e.description.toLowerCase().includes(q) && !seen.has(e.description) && seen.add(e.description))
                       .slice(0, 6)
+                      .map(e => ({
+                        description: e.description,
+                        project: e.projects?.id ? { id: e.projects.id, name: e.projects.name || e.project_name, color: e.projects.color || e.project_color || '#7C4DFF' } : (e.project_id ? { id: e.project_id, name: e.project_name, color: e.project_color || '#7C4DFF' } : null),
+                        task: e.tasks?.id ? { id: e.tasks.id, name: e.tasks.name || e.task_name } : (e.task_id ? { id: e.task_id, name: e.task_name } : null),
+                      }))
                     setDescSuggestions(matches)
                     setShowSuggestions(matches.length > 0)
                     setSuggestionIdx(-1)
@@ -692,8 +696,10 @@ export default function Tracker() {
                     else if (e.key === 'ArrowUp') { e.preventDefault(); setSuggestionIdx(i => Math.max(i - 1, -1)) }
                     else if (e.key === 'Enter' && suggestionIdx >= 0) {
                       e.preventDefault()
-                      const val = descSuggestions[suggestionIdx]
-                      setDescription(val); persistDescription(val); scheduleDescriptionSync(val)
+                      const s = descSuggestions[suggestionIdx]
+                      setDescription(s.description); persistDescription(s.description); scheduleDescriptionSync(s.description)
+                      if (s.project) setSelectedProject(s.project)
+                      if (s.task) setSelectedTask(s.task)
                       setShowSuggestions(false); setSuggestionIdx(-1)
                     } else if (e.key === 'Escape') { setShowSuggestions(false) }
                     else if (e.key === 'Enter') { setShowSuggestions(false); if (!timer.isRunning) handleStart() }
@@ -717,7 +723,9 @@ export default function Tracker() {
                     <div
                       key={i}
                       onMouseDown={() => {
-                        setDescription(s); persistDescription(s); scheduleDescriptionSync(s)
+                        setDescription(s.description); persistDescription(s.description); scheduleDescriptionSync(s.description)
+                        if (s.project) setSelectedProject(s.project)
+                        if (s.task) setSelectedTask(s.task)
                         setShowSuggestions(false); setSuggestionIdx(-1)
                         descInputRef.current?.focus()
                       }}
@@ -730,7 +738,8 @@ export default function Tracker() {
                       onMouseEnter={() => setSuggestionIdx(i)}
                       onMouseLeave={() => setSuggestionIdx(-1)}
                     >
-                      {s}
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.description}</div>
+                      {s.project && <div style={{ fontSize: 11, color: 'var(--c-text-4)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: s.project.color, flexShrink: 0, display: 'inline-block' }} />{s.project.name}{s.task ? ` · ${s.task.name}` : ''}</div>}
                     </div>
                   ))}
                 </div>

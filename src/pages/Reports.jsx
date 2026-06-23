@@ -51,6 +51,16 @@ const JORGE_TEAM_PROJECTS = [
   'Andalucía Vuela (Empresas)',
 ]
 
+const CustomXTick = ({ x, y, payload }) => {
+  const parts = payload.value?.split('|') || [payload.value]
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={0} y={0} dy={10} textAnchor="middle" fontSize={11} fill="var(--c-text-3)">{parts[0]}</text>
+      {parts[1] && <text x={0} y={0} dy={22} textAnchor="middle" fontSize={10} fill="var(--c-text-4)">{parts[1]}</text>}
+    </g>
+  )
+}
+
 const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null
   return (
@@ -171,14 +181,19 @@ export default function Reports() {
 
   // Bar chart by day
   const days = eachDayOfInterval({ start: from, end: to })
+  const diffDaysTotal = Math.round((startOfDay(to) - startOfDay(from)) / 86400000)
   const byDayData = days.map(day => {
     const key = format(day, 'yyyy-MM-dd')
     const secs = filtered
       .filter(e => { try { return format(parseISO(e.start_time), 'yyyy-MM-dd') === key } catch { return false } })
       .reduce((s, e) => s + (Number(e.duration) || 0), 0)
-    const diffDays = Math.round((to - from) / 86400000)
-    const labelFmt = diffDays <= 7 ? 'EEE' : diffDays <= 31 ? 'd' : 'd MMM'
-    return { name: format(day, labelFmt, { locale: es }), horas: parseFloat((secs / 3600).toFixed(2)) }
+    const labelFmt = diffDaysTotal <= 7 ? 'EEE' : diffDaysTotal <= 31 ? 'd' : 'd MMM'
+    const label = format(day, labelFmt, { locale: es })
+    const sub   = diffDaysTotal <= 7 ? format(day, 'd/M') : null
+    return {
+      name:  sub ? `${label}|${sub}` : label,
+      horas: parseFloat((secs / 3600).toFixed(2)),
+    }
   })
 
   // Pie chart by project
@@ -443,10 +458,10 @@ export default function Reports() {
               {/* Bar chart */}
               <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, padding: '18px 20px' }}>
                 <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 16px' }}>Horas por día</p>
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={byDayData} barSize={Math.round((to - from) / 86400000) <= 7 ? 28 : 14}>
+                <ResponsiveContainer width="100%" height={diffDaysTotal <= 7 ? 196 : 180}>
+                  <BarChart data={byDayData} barSize={diffDaysTotal <= 7 ? 28 : 14}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--c-border-light)" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--c-text-3)' }} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="name" tick={<CustomXTick />} tickLine={false} axisLine={false} height={diffDaysTotal <= 7 ? 36 : 20} />
                     <YAxis tick={{ fontSize: 11, fill: 'var(--c-text-3)' }} axisLine={false} tickLine={false} unit="h" />
                     <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(123,104,238,0.06)', radius: 6 }} />
                     <Bar dataKey="horas" radius={[6, 6, 0, 0]}>

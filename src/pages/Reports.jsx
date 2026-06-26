@@ -324,133 +324,151 @@ export default function Reports() {
   // ── Export PDF ───────────────────────────────────────────────────────────
   function exportToPDF() {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-    const W = 210, H = 297, M = 16
-    const fromStr = format(from, 'dd MMM yyyy', { locale: es })
-    const toStr   = format(to,   'dd MMM yyyy', { locale: es })
+    const W = 210, H = 297, M = 14
+
+    const fromStr = format(from, "d 'de' MMMM yyyy", { locale: es })
+    const toStr   = format(to,   "d 'de' MMMM yyyy", { locale: es })
     const totalH  = fmtDuration(totalSecs)
     const billH   = fmtDuration(billableSecs)
 
-    // ─── Paleta ───────────────────────────────────────────────────
+    // ─── Paleta estilo dashboard claro ───────────────────────────
     const C = {
-      dark:    [18, 18, 28],
-      darkMid: [26, 26, 42],
-      purple:  [124, 77, 255],
-      purpleL: [140, 100, 255],
-      green:   [16, 185, 129],
-      blue:    [59, 130, 246],
-      amber:   [245, 158, 11],
-      white:   [255, 255, 255],
-      offWhite:[245, 244, 252],
-      muted:   [150, 145, 185],
-      text:    [28, 26, 46],
-      border:  [220, 218, 238],
+      pageBg:   [245, 246, 250],  // gris muy suave de fondo
+      white:    [255, 255, 255],
+      teal:     [13, 148, 136],   // acento principal
+      tealDark: [10, 116, 106],
+      tealLight:[204, 240, 236],
+      peach:    [255, 247, 237],  // card 1
+      lavender: [238, 242, 255],  // card 2
+      mint:     [236, 253, 245],  // card 3
+      yellow:   [255, 251, 235],  // card 4
+      peachA:   [234, 88, 12],    // acento card 1
+      lavA:     [99, 102, 241],   // acento card 2
+      mintA:    [16, 185, 129],   // acento card 3
+      yellowA:  [217, 119, 6],    // acento card 4
+      text1:    [17, 24, 39],
+      text2:    [55, 65, 81],
+      text3:    [107, 114, 128],
+      border:   [229, 231, 235],
+      rowAlt:   [249, 250, 251],
     }
 
-    const drawSection = (label, y) => {
-      doc.setFillColor(...C.purple)
-      doc.rect(M, y, 3, 5.5, 'F')
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(8.5)
-      doc.setTextColor(...C.purple)
-      doc.text(label, M + 6, y + 4)
-      doc.setDrawColor(...C.border)
-      doc.setLineWidth(0.25)
-      doc.line(M + 6 + doc.getTextWidth(label) + 4, y + 1.5, W - M, y + 1.5)
-    }
+    // ── Fondo página ─────────────────────────────────────────────
+    doc.setFillColor(...C.pageBg)
+    doc.rect(0, 0, W, H, 'F')
 
-    // ═══ HEADER ═══════════════════════════════════════════════════
-    // Fondo oscuro
-    doc.setFillColor(...C.dark)
-    doc.rect(0, 0, W, 58, 'F')
-    // Banda de acento violeta izquierda
-    doc.setFillColor(...C.purple)
-    doc.rect(0, 0, 6, 58, 'F')
-    // Puntos decorativos (círculos sutiles)
-    doc.setFillColor(40, 38, 60)
-    for (let i = 0; i < 6; i++) {
-      doc.circle(170 + (i % 3) * 14, 10 + Math.floor(i / 3) * 14, 7, 'F')
-    }
+    // ── Header blanco con borde inferior ─────────────────────────
+    doc.setFillColor(...C.white)
+    doc.rect(0, 0, W, 48, 'F')
+    // Franja teal izquierda
+    doc.setFillColor(...C.teal)
+    doc.rect(0, 0, 5, 48, 'F')
 
-    // Logo "XUL"
+    // Pill "INFORME DE HORAS" sobre el logo
+    doc.setFillColor(...C.tealLight)
+    doc.roundedRect(M + 3, 6, 38, 6, 2, 2, 'F')
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(28)
-    doc.setTextColor(...C.white)
-    doc.text('XUL', M + 4, 22)
+    doc.setFontSize(6.5)
+    doc.setTextColor(...C.teal)
+    doc.text('INFORME DE HORAS', M + 22, 10.2, { align: 'center' })
 
-    // Línea divisoria fina bajo XUL
-    doc.setDrawColor(...C.purple)
-    doc.setLineWidth(0.6)
-    doc.line(M + 4, 25, M + 4 + doc.getTextWidth('XUL'), 25)
+    // Logo XUL
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(24)
+    doc.setTextColor(...C.text1)
+    doc.text('XUL', M + 3, 27)
 
     // Subtítulo
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
-    doc.setTextColor(...C.muted)
-    doc.text('INFORME DE HORAS', M + 4, 32)
+    doc.setTextColor(...C.text3)
+    doc.text('Agencia de comunicación', M + 3, 34)
 
-    // Periodo — derecha
+    // Derecha: periodo
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(11)
-    doc.setTextColor(...C.white)
-    doc.text(`${fromStr} — ${toStr}`, W - M, 21, { align: 'right' })
+    doc.setFontSize(10)
+    doc.setTextColor(...C.text1)
+    doc.text(`${fromStr} — ${toStr}`, W - M, 20, { align: 'right' })
+
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7.5)
-    doc.setTextColor(...C.muted)
-    doc.text(`Generado el ${format(new Date(), "dd/MM/yyyy 'a las' HH:mm")}`, W - M, 29, { align: 'right' })
+    doc.setTextColor(...C.text3)
+    doc.text(`Generado el ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, W - M, 28, { align: 'right' })
 
-    // Línea separadora sutil en header
-    doc.setDrawColor(45, 43, 68)
-    doc.setLineWidth(0.3)
-    doc.line(M + 4, 37, W - M, 37)
-
-    // Info extra en header (usuario/proyecto activo si hay filtros)
+    // Filtros activos
     const headerInfoParts = []
     if (filterUser)    headerInfoParts.push(`Usuario: ${filterUser}`)
     if (filterProject) headerInfoParts.push(`Proyecto: ${filterProject}`)
     if (filterClient)  headerInfoParts.push(`Cliente: ${filterClient}`)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    doc.setTextColor(...C.muted)
-    doc.text(headerInfoParts.length ? headerInfoParts.join('  ·  ') : 'Todos los proyectos y usuarios', M + 4, 44)
+    if (headerInfoParts.length) {
+      doc.setFontSize(7)
+      doc.setTextColor(...C.teal)
+      doc.text(headerInfoParts.join('  ·  '), W - M, 36, { align: 'right' })
+    }
 
-    // ═══ KPI CARDS ════════════════════════════════════════════════
+    // Línea separadora header
+    doc.setDrawColor(...C.border)
+    doc.setLineWidth(0.4)
+    doc.line(0, 48, W, 48)
+
+    // ── KPI Cards ────────────────────────────────────────────────
     const kpis = [
-      { label: 'Total horas',  value: totalH,             accent: C.purple },
-      { label: 'Facturable',   value: billH,              accent: C.green  },
-      { label: 'Entradas',     value: String(filtered.length), accent: C.blue },
-      { label: 'Proyectos',    value: String(pieData.length),  accent: C.amber },
+      { label: 'Total horas',  value: totalH,                  sub: 'periodo completo',    bg: C.peach,    ac: C.peachA  },
+      { label: 'Facturable',   value: billH,                   sub: 'horas facturables',   bg: C.lavender, ac: C.lavA    },
+      { label: 'Entradas',     value: String(filtered.length), sub: 'registros',            bg: C.mint,     ac: C.mintA   },
+      { label: 'Proyectos',    value: String(pieData.length),  sub: 'activos',              bg: C.yellow,   ac: C.yellowA },
     ]
-    const cardW = (W - M * 2 - 9) / 4
-    const cardY = 63
+    const cW = (W - M * 2 - 9) / 4
+    const cY = 54
     kpis.forEach((k, i) => {
-      const x = M + i * (cardW + 3)
-      // Card background
-      doc.setFillColor(...C.offWhite)
-      doc.roundedRect(x, cardY, cardW, 26, 3, 3, 'F')
-      // Top accent bar
-      doc.setFillColor(...k.accent)
-      doc.roundedRect(x, cardY, cardW, 3.5, 1.5, 1.5, 'F')
-      doc.rect(x, cardY + 2, cardW, 1.5, 'F')
-      // Value
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(15)
-      doc.setTextColor(...k.accent)
-      doc.text(k.value, x + cardW / 2, cardY + 15, { align: 'center' })
-      // Label
+      const x = M + i * (cW + 3)
+      // Sombra simulada (rect desplazado)
+      doc.setFillColor(210, 212, 218)
+      doc.roundedRect(x + 0.6, cY + 0.8, cW, 28, 3, 3, 'F')
+      // Card
+      doc.setFillColor(...k.bg)
+      doc.roundedRect(x, cY, cW, 28, 3, 3, 'F')
+      // Flecha indicador (triángulo arriba-derecha)
+      doc.setFillColor(...k.ac)
+      doc.triangle(x + cW - 7, cY + 5, x + cW - 3, cY + 5, x + cW - 3, cY + 9, 'F')
+      // Label arriba
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(6.5)
-      doc.setTextColor(...C.muted)
-      doc.text(k.label.toUpperCase(), x + cardW / 2, cardY + 22, { align: 'center' })
+      doc.setTextColor(...C.text3)
+      doc.text(k.label.toUpperCase(), x + 4, cY + 8)
+      // Value grande
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(14)
+      doc.setTextColor(...k.ac)
+      doc.text(k.value, x + 4, cY + 19)
+      // Sub pequeño
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6)
+      doc.setTextColor(...C.text3)
+      doc.text(k.sub, x + 4, cY + 25)
     })
 
-    // ═══ SECCIÓN 1: RESUMEN POR PROYECTO ══════════════════════════
-    const s1Y = cardY + 33
-    drawSection('RESUMEN POR PROYECTO', s1Y)
+    // ── Helper: cabecera de sección ───────────────────────────────
+    const drawSection = (label, y) => {
+      doc.setFillColor(...C.white)
+      doc.roundedRect(M, y, W - M * 2, 8, 2, 2, 'F')
+      doc.setFillColor(...C.teal)
+      doc.roundedRect(M, y, 3, 8, 1, 1, 'F')
+      doc.rect(M + 2, y, 1, 8, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8)
+      doc.setTextColor(...C.text1)
+      doc.text(label, M + 8, y + 5.5)
+    }
+
+    // ── Sección 1: Resumen por proyecto ──────────────────────────
+    const s1Y = cY + 34
+    drawSection('Resumen por proyecto', s1Y)
 
     autoTable(doc, {
-      startY: s1Y + 8,
+      startY: s1Y + 10,
       margin: { left: M, right: M },
-      head: [['Proyecto', 'Cliente', 'Entradas', 'Horas', 'Facturable', '%']],
+      head: [['Proyecto', 'Cliente', 'Entradas', 'Horas', 'Facturable', 'Peso']],
       body: grouped.map(g => [
         g.name,
         g.client || '—',
@@ -461,49 +479,50 @@ export default function Reports() {
       ]),
       foot: [['TOTAL', '', String(filtered.length), totalH, billH, '100%']],
       styles: {
-        fontSize: 8, cellPadding: { top: 3.5, bottom: 3.5, left: 3, right: 3 },
-        font: 'helvetica', textColor: C.text, lineColor: C.border, lineWidth: 0.15,
+        fontSize: 8, cellPadding: { top: 3.5, bottom: 3.5, left: 4, right: 4 },
+        font: 'helvetica', textColor: C.text2, lineColor: C.border, lineWidth: 0.2,
+        fillColor: C.white,
       },
       headStyles: {
-        fillColor: C.darkMid, textColor: C.white, fontStyle: 'bold', fontSize: 7.5,
-        cellPadding: { top: 4, bottom: 4, left: 3, right: 3 },
+        fillColor: C.teal, textColor: C.white, fontStyle: 'bold', fontSize: 7.5,
+        cellPadding: { top: 4.5, bottom: 4.5, left: 4, right: 4 },
       },
       footStyles: {
-        fillColor: [234, 232, 250], textColor: C.purple, fontStyle: 'bold', fontSize: 7.5,
+        fillColor: C.tealLight, textColor: C.tealDark, fontStyle: 'bold', fontSize: 7.5,
       },
-      alternateRowStyles: { fillColor: [249, 248, 255] },
+      alternateRowStyles: { fillColor: C.rowAlt },
       columnStyles: {
         0: { cellWidth: 'auto' },
-        1: { cellWidth: 32 },
-        2: { cellWidth: 18, halign: 'center' },
-        3: { cellWidth: 20, halign: 'right', fontStyle: 'bold', textColor: C.text },
-        4: { cellWidth: 20, halign: 'right', textColor: C.green },
-        5: { cellWidth: 14, halign: 'center', textColor: C.muted },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 16, halign: 'center' },
+        3: { cellWidth: 20, halign: 'right', fontStyle: 'bold' },
+        4: { cellWidth: 20, halign: 'right', textColor: C.mintA },
+        5: { cellWidth: 16, halign: 'center', textColor: C.text3 },
       },
       didDrawCell: (data) => {
-        // Mini barra de progreso en columna %
         if (data.section === 'body' && data.column.index === 5) {
           const g = grouped[data.row.index]
           if (!g || totalSecs === 0) return
           const pct = g.secs / totalSecs
-          const bx = data.cell.x + 1, by = data.cell.y + data.cell.height - 3.5
-          const bw = data.cell.width - 2
+          const bx = data.cell.x + 2
+          const by = data.cell.y + data.cell.height - 2.8
+          const bw = data.cell.width - 4
           doc.setFillColor(...C.border)
-          doc.roundedRect(bx, by, bw, 1.5, 0.5, 0.5, 'F')
-          doc.setFillColor(...C.purple)
-          doc.roundedRect(bx, by, Math.max(bw * pct, 0.5), 1.5, 0.5, 0.5, 'F')
+          doc.roundedRect(bx, by, bw, 1.4, 0.5, 0.5, 'F')
+          doc.setFillColor(...C.teal)
+          doc.roundedRect(bx, by, Math.max(bw * pct, 0.5), 1.4, 0.5, 0.5, 'F')
         }
       },
     })
 
-    // ═══ SECCIÓN 2: DETALLE DE ENTRADAS ═══════════════════════════
-    const s2Y = (doc.lastAutoTable.finalY || 0) + 10
-    drawSection('DETALLE DE ENTRADAS', s2Y)
+    // ── Sección 2: Detalle de entradas ───────────────────────────
+    const s2Y = (doc.lastAutoTable.finalY || 0) + 8
+    drawSection('Detalle de entradas', s2Y)
 
     autoTable(doc, {
-      startY: s2Y + 8,
+      startY: s2Y + 10,
       margin: { left: M, right: M },
-      head: [['Descripción', 'Proyecto', 'Usuario', 'Fecha', 'Dur.']],
+      head: [['Descripción', 'Proyecto', 'Usuario', 'Fecha', 'Duración']],
       body: filtered.map(e => {
         const dt = e.start_time ? parseISO(e.start_time) : null
         return [
@@ -515,39 +534,42 @@ export default function Reports() {
         ]
       }),
       styles: {
-        fontSize: 7.5, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
-        font: 'helvetica', textColor: C.text, overflow: 'ellipsize',
-        lineColor: C.border, lineWidth: 0.15,
+        fontSize: 7.5, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 },
+        font: 'helvetica', textColor: C.text2, overflow: 'ellipsize',
+        lineColor: C.border, lineWidth: 0.2, fillColor: C.white,
       },
       headStyles: {
-        fillColor: C.darkMid, textColor: C.white, fontStyle: 'bold', fontSize: 7,
-        cellPadding: { top: 4, bottom: 4, left: 3, right: 3 },
+        fillColor: C.teal, textColor: C.white, fontStyle: 'bold', fontSize: 7,
+        cellPadding: { top: 4, bottom: 4, left: 4, right: 4 },
       },
-      alternateRowStyles: { fillColor: [249, 248, 255] },
+      alternateRowStyles: { fillColor: C.rowAlt },
       columnStyles: {
         0: { cellWidth: 'auto' },
-        1: { cellWidth: 38 },
-        2: { cellWidth: 32 },
-        3: { cellWidth: 18, halign: 'center', textColor: C.muted },
-        4: { cellWidth: 16, halign: 'right', fontStyle: 'bold', textColor: C.purple },
+        1: { cellWidth: 36 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 18, halign: 'center', textColor: C.text3 },
+        4: { cellWidth: 18, halign: 'right', fontStyle: 'bold', textColor: C.teal },
       },
     })
 
-    // ═══ FOOTER EN CADA PÁGINA ════════════════════════════════════
+    // ── Footer en cada página ─────────────────────────────────────
     const pages = doc.getNumberOfPages()
     for (let p = 1; p <= pages; p++) {
       doc.setPage(p)
-      // Banda footer
-      doc.setFillColor(...C.dark)
-      doc.rect(0, H - 11, W, 11, 'F')
-      doc.setFillColor(...C.purple)
-      doc.rect(0, H - 11, 4, 11, 'F')
-      // Texto footer
+      doc.setDrawColor(...C.border)
+      doc.setLineWidth(0.4)
+      doc.line(0, H - 12, W, H - 12)
+      doc.setFillColor(...C.white)
+      doc.rect(0, H - 12, W, 12, 'F')
+      doc.setFillColor(...C.teal)
+      doc.rect(0, H - 12, 5, 12, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(7)
+      doc.setTextColor(...C.text3)
+      doc.text('XUL', M + 2, H - 4.5)
       doc.setFont('helvetica', 'normal')
-      doc.setFontSize(6.5)
-      doc.setTextColor(...C.muted)
-      doc.text('XUL  ·  Informe generado con MyTrack', M, H - 4.5)
-      doc.text(`${p} / ${pages}`, W - M, H - 4.5, { align: 'right' })
+      doc.text('  ·  Informe de horas · MyTrack', M + 2 + doc.getTextWidth('XUL'), H - 4.5)
+      doc.text(`Página ${p} de ${pages}`, W - M, H - 4.5, { align: 'right' })
     }
 
     doc.save(`XUL_Informe_${format(from,'dd-MM-yyyy')}_${format(to,'dd-MM-yyyy')}.pdf`)

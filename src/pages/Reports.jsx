@@ -284,10 +284,18 @@ export default function Reports() {
       const projEntries = entries.filter(e => e.project_name === projName)
       const byPerson = {}
       projEntries.forEach(e => {
-        if (!byPerson[e.user_email]) byPerson[e.user_email] = { name: e.user_name || e.user_email, secs: 0 }
+        if (!byPerson[e.user_email]) byPerson[e.user_email] = { name: e.user_name || e.user_email, secs: 0, tasks: {} }
         byPerson[e.user_email].secs += Number(e.duration) || 0
+        const taskKey = e.task_name || 'Sin tarea'
+        if (!byPerson[e.user_email].tasks[taskKey]) byPerson[e.user_email].tasks[taskKey] = 0
+        byPerson[e.user_email].tasks[taskKey] += Number(e.duration) || 0
       })
-      const people = Object.entries(byPerson).map(([email, d]) => ({ email, name: d.name, secs: d.secs })).sort((a, b) => b.secs - a.secs)
+      const people = Object.entries(byPerson)
+        .map(([email, d]) => ({
+          email, name: d.name, secs: d.secs,
+          tasks: Object.entries(d.tasks).map(([name, secs]) => ({ name, secs })).sort((a, b) => b.secs - a.secs),
+        }))
+        .sort((a, b) => b.secs - a.secs)
       return { name: projName, color: projEntries[0]?.project_color || '#7C4DFF', people, totalSecs: people.reduce((s, p) => s + p.secs, 0) }
     })
   }, [entries, isAuxi])
@@ -658,12 +666,20 @@ export default function Reports() {
                   ) : (
                     <>
                       {proj.people.map(p => (
-                        <div key={p.email} style={{ display: 'flex', alignItems: 'center', padding: '9px 16px', borderBottom: '1px solid var(--c-border-light)', gap: 12 }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--c-text-1)' }}>{p.name}</div>
-                            <div style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{p.email}</div>
+                        <div key={p.email} style={{ borderBottom: '1px solid var(--c-border-light)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', padding: '9px 16px', gap: 12 }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)' }}>{p.name}</div>
+                              <div style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{p.email}</div>
+                            </div>
+                            <span style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--c-text-1)' }}>{fmtDuration(p.secs)}</span>
                           </div>
-                          <span style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--c-text-1)' }}>{fmtDuration(p.secs)}</span>
+                          {p.tasks?.map(t => (
+                            <div key={t.name} style={{ display: 'flex', alignItems: 'center', padding: '5px 16px 5px 32px', gap: 12, background: 'var(--c-bg-muted)' }}>
+                              <span style={{ fontSize: 12, color: 'var(--c-text-3)', flex: 1 }}>· {t.name}</span>
+                              <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: 'var(--c-text-3)' }}>{fmtDuration(t.secs)}</span>
+                            </div>
+                          ))}
                         </div>
                       ))}
                       <div style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', background: 'var(--c-bg-muted)', justifyContent: 'space-between' }}>

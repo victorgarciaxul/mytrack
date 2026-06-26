@@ -51,6 +51,11 @@ const JORGE_TEAM_PROJECTS = [
   'Andalucía Vuela (Empresas)',
 ]
 
+const AUXI_EMAIL = 'auximazuecos@xul.es'
+const AUXI_TEAM_PROJECTS = [
+  'CCOOSevilla_Campaña inmigrantes',
+]
+
 const CustomXTick = ({ x, y, payload }) => {
   const parts = payload.value?.split('|') || [payload.value]
   return (
@@ -78,6 +83,7 @@ export default function Reports() {
   const isJavier = user?.email === JAVIER_EMAIL
   const isAitor  = user?.email === AITOR_EMAIL
   const isJorge  = user?.email === JORGE_EMAIL
+  const isAuxi   = user?.email === AUXI_EMAIL
   const [tab, setTab] = useState('Resumido')
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(false)
@@ -271,6 +277,21 @@ export default function Reports() {
     XLSX.writeFile(wb, fileName)
   }
 
+  // ── Equipo view (Auxi) ───────────────────────────────────────────────────
+  const auxiTeamByProject = useMemo(() => {
+    if (!isAuxi) return []
+    return AUXI_TEAM_PROJECTS.map(projName => {
+      const projEntries = entries.filter(e => e.project_name === projName)
+      const byPerson = {}
+      projEntries.forEach(e => {
+        if (!byPerson[e.user_email]) byPerson[e.user_email] = { name: e.user_name || e.user_email, secs: 0 }
+        byPerson[e.user_email].secs += Number(e.duration) || 0
+      })
+      const people = Object.entries(byPerson).map(([email, d]) => ({ email, name: d.name, secs: d.secs })).sort((a, b) => b.secs - a.secs)
+      return { name: projName, color: projEntries[0]?.project_color || '#7C4DFF', people, totalSecs: people.reduce((s, p) => s + p.secs, 0) }
+    })
+  }, [entries, isAuxi])
+
   // ── Equipo view (Jorge): horas de todos en Vuela Empresas ────────────────
   const jorgeTeamByProject = useMemo(() => {
     if (!isJorge) return []
@@ -339,7 +360,7 @@ export default function Reports() {
       <div style={{ padding: isMobile ? '10px 14px' : '14px 28px', borderBottom: '1px solid var(--c-border-light)', display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16, flexWrap: 'wrap', flexShrink: 0 }}>
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 2 }}>
-          {[...TABS, ...((isJavier || isAitor || isJorge) ? ['Equipo'] : [])].map(t => (
+          {[...TABS, ...((isJavier || isAitor || isJorge || isAuxi) ? ['Equipo'] : [])].map(t => (
             <button key={t} onClick={() => setTab(t)} style={{
               padding: '6px 16px', fontSize: 13, fontWeight: tab === t ? 700 : 500,
               color: tab === t ? '#fff' : 'var(--c-text-3)',
@@ -622,6 +643,40 @@ export default function Reports() {
                 ))}
               </div>
             )}
+          {/* ── Pestaña Equipo (Auxi) ── */}
+          {tab === 'Equipo' && isAuxi && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {auxiTeamByProject.map(proj => (
+                <div key={proj.name} style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 12, overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--c-border-light)' }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: proj.color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text-1)' }}>{proj.name}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--c-text-3)' }}>{proj.people.length} {proj.people.length === 1 ? 'persona' : 'personas'}</span>
+                  </div>
+                  {proj.people.length === 0 ? (
+                    <div style={{ padding: '12px 16px', fontSize: 13, color: 'var(--c-text-4)' }}>Sin entradas en este período</div>
+                  ) : (
+                    <>
+                      {proj.people.map(p => (
+                        <div key={p.email} style={{ display: 'flex', alignItems: 'center', padding: '9px 16px', borderBottom: '1px solid var(--c-border-light)', gap: 12 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--c-text-1)' }}>{p.name}</div>
+                            <div style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{p.email}</div>
+                          </div>
+                          <span style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--c-text-1)' }}>{fmtDuration(p.secs)}</span>
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', background: 'var(--c-bg-muted)', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 12, color: 'var(--c-text-3)', fontWeight: 600 }}>TOTAL PROYECTO</span>
+                        <span style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: '#7C4DFF' }}>{fmtDuration(proj.totalSecs)}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* ── Pestaña Equipo (Jorge) ── */}
           {tab === 'Equipo' && isJorge && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

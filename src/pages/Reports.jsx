@@ -275,27 +275,52 @@ export default function Reports() {
 
   function exportToExcel() {
     const wb = XLSX.utils.book_new()
+    const fromStr = format(from, 'dd-MM-yyyy'), toStr = format(to, 'dd-MM-yyyy')
+
+    // ── Pestaña Equipo: exportar vista de equipo ──
+    const teamData = isAdmin ? adminTeamByProject
+      : isAuxi  ? auxiTeamByProject
+      : isAitor ? aitorTeamByProject
+      : isJorge ? jorgeTeamByProject
+      : isJavier ? javierTeamByProject
+      : null
+
+    if (tab === 'Equipo' && teamData) {
+      teamData.forEach(proj => {
+        const rows = [['Persona', 'Tarea', 'Descripción', 'Horas']]
+        proj.people.forEach(person => {
+          person.tasks.forEach(task => {
+            if (task.entries && task.entries.length > 0) {
+              task.entries.forEach(entry => {
+                rows.push([person.name || person.email, task.name, entry.desc || '—', parseFloat((entry.secs / 3600).toFixed(2))])
+              })
+            } else {
+              rows.push([person.name || person.email, task.name, '—', parseFloat((task.secs / 3600).toFixed(2))])
+            }
+          })
+        })
+        const ws = XLSX.utils.aoa_to_sheet(rows)
+        ws['!cols'] = [{ wch: 28 }, { wch: 28 }, { wch: 40 }, { wch: 10 }]
+        const sheetName = proj.name.substring(0, 31).replace(/[:\\/?*\[\]]/g, '')
+        XLSX.utils.book_append_sheet(wb, ws, sheetName)
+      })
+      XLSX.writeFile(wb, `XUL_Informe_Equipo_${fromStr}_${toStr}.xlsx`)
+      return
+    }
 
     // ── Hoja 1: Resumen por proyecto ──
     const resumidoData = [
-      ['#', 'Proyecto', 'Cliente', 'Entradas', 'Duración (h)', 'Facturable (h)'],
-      ...grouped.map((g, i) => [
-        i + 1,
-        g.name,
-        g.client || '',
-        g.count,
-        parseFloat((g.secs / 3600).toFixed(2)),
-        parseFloat((g.billable / 3600).toFixed(2)),
-      ]),
-      ['', 'TOTAL', '', filtered.length, parseFloat((totalSecs / 3600).toFixed(2)), parseFloat((billableSecs / 3600).toFixed(2))],
+      ['#', 'Proyecto', 'Cliente', 'Entradas', 'Duración (h)'],
+      ...grouped.map((g, i) => [i + 1, g.name, g.client || '', g.count, parseFloat((g.secs / 3600).toFixed(2))]),
+      ['', 'TOTAL', '', filtered.length, parseFloat((totalSecs / 3600).toFixed(2))],
     ]
     const ws1 = XLSX.utils.aoa_to_sheet(resumidoData)
-    ws1['!cols'] = [{ wch: 4 }, { wch: 36 }, { wch: 24 }, { wch: 10 }, { wch: 14 }, { wch: 16 }]
+    ws1['!cols'] = [{ wch: 4 }, { wch: 36 }, { wch: 24 }, { wch: 10 }, { wch: 14 }]
     XLSX.utils.book_append_sheet(wb, ws1, 'Resumen')
 
     // ── Hoja 2: Detallado ──
     const detalladoData = [
-      ['Descripción', 'Proyecto', 'Cliente', 'Usuario', 'Fecha', 'Hora inicio', 'Duración (h)', 'Facturable'],
+      ['Descripción', 'Proyecto', 'Cliente', 'Usuario', 'Fecha', 'Hora inicio', 'Duración (h)'],
       ...filtered.map(e => {
         const dt = e.start_time ? parseISO(e.start_time) : null
         return [
@@ -306,19 +331,14 @@ export default function Reports() {
           dt ? format(dt, 'dd/MM/yyyy') : '',
           dt ? format(dt, 'HH:mm')      : '',
           parseFloat(((Number(e.duration) || 0) / 3600).toFixed(2)),
-          e.billable ? 'Sí' : 'No',
         ]
       }),
     ]
     const ws2 = XLSX.utils.aoa_to_sheet(detalladoData)
-    ws2['!cols'] = [{ wch: 40 }, { wch: 30 }, { wch: 24 }, { wch: 28 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 10 }]
+    ws2['!cols'] = [{ wch: 40 }, { wch: 30 }, { wch: 24 }, { wch: 28 }, { wch: 12 }, { wch: 10 }, { wch: 14 }]
     XLSX.utils.book_append_sheet(wb, ws2, 'Detallado')
 
-    // File name with range
-    const fromStr = format(from, 'dd-MM-yyyy')
-    const toStr   = format(to,   'dd-MM-yyyy')
-    const fileName = `informe_${fromStr}_${toStr}.xlsx`
-    XLSX.writeFile(wb, fileName)
+    XLSX.writeFile(wb, `XUL_Informe_${fromStr}_${toStr}.xlsx`)
   }
 
   // ── Export PDF ───────────────────────────────────────────────────────────
@@ -615,25 +635,73 @@ export default function Reports() {
   // ── Export DOCX ──────────────────────────────────────────────────────────
   async function exportToDocx() {
     const fromStr = format(from, 'dd/MM/yyyy'), toStr = format(to, 'dd/MM/yyyy')
+    const fileFrom = format(from, 'dd-MM-yyyy'), fileTo = format(to, 'dd-MM-yyyy')
 
-    const headerRow = new TableRow({
+    const mkHeader = cols => new TableRow({
       tableHeader: true,
-      children: ['#', 'Proyecto', 'Cliente', 'Entradas', 'Horas', 'Facturable'].map(h =>
-        new TableCell({
-          shading: { type: ShadingType.SOLID, color: '1E1E28' },
-          children: [new Paragraph({ children: [new TextRun({ text: h, color: 'FFFFFF', bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
-        })
-      ),
+      children: cols.map(h => new TableCell({
+        shading: { type: ShadingType.SOLID, color: '1E1E28' },
+        children: [new Paragraph({ children: [new TextRun({ text: h, color: 'FFFFFF', bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+      })),
     })
 
-    const dataRows = grouped.map((g, i) => new TableRow({
+    // ── Pestaña Equipo: exportar vista de equipo ──
+    const teamData = isAdmin ? adminTeamByProject
+      : isAuxi  ? auxiTeamByProject
+      : isAitor ? aitorTeamByProject
+      : isJorge ? jorgeTeamByProject
+      : isJavier ? javierTeamByProject
+      : null
+
+    if (tab === 'Equipo' && teamData) {
+      const children = [
+        new Paragraph({ children: [new TextRun({ text: 'XUL', bold: true, size: 52, color: '1E1E28' })], heading: HeadingLevel.TITLE }),
+        new Paragraph({ children: [new TextRun({ text: 'INFORME DE EQUIPO', size: 20, color: '7C4DFF', bold: true })], spacing: { after: 80 } }),
+        new Paragraph({ children: [new TextRun({ text: `Período: ${fromStr} — ${toStr}`, size: 20, color: '666680' })], spacing: { after: 320 } }),
+      ]
+      teamData.forEach(proj => {
+        children.push(new Paragraph({ children: [new TextRun({ text: proj.name, bold: true, size: 24, color: '504878' })], spacing: { before: 320, after: 160 } }))
+        const rows = [mkHeader(['Persona', 'Tarea', 'Descripción', 'Horas'])]
+        proj.people.forEach(person => {
+          person.tasks.forEach(task => {
+            if (task.entries && task.entries.length > 0) {
+              task.entries.forEach(entry => {
+                rows.push(new TableRow({ children: [
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: person.name || person.email, bold: true, size: 16 })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: task.name, size: 16 })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: entry.desc || '—', size: 16 })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: fmtDuration(entry.secs), bold: true, size: 16 })], alignment: AlignmentType.RIGHT })] }),
+                ]}))
+              })
+            } else {
+              rows.push(new TableRow({ children: [
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: person.name || person.email, bold: true, size: 16 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: task.name, size: 16 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '—', size: 16 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: fmtDuration(task.secs), bold: true, size: 16 })], alignment: AlignmentType.RIGHT })] }),
+              ]}))
+            }
+          })
+        })
+        children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows }))
+      })
+      const doc = new Document({ sections: [{ properties: { page: { margin: { top: 1000, bottom: 1000, left: 1200, right: 1200 } } }, children }] })
+      const blob = await Packer.toBlob(doc)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `XUL_Informe_Equipo_${fileFrom}_${fileTo}.docx`
+      a.click(); URL.revokeObjectURL(url)
+      return
+    }
+
+    // ── Vista personal ────────────────────────────────────────────
+    const summaryRows = grouped.map((g, i) => new TableRow({
       children: [
         new TableCell({ children: [new Paragraph({ text: String(i + 1), alignment: AlignmentType.CENTER })] }),
         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: g.name, bold: true })] })] }),
         new TableCell({ children: [new Paragraph({ text: g.client || '—' })] }),
         new TableCell({ children: [new Paragraph({ text: String(g.count), alignment: AlignmentType.CENTER })] }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: fmtDuration(g.secs), bold: true })] , alignment: AlignmentType.RIGHT })] }),
-        new TableCell({ children: [new Paragraph({ text: fmtDuration(g.billable), alignment: AlignmentType.RIGHT })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: fmtDuration(g.secs), bold: true })], alignment: AlignmentType.RIGHT })] }),
       ],
     }))
 
@@ -644,7 +712,6 @@ export default function Reports() {
         new TableCell({ shading: { type: ShadingType.SOLID, color: 'F5F4FC' }, children: [new Paragraph('')] }),
         new TableCell({ shading: { type: ShadingType.SOLID, color: 'F5F4FC' }, children: [new Paragraph({ children: [new TextRun({ text: String(filtered.length), bold: true, color: '504878' })], alignment: AlignmentType.CENTER })] }),
         new TableCell({ shading: { type: ShadingType.SOLID, color: 'F5F4FC' }, children: [new Paragraph({ children: [new TextRun({ text: fmtDuration(totalSecs), bold: true, color: '7C4DFF' })], alignment: AlignmentType.RIGHT })] }),
-        new TableCell({ shading: { type: ShadingType.SOLID, color: 'F5F4FC' }, children: [new Paragraph({ children: [new TextRun({ text: fmtDuration(billableSecs), bold: true, color: '10B981' })], alignment: AlignmentType.RIGHT })] }),
       ],
     })
 
@@ -655,23 +722,15 @@ export default function Reports() {
           new Paragraph({ children: [new TextRun({ text: 'XUL', bold: true, size: 52, color: '1E1E28' })], heading: HeadingLevel.TITLE }),
           new Paragraph({ children: [new TextRun({ text: 'INFORME DE HORAS', size: 20, color: '7C4DFF', bold: true })], spacing: { after: 80 } }),
           new Paragraph({ children: [new TextRun({ text: `Período: ${fromStr} — ${toStr}`, size: 20, color: '666680' })], spacing: { after: 40 } }),
-          new Paragraph({ children: [new TextRun({ text: `Total: ${fmtDuration(totalSecs)}   ·   Facturable: ${fmtDuration(billableSecs)}   ·   Entradas: ${filtered.length}   ·   Proyectos: ${pieData.length}`, size: 20, bold: true, color: '1E1E28' })], spacing: { after: 320 } }),
+          new Paragraph({ children: [new TextRun({ text: `Total: ${fmtDuration(totalSecs)}   ·   Entradas: ${filtered.length}`, size: 20, bold: true, color: '1E1E28' })], spacing: { after: 320 } }),
           new Paragraph({ children: [new TextRun({ text: 'Resumen por proyecto', bold: true, size: 24, color: '504878' })], spacing: { after: 160 } }),
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: [headerRow, ...dataRows, totalRow],
-          }),
+          new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [mkHeader(['#', 'Proyecto', 'Cliente', 'Entradas', 'Horas']), ...summaryRows, totalRow] }),
           new Paragraph({ children: [new TextRun({ text: '' })], spacing: { before: 480, after: 160 } }),
           new Paragraph({ children: [new TextRun({ text: 'Detalle de entradas', bold: true, size: 24, color: '504878' })], spacing: { after: 160 } }),
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
             rows: [
-              new TableRow({
-                tableHeader: true,
-                children: ['Descripción', 'Proyecto', 'Usuario', 'Fecha', 'Duración'].map(h =>
-                  new TableCell({ shading: { type: ShadingType.SOLID, color: '1E1E28' }, children: [new Paragraph({ children: [new TextRun({ text: h, color: 'FFFFFF', bold: true, size: 16 })], alignment: AlignmentType.CENTER })] })
-                ),
-              }),
+              mkHeader(['Descripción', 'Proyecto', 'Usuario', 'Fecha', 'Duración']),
               ...filtered.map(e => {
                 const dt = e.start_time ? parseISO(e.start_time) : null
                 return new TableRow({ children: [
@@ -691,7 +750,7 @@ export default function Reports() {
     const blob = await Packer.toBlob(doc)
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url; a.download = `informe_${format(from,'dd-MM-yyyy')}_${format(to,'dd-MM-yyyy')}.docx`
+    a.href = url; a.download = `XUL_Informe_${fileFrom}_${fileTo}.docx`
     a.click(); URL.revokeObjectURL(url)
   }
 

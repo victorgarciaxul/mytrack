@@ -328,14 +328,12 @@ export default function Reports() {
     const fromStr = format(from, 'dd MMM yyyy', { locale: es })
     const toStr   = format(to,   'dd MMM yyyy', { locale: es })
     const totalH  = fmtDuration(totalSecs)
-    const billH   = fmtDuration(billableSecs)
 
     // ─── Paleta ───────────────────────────────────────────────────
     const C = {
       dark:    [18, 18, 28],
       darkMid: [26, 26, 42],
       purple:  [124, 77, 255],
-      green:   [16, 185, 129],
       blue:    [59, 130, 246],
       amber:   [245, 158, 11],
       white:   [255, 255, 255],
@@ -357,7 +355,22 @@ export default function Reports() {
       doc.line(M + 6 + doc.getTextWidth(label) + 4, y + 1.5, W - M, y + 1.5)
     }
 
-    // ═══ HEADER ═══════════════════════════════════════════════════
+    const drawFooter = (pages) => {
+      for (let p = 1; p <= pages; p++) {
+        doc.setPage(p)
+        doc.setFillColor(...C.dark)
+        doc.rect(0, H - 11, W, 11, 'F')
+        doc.setFillColor(...C.purple)
+        doc.rect(0, H - 11, 4, 11, 'F')
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(6.5)
+        doc.setTextColor(...C.muted)
+        doc.text('XUL  ·  Informe de horas', M, H - 4.5)
+        doc.text(`${p} / ${pages}`, W - M, H - 4.5, { align: 'right' })
+      }
+    }
+
+    // ═══ HEADER (común) ═══════════════════════════════════════════
     doc.setFillColor(...C.dark)
     doc.rect(0, 0, W, 58, 'F')
     doc.setFillColor(...C.purple)
@@ -370,11 +383,11 @@ export default function Reports() {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(28)
     doc.setTextColor(...C.white)
-    doc.text('MYTRACK', M + 4, 22)
+    doc.text('XUL', M + 4, 22)
 
     doc.setDrawColor(...C.purple)
     doc.setLineWidth(0.6)
-    doc.line(M + 4, 25, M + 4 + doc.getTextWidth('MYTRACK'), 25)
+    doc.line(M + 4, 25, M + 4 + doc.getTextWidth('XUL'), 25)
 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
@@ -403,14 +416,95 @@ export default function Reports() {
     doc.setTextColor(...C.muted)
     doc.text(headerInfoParts.length ? headerInfoParts.join('  ·  ') : 'Todos los proyectos y usuarios', M + 4, 44)
 
-    // ═══ KPI CARDS ════════════════════════════════════════════════
+    // ═══ PESTAÑA EQUIPO — exportar vista de equipo ════════════════
+    const teamData = isAdmin ? adminTeamByProject
+      : isAuxi  ? auxiTeamByProject
+      : isAitor ? aitorTeamByProject
+      : isJorge ? jorgeTeamByProject
+      : isJavier ? javierTeamByProject
+      : null
+
+    if (tab === 'Equipo' && teamData) {
+      // KPIs: total horas del equipo + personas
+      const teamTotalSecs = teamData.reduce((s, p) => s + p.totalSecs, 0)
+      const teamPeople = [...new Set(teamData.flatMap(p => p.people.map(x => x.email || x.name)))].length
+      const kpisTeam = [
+        { label: 'Total horas',  value: fmtDuration(teamTotalSecs), accent: C.purple },
+        { label: 'Proyectos',    value: String(teamData.length),    accent: C.amber  },
+        { label: 'Personas',     value: String(teamPeople),         accent: C.blue   },
+      ]
+      const cW3 = (W - M * 2 - 6) / 3
+      const cardY = 63
+      kpisTeam.forEach((k, i) => {
+        const x = M + i * (cW3 + 3)
+        doc.setFillColor(...C.offWhite)
+        doc.roundedRect(x, cardY, cW3, 26, 3, 3, 'F')
+        doc.setFillColor(...k.accent)
+        doc.roundedRect(x, cardY, cW3, 3.5, 1.5, 1.5, 'F')
+        doc.rect(x, cardY + 2, cW3, 1.5, 'F')
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(15)
+        doc.setTextColor(...k.accent)
+        doc.text(k.value, x + cW3 / 2, cardY + 15, { align: 'center' })
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(6.5)
+        doc.setTextColor(...C.muted)
+        doc.text(k.label.toUpperCase(), x + cW3 / 2, cardY + 22, { align: 'center' })
+      })
+
+      let curY = cardY + 33
+      teamData.forEach(proj => {
+        drawSection(proj.name.toUpperCase(), curY)
+        curY += 8
+        const rows = []
+        proj.people.forEach(person => {
+          person.tasks.forEach(task => {
+            task.entries.forEach(entry => {
+              rows.push([
+                person.name || person.email,
+                task.name,
+                entry.desc || '—',
+                fmtDuration(entry.secs),
+              ])
+            })
+            if (!task.entries || task.entries.length === 0) {
+              rows.push([person.name || person.email, task.name, '—', fmtDuration(task.secs)])
+            }
+          })
+        })
+        autoTable(doc, {
+          startY: curY,
+          margin: { left: M, right: M },
+          head: [['Persona', 'Tarea', 'Descripción', 'Horas']],
+          body: rows,
+          styles: { fontSize: 7.5, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 }, font: 'helvetica', textColor: C.text, lineColor: C.border, lineWidth: 0.15 },
+          headStyles: { fillColor: C.darkMid, textColor: C.white, fontStyle: 'bold', fontSize: 7, cellPadding: { top: 3.5, bottom: 3.5, left: 3, right: 3 } },
+          alternateRowStyles: { fillColor: [249, 248, 255] },
+          columnStyles: {
+            0: { cellWidth: 36, fontStyle: 'bold' },
+            1: { cellWidth: 36 },
+            2: { cellWidth: 'auto' },
+            3: { cellWidth: 18, halign: 'right', fontStyle: 'bold', textColor: C.purple },
+          },
+        })
+        curY = (doc.lastAutoTable.finalY || curY) + 10
+      })
+
+      drawFooter(doc.getNumberOfPages())
+      doc.save(`XUL_Informe_Equipo_${format(from,'dd-MM-yyyy')}_${format(to,'dd-MM-yyyy')}.pdf`)
+      return
+    }
+
+    // ═══ KPI CARDS (vista personal) ═══════════════════════════════
+    // Sin "Facturable" ni "Proyectos" cuando hay filtro de proyecto activo
+    const showProjects = !filterProject
     const kpis = [
-      { label: 'Total horas',  value: totalH,             accent: C.purple },
-      { label: 'Facturable',   value: billH,              accent: C.green  },
-      { label: 'Entradas',     value: String(filtered.length), accent: C.blue },
-      { label: 'Proyectos',    value: String(pieData.length),  accent: C.amber },
+      { label: 'Total horas', value: totalH,                   accent: C.purple },
+      { label: 'Registros',   value: String(filtered.length),  accent: C.blue   },
+      ...(showProjects ? [{ label: 'Proyectos', value: String(pieData.length), accent: C.amber }] : []),
     ]
-    const cardW = (W - M * 2 - 9) / 4
+    const nCards = kpis.length
+    const cardW = (W - M * 2 - (nCards - 1) * 3) / nCards
     const cardY = 63
     kpis.forEach((k, i) => {
       const x = M + i * (cardW + 3)
@@ -436,16 +530,15 @@ export default function Reports() {
     autoTable(doc, {
       startY: s1Y + 8,
       margin: { left: M, right: M },
-      head: [['Proyecto', 'Cliente', 'Entradas', 'Horas', 'Facturable', '%']],
+      head: [['Proyecto', 'Cliente', 'Entradas', 'Horas', '%']],
       body: grouped.map(g => [
         g.name,
         g.client || '—',
         String(g.count),
         fmtDuration(g.secs),
-        fmtDuration(g.billable),
         totalSecs > 0 ? `${Math.round(g.secs / totalSecs * 100)}%` : '—',
       ]),
-      foot: [['TOTAL', '', String(filtered.length), totalH, billH, '100%']],
+      foot: [['TOTAL', '', String(filtered.length), totalH, '100%']],
       styles: {
         fontSize: 8, cellPadding: { top: 3.5, bottom: 3.5, left: 3, right: 3 },
         font: 'helvetica', textColor: C.text, lineColor: C.border, lineWidth: 0.15,
@@ -454,20 +547,17 @@ export default function Reports() {
         fillColor: C.darkMid, textColor: C.white, fontStyle: 'bold', fontSize: 7.5,
         cellPadding: { top: 4, bottom: 4, left: 3, right: 3 },
       },
-      footStyles: {
-        fillColor: [234, 232, 250], textColor: C.purple, fontStyle: 'bold', fontSize: 7.5,
-      },
+      footStyles: { fillColor: [234, 232, 250], textColor: C.purple, fontStyle: 'bold', fontSize: 7.5 },
       alternateRowStyles: { fillColor: [249, 248, 255] },
       columnStyles: {
         0: { cellWidth: 'auto' },
-        1: { cellWidth: 32 },
+        1: { cellWidth: 36 },
         2: { cellWidth: 18, halign: 'center' },
         3: { cellWidth: 20, halign: 'right', fontStyle: 'bold', textColor: C.text },
-        4: { cellWidth: 20, halign: 'right', textColor: C.green },
-        5: { cellWidth: 14, halign: 'center', textColor: C.muted },
+        4: { cellWidth: 14, halign: 'center', textColor: C.muted },
       },
       didDrawCell: (data) => {
-        if (data.section === 'body' && data.column.index === 5) {
+        if (data.section === 'body' && data.column.index === 4) {
           const g = grouped[data.row.index]
           if (!g || totalSecs === 0) return
           const pct = g.secs / totalSecs
@@ -518,22 +608,8 @@ export default function Reports() {
       },
     })
 
-    // ═══ FOOTER EN CADA PÁGINA ════════════════════════════════════
-    const pages = doc.getNumberOfPages()
-    for (let p = 1; p <= pages; p++) {
-      doc.setPage(p)
-      doc.setFillColor(...C.dark)
-      doc.rect(0, H - 11, W, 11, 'F')
-      doc.setFillColor(...C.purple)
-      doc.rect(0, H - 11, 4, 11, 'F')
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(6.5)
-      doc.setTextColor(...C.muted)
-      doc.text('MYTRACK  ·  Informe de horas', M, H - 4.5)
-      doc.text(`${p} / ${pages}`, W - M, H - 4.5, { align: 'right' })
-    }
-
-    doc.save(`MyTrack_Informe_${format(from,'dd-MM-yyyy')}_${format(to,'dd-MM-yyyy')}.pdf`)
+    drawFooter(doc.getNumberOfPages())
+    doc.save(`XUL_Informe_${format(from,'dd-MM-yyyy')}_${format(to,'dd-MM-yyyy')}.pdf`)
   }
 
   // ── Export DOCX ──────────────────────────────────────────────────────────

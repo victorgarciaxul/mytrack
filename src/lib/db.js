@@ -1128,7 +1128,7 @@ export async function dbGetWeeklyHours(userEmail, fromDate, toDate) {
   const from = typeof fromDate === 'string' ? fromDate : fromDate.toISOString()
   const to   = typeof toDate   === 'string' ? toDate   : toDate.toISOString()
   const { data, error } = await _supabase.rpc('get_weekly_hours', {
-    p_workspace_id: getWsId(),
+    p_workspace_id: null,   // null = todos los workspaces (Calendar y Compensación usan el mismo total)
     p_from:         from,
     p_to:           to,
     p_user_email:   userEmail || null,

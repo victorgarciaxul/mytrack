@@ -12,7 +12,19 @@ import toast from 'react-hot-toast'
  * entry: { id, description, start_time, end_time, projects, tasks, project_id, task_id, ... }
  */
 export default function EditEntryModal({ entry, onClose, onSaved, user }) {
-  const { projects } = useWorkspace()
+  const { projects: wsProjects } = useWorkspace()
+
+  // Merge workspace projects with the entry's own project (if it's a legacy Clockify
+  // project not yet in Supabase — so the dropdown always shows the correct selection).
+  const projects = (() => {
+    if (!entry.project_id || !entry.projects?.name) return wsProjects
+    const alreadyIn = wsProjects.some(p => p.id === entry.project_id)
+    if (alreadyIn) return wsProjects
+    return [
+      { id: entry.project_id, name: entry.projects.name, color: entry.projects.color || '#7C4DFF', clients: entry.projects.clients || null },
+      ...wsProjects,
+    ]
+  })()
 
   const toDate = v => { try { return format(parseISO(v), 'yyyy-MM-dd') } catch { return format(new Date(), 'yyyy-MM-dd') } }
   const toTime = v => { try { return format(parseISO(v), 'HH:mm') } catch { return '00:00' } }

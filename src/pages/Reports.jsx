@@ -1,7 +1,10 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-import { Download, Trash2 } from 'lucide-react'
+import { Download, Trash2, ChevronDown } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, HeadingLevel, AlignmentType, WidthType, BorderStyle, ShadingType } from 'docx'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -71,6 +74,47 @@ const CustomTooltip = ({ active, payload }) => {
   return (
     <div style={{ background: 'var(--c-text-1)', color: '#fff', padding: '6px 12px', borderRadius: 10, fontSize: 12 }}>
       <span style={{ fontWeight: 700 }}>{payload[0].value}h</span>
+    </div>
+  )
+}
+
+// ── Export dropdown ─────────────────────────────────────────────
+function ExportMenu({ disabled, onExcel, onPDF, onDocx }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    function handler(e) { if (!ref.current?.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+  const options = [
+    { label: 'Excel (.xlsx)', color: '#217346', border: '#1a5c38', action: onExcel },
+    { label: 'PDF (cliente)', color: '#C0392B', border: '#96281B', action: onPDF },
+    { label: 'Word (.docx)', color: '#2B579A', border: '#1e3f6f', action: onDocx },
+  ]
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => !disabled && setOpen(o => !o)}
+        disabled={disabled}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9, background: disabled ? 'var(--c-bg-muted)' : '#7C4DFF', border: '1px solid ' + (disabled ? 'var(--c-border-light)' : '#6333e0'), color: disabled ? 'var(--c-text-4)' : '#fff', fontSize: 12, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer' }}
+      >
+        <Download size={14} />
+        Exportar
+        <ChevronDown size={12} style={{ opacity: 0.8 }} />
+      </button>
+      {open && (
+        <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 6px)', background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.13)', overflow: 'hidden', zIndex: 200, minWidth: 160 }}>
+          {options.map(o => (
+            <button key={o.label} onClick={() => { o.action(); setOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500, color: 'var(--c-text-1)', textAlign: 'left' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--c-bg-muted)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: o.color, flexShrink: 0 }} />
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -277,6 +321,220 @@ export default function Reports() {
     XLSX.writeFile(wb, fileName)
   }
 
+  // ── Export PDF ───────────────────────────────────────────────────────────
+  function exportToPDF() {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const W = 210, margin = 18
+    const fromStr = format(from, 'dd/MM/yyyy'), toStr = format(to, 'dd/MM/yyyy')
+    const totalH = fmtDuration(totalSecs), billH = fmtDuration(billableSecs)
+
+    // ── Header band ──────────────────────────────────────────────
+    doc.setFillColor(30, 30, 40)
+    doc.rect(0, 0, W, 42, 'F')
+
+    // Logo text XUL
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(22)
+    doc.setTextColor(255, 255, 255)
+    doc.text('XUL', margin, 18)
+
+    // Subtitle
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(160, 155, 200)
+    doc.text('INFORME DE HORAS', margin, 25)
+
+    // Date range on the right
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.setTextColor(255, 255, 255)
+    doc.text(`${fromStr} — ${toStr}`, W - margin, 18, { align: 'right' })
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(160, 155, 200)
+    doc.text(`Generado el ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, W - margin, 25, { align: 'right' })
+
+    // ── KPI cards ────────────────────────────────────────────────
+    const kpis = [
+      { label: 'TOTAL HORAS', value: totalH, color: [124, 77, 255] },
+      { label: 'FACTURABLE', value: billH, color: [16, 185, 129] },
+      { label: 'ENTRADAS', value: String(filtered.length), color: [59, 130, 246] },
+      { label: 'PROYECTOS', value: String(pieData.length), color: [245, 158, 11] },
+    ]
+    const cardW = (W - margin * 2 - 9) / 4
+    kpis.forEach((k, i) => {
+      const x = margin + i * (cardW + 3)
+      doc.setFillColor(245, 244, 252)
+      doc.roundedRect(x, 50, cardW, 22, 3, 3, 'F')
+      doc.setFillColor(...k.color)
+      doc.roundedRect(x, 50, 3, 22, 1, 1, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(14)
+      doc.setTextColor(...k.color)
+      doc.text(k.value, x + cardW / 2 + 2, 59, { align: 'center' })
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6.5)
+      doc.setTextColor(120, 120, 140)
+      doc.text(k.label, x + cardW / 2 + 2, 65, { align: 'center' })
+    })
+
+    // ── Section: Resumen por proyecto ────────────────────────────
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(80, 70, 120)
+    doc.text('RESUMEN POR PROYECTO', margin, 84)
+    doc.setDrawColor(200, 195, 240)
+    doc.setLineWidth(0.3)
+    doc.line(margin, 86, W - margin, 86)
+
+    autoTable(doc, {
+      startY: 89,
+      margin: { left: margin, right: margin },
+      head: [['#', 'Proyecto', 'Cliente', 'Entradas', 'Horas', 'Facturable']],
+      body: grouped.map((g, i) => [
+        i + 1,
+        g.name,
+        g.client || '—',
+        g.count,
+        fmtDuration(g.secs),
+        fmtDuration(g.billable),
+      ]),
+      foot: [['', 'TOTAL', '', filtered.length, totalH, billH]],
+      styles: { fontSize: 8, cellPadding: 3, font: 'helvetica', textColor: [30, 30, 40] },
+      headStyles: { fillColor: [30, 30, 40], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+      footStyles: { fillColor: [245, 244, 252], textColor: [80, 70, 120], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [250, 249, 255] },
+      columnStyles: { 0: { cellWidth: 8, halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'right', fontStyle: 'bold' }, 5: { halign: 'right', textColor: [16, 185, 129] } },
+    })
+
+    // ── Section: Detallado ───────────────────────────────────────
+    const y2 = (doc.lastAutoTable.finalY || 0) + 10
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(80, 70, 120)
+    doc.text('DETALLE DE ENTRADAS', margin, y2)
+    doc.setDrawColor(200, 195, 240)
+    doc.line(margin, y2 + 2, W - margin, y2 + 2)
+
+    autoTable(doc, {
+      startY: y2 + 5,
+      margin: { left: margin, right: margin },
+      head: [['Descripción', 'Proyecto', 'Usuario', 'Fecha', 'Duración']],
+      body: filtered.map(e => {
+        const dt = e.start_time ? parseISO(e.start_time) : null
+        return [
+          e.description || '—',
+          e.project_name || '—',
+          e.user_name || e.user_email || '—',
+          dt ? format(dt, 'dd/MM/yy') : '—',
+          fmtDuration(e.duration),
+        ]
+      }),
+      styles: { fontSize: 7.5, cellPadding: 2.5, font: 'helvetica', textColor: [30, 30, 40], overflow: 'ellipsize' },
+      headStyles: { fillColor: [30, 30, 40], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+      alternateRowStyles: { fillColor: [250, 249, 255] },
+      columnStyles: { 0: { cellWidth: 60 }, 1: { cellWidth: 40 }, 2: { cellWidth: 35 }, 3: { cellWidth: 18, halign: 'center' }, 4: { cellWidth: 18, halign: 'right', fontStyle: 'bold' } },
+    })
+
+    // ── Footer on every page ─────────────────────────────────────
+    const pages = doc.getNumberOfPages()
+    for (let p = 1; p <= pages; p++) {
+      doc.setPage(p)
+      doc.setFillColor(30, 30, 40)
+      doc.rect(0, 287, W, 10, 'F')
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7)
+      doc.setTextColor(120, 115, 160)
+      doc.text('XUL · Informe de horas generado con MyTrack', margin, 293)
+      doc.text(`Pág. ${p} / ${pages}`, W - margin, 293, { align: 'right' })
+    }
+
+    doc.save(`informe_${format(from,'dd-MM-yyyy')}_${format(to,'dd-MM-yyyy')}.pdf`)
+  }
+
+  // ── Export DOCX ──────────────────────────────────────────────────────────
+  async function exportToDocx() {
+    const fromStr = format(from, 'dd/MM/yyyy'), toStr = format(to, 'dd/MM/yyyy')
+
+    const headerRow = new TableRow({
+      tableHeader: true,
+      children: ['#', 'Proyecto', 'Cliente', 'Entradas', 'Horas', 'Facturable'].map(h =>
+        new TableCell({
+          shading: { type: ShadingType.SOLID, color: '1E1E28' },
+          children: [new Paragraph({ children: [new TextRun({ text: h, color: 'FFFFFF', bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+        })
+      ),
+    })
+
+    const dataRows = grouped.map((g, i) => new TableRow({
+      children: [
+        new TableCell({ children: [new Paragraph({ text: String(i + 1), alignment: AlignmentType.CENTER })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: g.name, bold: true })] })] }),
+        new TableCell({ children: [new Paragraph({ text: g.client || '—' })] }),
+        new TableCell({ children: [new Paragraph({ text: String(g.count), alignment: AlignmentType.CENTER })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: fmtDuration(g.secs), bold: true })] , alignment: AlignmentType.RIGHT })] }),
+        new TableCell({ children: [new Paragraph({ text: fmtDuration(g.billable), alignment: AlignmentType.RIGHT })] }),
+      ],
+    }))
+
+    const totalRow = new TableRow({
+      children: [
+        new TableCell({ shading: { type: ShadingType.SOLID, color: 'F5F4FC' }, children: [new Paragraph('')] }),
+        new TableCell({ shading: { type: ShadingType.SOLID, color: 'F5F4FC' }, children: [new Paragraph({ children: [new TextRun({ text: 'TOTAL', bold: true, color: '504878' })] })] }),
+        new TableCell({ shading: { type: ShadingType.SOLID, color: 'F5F4FC' }, children: [new Paragraph('')] }),
+        new TableCell({ shading: { type: ShadingType.SOLID, color: 'F5F4FC' }, children: [new Paragraph({ children: [new TextRun({ text: String(filtered.length), bold: true, color: '504878' })], alignment: AlignmentType.CENTER })] }),
+        new TableCell({ shading: { type: ShadingType.SOLID, color: 'F5F4FC' }, children: [new Paragraph({ children: [new TextRun({ text: fmtDuration(totalSecs), bold: true, color: '7C4DFF' })], alignment: AlignmentType.RIGHT })] }),
+        new TableCell({ shading: { type: ShadingType.SOLID, color: 'F5F4FC' }, children: [new Paragraph({ children: [new TextRun({ text: fmtDuration(billableSecs), bold: true, color: '10B981' })], alignment: AlignmentType.RIGHT })] }),
+      ],
+    })
+
+    const doc = new Document({
+      sections: [{
+        properties: { page: { margin: { top: 1000, bottom: 1000, left: 1200, right: 1200 } } },
+        children: [
+          new Paragraph({ children: [new TextRun({ text: 'XUL', bold: true, size: 52, color: '1E1E28' })], heading: HeadingLevel.TITLE }),
+          new Paragraph({ children: [new TextRun({ text: 'INFORME DE HORAS', size: 20, color: '7C4DFF', bold: true })], spacing: { after: 80 } }),
+          new Paragraph({ children: [new TextRun({ text: `Período: ${fromStr} — ${toStr}`, size: 20, color: '666680' })], spacing: { after: 40 } }),
+          new Paragraph({ children: [new TextRun({ text: `Total: ${fmtDuration(totalSecs)}   ·   Facturable: ${fmtDuration(billableSecs)}   ·   Entradas: ${filtered.length}   ·   Proyectos: ${pieData.length}`, size: 20, bold: true, color: '1E1E28' })], spacing: { after: 320 } }),
+          new Paragraph({ children: [new TextRun({ text: 'Resumen por proyecto', bold: true, size: 24, color: '504878' })], spacing: { after: 160 } }),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [headerRow, ...dataRows, totalRow],
+          }),
+          new Paragraph({ children: [new TextRun({ text: '' })], spacing: { before: 480, after: 160 } }),
+          new Paragraph({ children: [new TextRun({ text: 'Detalle de entradas', bold: true, size: 24, color: '504878' })], spacing: { after: 160 } }),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              new TableRow({
+                tableHeader: true,
+                children: ['Descripción', 'Proyecto', 'Usuario', 'Fecha', 'Duración'].map(h =>
+                  new TableCell({ shading: { type: ShadingType.SOLID, color: '1E1E28' }, children: [new Paragraph({ children: [new TextRun({ text: h, color: 'FFFFFF', bold: true, size: 16 })], alignment: AlignmentType.CENTER })] })
+                ),
+              }),
+              ...filtered.map(e => {
+                const dt = e.start_time ? parseISO(e.start_time) : null
+                return new TableRow({ children: [
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: e.description || '—', size: 16 })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: e.project_name || '—', size: 16 })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: e.user_name || e.user_email || '—', size: 16 })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: dt ? format(dt, 'dd/MM/yy') : '—', size: 16 })], alignment: AlignmentType.CENTER })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: fmtDuration(e.duration), bold: true, size: 16 })], alignment: AlignmentType.RIGHT })] }),
+                ]})
+              }),
+            ],
+          }),
+        ],
+      }],
+    })
+
+    const blob = await Packer.toBlob(doc)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `informe_${format(from,'dd-MM-yyyy')}_${format(to,'dd-MM-yyyy')}.docx`
+    a.click(); URL.revokeObjectURL(url)
+  }
+
   // ── Equipo view (Auxi) ───────────────────────────────────────────────────
   const auxiTeamByProject = useMemo(() => {
     if (!isAuxi) return []
@@ -455,24 +713,7 @@ export default function Reports() {
 
         <div style={{ flex: 1 }} />
 
-        <button
-          onClick={exportToExcel}
-          disabled={filtered.length === 0}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '7px 14px', borderRadius: 9,
-            background: filtered.length === 0 ? 'var(--c-bg-muted)' : '#217346',
-            border: '1px solid ' + (filtered.length === 0 ? 'var(--c-border-light)' : '#1a5c38'),
-            color: filtered.length === 0 ? 'var(--c-text-4)' : '#fff',
-            fontSize: 12, fontWeight: 600, cursor: filtered.length === 0 ? 'not-allowed' : 'pointer',
-            transition: 'opacity 0.15s',
-          }}
-          onMouseEnter={e => { if (filtered.length > 0) e.currentTarget.style.opacity = '0.85' }}
-          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-        >
-          <Download size={14} />
-          Excel
-        </button>
+        <ExportMenu disabled={filtered.length === 0} onExcel={exportToExcel} onPDF={exportToPDF} onDocx={exportToDocx} />
       </div>
 
       {/* ── Body ── */}

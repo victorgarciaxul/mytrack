@@ -18,6 +18,7 @@ export function RoleProvider({ children }) {
   const [role, setRole] = useState(null)
   const [profile, setProfile] = useState(null)
   const [notifications, setNotifications] = useState([])
+  const [costProjects, setCostProjects] = useState(undefined) // undefined = loading, null = no access, [names] = restricted
 
   useEffect(() => {
     if (!user) return
@@ -28,11 +29,35 @@ export function RoleProvider({ children }) {
       setProfile(me?.profiles || null)
       // Load from Neon instead of hardcoded demo data
       loadNotificationsNeon()
+      loadCostProjects()
       return
     }
     loadRole()
     loadNotifications()
   }, [user, isDemo])
+
+  async function loadCostProjects() {
+    console.log('[CP] loadCostProjects start, email=', user?.email)
+    if (!user?.email) { setCostProjects(null); return }
+    try {
+      const { data, error } = await supabase
+        .from('workspace_members')
+        .select('cost_projects')
+        .eq('user_email', user.email)
+        .limit(1)
+      console.log('[CP] result:', JSON.stringify({ data, error }))
+      if (error) { setCostProjects(null); return }
+      const row = Array.isArray(data) ? data[0] : data
+      if (row?.cost_projects) {
+        const arr = row.cost_projects.split(',').map(s => s.trim()).filter(Boolean)
+        console.log('[CP] setting costProjects=', arr)
+        setCostProjects(arr)
+      } else {
+        console.log('[CP] no cost_projects, setting null')
+        setCostProjects(null)
+      }
+    } catch (e) { console.log('[CP] catch:', e); setCostProjects(null) }
+  }
 
   async function loadNotificationsNeon() {
     if (!user?.id) return
@@ -99,7 +124,7 @@ export function RoleProvider({ children }) {
   return (
     <RoleContext.Provider value={{
       role, profile, isManager, isAdmin,
-      notifications, unreadCount, markRead, markAllRead,
+      notifications, unreadCount, markRead, markAllRead, costProjects,
       loadNotifications: isDemo ? loadNotificationsNeon : loadNotifications,
     }}>
       {children}

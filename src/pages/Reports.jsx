@@ -535,6 +535,34 @@ export default function Reports() {
     a.click(); URL.revokeObjectURL(url)
   }
 
+  // ── Equipo view (Admin): todos los proyectos ─────────────────────────────
+  const adminTeamByProject = useMemo(() => {
+    if (!isAdmin) return []
+    const byProj = {}
+    filtered.forEach(e => {
+      const proj = e.project_name || 'Sin proyecto'
+      if (!byProj[proj]) byProj[proj] = { name: proj, color: e.project_color || '#7C4DFF', people: {}, totalSecs: 0 }
+      byProj[proj].totalSecs += Number(e.duration) || 0
+      if (!byProj[proj].people[e.user_email]) byProj[proj].people[e.user_email] = { name: e.user_name || e.user_email, secs: 0, tasks: {} }
+      byProj[proj].people[e.user_email].secs += Number(e.duration) || 0
+      const taskKey = e.task_name || 'Sin tarea'
+      if (!byProj[proj].people[e.user_email].tasks[taskKey]) byProj[proj].people[e.user_email].tasks[taskKey] = { secs: 0, entries: [] }
+      byProj[proj].people[e.user_email].tasks[taskKey].secs += Number(e.duration) || 0
+      if (e.description && e.description !== '(sin descripción)') byProj[proj].people[e.user_email].tasks[taskKey].entries.push({ desc: e.description, secs: Number(e.duration) || 0 })
+    })
+    return Object.values(byProj)
+      .sort((a, b) => b.totalSecs - a.totalSecs)
+      .map(p => ({
+        ...p,
+        people: Object.entries(p.people)
+          .map(([email, d]) => ({
+            email, name: d.name, secs: d.secs,
+            tasks: Object.entries(d.tasks).map(([name, t]) => ({ name, secs: t.secs, entries: t.entries })).sort((a, b) => b.secs - a.secs),
+          }))
+          .sort((a, b) => b.secs - a.secs),
+      }))
+  }, [filtered, isAdmin])
+
   // ── Equipo view (Auxi) ───────────────────────────────────────────────────
   const auxiTeamByProject = useMemo(() => {
     if (!isAuxi) return []
@@ -627,7 +655,7 @@ export default function Reports() {
       <div style={{ padding: isMobile ? '10px 14px' : '14px 28px', borderBottom: '1px solid var(--c-border-light)', display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16, flexWrap: 'wrap', flexShrink: 0 }}>
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 2 }}>
-          {[...TABS, ...((isJavier || isAitor || isJorge || isAuxi) ? ['Equipo'] : [])].map(t => (
+          {[...TABS, ...((isJavier || isAitor || isJorge || isAuxi || isAdmin) ? ['Equipo'] : [])].map(t => (
             <button key={t} onClick={() => setTab(t)} style={{
               padding: '6px 16px', fontSize: 13, fontWeight: tab === t ? 700 : 500,
               color: tab === t ? '#fff' : 'var(--c-text-3)',
@@ -893,6 +921,45 @@ export default function Reports() {
                 ))}
               </div>
             )}
+          {/* ── Pestaña Equipo (Admin) ── */}
+          {tab === 'Equipo' && isAdmin && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {adminTeamByProject.length === 0 && (
+                <div style={{ textAlign: 'center', color: 'var(--c-text-4)', padding: 40 }}>Sin entradas en el periodo seleccionado</div>
+              )}
+              {adminTeamByProject.map(proj => (
+                <div key={proj.name} style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 12, overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--c-border-light)' }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: proj.color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text-1)' }}>{proj.name}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 600, color: 'var(--c-text-2)' }}>{fmtH(proj.totalSecs)}</span>
+                  </div>
+                  {proj.people.map(person => (
+                    <div key={person.email} style={{ borderBottom: '1px solid var(--c-border-light)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px 8px 28px', background: 'var(--c-bg-muted)' }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)', flex: 1 }}>{person.name}</span>
+                        <span style={{ fontSize: 13, color: 'var(--c-text-3)' }}>{fmtH(person.secs)}</span>
+                      </div>
+                      {person.tasks.map(task => (
+                        <div key={task.name}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 16px 6px 44px' }}>
+                            <span style={{ fontSize: 12, color: 'var(--c-text-2)', flex: 1 }}>{task.name}</span>
+                            <span style={{ fontSize: 12, color: 'var(--c-text-3)' }}>{fmtH(task.secs)}</span>
+                          </div>
+                          {task.entries.map((entry, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '3px 16px 3px 60px' }}>
+                              <span style={{ fontSize: 11, color: 'var(--c-text-4)', flex: 1, fontStyle: 'italic' }}>— {entry.desc}</span>
+                              <span style={{ fontSize: 11, color: 'var(--c-text-4)', whiteSpace: 'nowrap' }}>{fmtH(entry.secs)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
           {/* ── Pestaña Equipo (Auxi) ── */}
           {tab === 'Equipo' && isAuxi && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

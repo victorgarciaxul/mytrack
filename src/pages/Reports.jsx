@@ -385,10 +385,8 @@ export default function Reports() {
     // Subtítulo
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
-    doc.setLetterSpacing(1.5)
     doc.setTextColor(...C.muted)
     doc.text('INFORME DE HORAS', M + 4, 32)
-    doc.setLetterSpacing(0)
 
     // Periodo — derecha
     doc.setFont('helvetica', 'bold')

@@ -370,11 +370,11 @@ export default function Reports() {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(28)
     doc.setTextColor(...C.white)
-    doc.text('XUL', M + 4, 22)
+    doc.text('MYTRACK', M + 4, 22)
 
     doc.setDrawColor(...C.purple)
     doc.setLineWidth(0.6)
-    doc.line(M + 4, 25, M + 4 + doc.getTextWidth('XUL'), 25)
+    doc.line(M + 4, 25, M + 4 + doc.getTextWidth('MYTRACK'), 25)
 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
@@ -529,11 +529,11 @@ export default function Reports() {
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(6.5)
       doc.setTextColor(...C.muted)
-      doc.text('XUL  ·  Informe generado con MyTrack', M, H - 4.5)
+      doc.text('MYTRACK  ·  Informe de horas', M, H - 4.5)
       doc.text(`${p} / ${pages}`, W - M, H - 4.5, { align: 'right' })
     }
 
-    doc.save(`XUL_Informe_${format(from,'dd-MM-yyyy')}_${format(to,'dd-MM-yyyy')}.pdf`)
+    doc.save(`MyTrack_Informe_${format(from,'dd-MM-yyyy')}_${format(to,'dd-MM-yyyy')}.pdf`)
   }
 
   // ── Export DOCX ──────────────────────────────────────────────────────────

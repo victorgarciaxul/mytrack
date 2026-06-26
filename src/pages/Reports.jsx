@@ -287,13 +287,14 @@ export default function Reports() {
         if (!byPerson[e.user_email]) byPerson[e.user_email] = { name: e.user_name || e.user_email, secs: 0, tasks: {} }
         byPerson[e.user_email].secs += Number(e.duration) || 0
         const taskKey = e.task_name || 'Sin tarea'
-        if (!byPerson[e.user_email].tasks[taskKey]) byPerson[e.user_email].tasks[taskKey] = 0
-        byPerson[e.user_email].tasks[taskKey] += Number(e.duration) || 0
+        if (!byPerson[e.user_email].tasks[taskKey]) byPerson[e.user_email].tasks[taskKey] = { secs: 0, entries: [] }
+        byPerson[e.user_email].tasks[taskKey].secs += Number(e.duration) || 0
+        if (e.description && e.description !== '(sin descripción)') byPerson[e.user_email].tasks[taskKey].entries.push({ desc: e.description, secs: Number(e.duration) || 0 })
       })
       const people = Object.entries(byPerson)
         .map(([email, d]) => ({
           email, name: d.name, secs: d.secs,
-          tasks: Object.entries(d.tasks).map(([name, secs]) => ({ name, secs })).sort((a, b) => b.secs - a.secs),
+          tasks: Object.entries(d.tasks).map(([name, t]) => ({ name, secs: t.secs, entries: t.entries })).sort((a, b) => b.secs - a.secs),
         }))
         .sort((a, b) => b.secs - a.secs)
       return { name: projName, color: projEntries[0]?.project_color || '#7C4DFF', people, totalSecs: people.reduce((s, p) => s + p.secs, 0) }
@@ -675,9 +676,17 @@ export default function Reports() {
                             <span style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--c-text-1)' }}>{fmtDuration(p.secs)}</span>
                           </div>
                           {p.tasks?.map(t => (
-                            <div key={t.name} style={{ display: 'flex', alignItems: 'center', padding: '5px 16px 5px 32px', gap: 12, background: 'var(--c-bg-muted)' }}>
-                              <span style={{ fontSize: 12, color: 'var(--c-text-3)', flex: 1 }}>· {t.name}</span>
-                              <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: 'var(--c-text-3)' }}>{fmtDuration(t.secs)}</span>
+                            <div key={t.name} style={{ background: 'var(--c-bg-muted)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', padding: '5px 16px 5px 32px', gap: 12 }}>
+                                <span style={{ fontSize: 12, color: 'var(--c-text-3)', flex: 1, fontWeight: 500 }}>· {t.name}</span>
+                                <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: 'var(--c-text-3)' }}>{fmtDuration(t.secs)}</span>
+                              </div>
+                              {t.entries?.map((en, ei) => (
+                                <div key={ei} style={{ display: 'flex', alignItems: 'center', padding: '3px 16px 3px 48px', gap: 12 }}>
+                                  <span style={{ fontSize: 11, color: 'var(--c-text-4)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>– {en.desc}</span>
+                                  <span style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums', color: 'var(--c-text-4)', flexShrink: 0 }}>{fmtDuration(en.secs)}</span>
+                                </div>
+                              ))}
                             </div>
                           ))}
                         </div>

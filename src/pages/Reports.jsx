@@ -4,7 +4,7 @@ import { Download, Trash2, ChevronDown } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, HeadingLevel, AlignmentType, WidthType, BorderStyle, ShadingType } from 'docx'
+import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, ImageRun, HeadingLevel, AlignmentType, WidthType, BorderStyle, ShadingType } from 'docx'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -342,7 +342,7 @@ export default function Reports() {
   }
 
   // ── Export PDF ───────────────────────────────────────────────────────────
-  function exportToPDF() {
+  async function exportToPDF() {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
     const W = 210, H = 297, M = 16
     const fromStr = format(from, 'dd MMM yyyy', { locale: es })
@@ -382,37 +382,61 @@ export default function Reports() {
         doc.rect(0, H - 11, W, 11, 'F')
         doc.setFillColor(...C.purple)
         doc.rect(0, H - 11, 4, 11, 'F')
+        if (logoB64) {
+          // logo en footer: 16mm × ~11mm (proporcional)
+          doc.addImage(logoB64, 'PNG', M, H - 10, 16, 11.1)
+        } else {
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(6.5)
+          doc.setTextColor(...C.muted)
+          doc.text('XUL', M, H - 4.5)
+        }
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(6.5)
         doc.setTextColor(...C.muted)
-        doc.text('XUL  ·  Informe de horas', M, H - 4.5)
+        doc.text('Informe de horas', M + (logoB64 ? 18 : 10), H - 4.5)
         doc.text(`${p} / ${pages}`, W - M, H - 4.5, { align: 'right' })
       }
     }
 
+    // ── Cargar logo ───────────────────────────────────────────────
+    let logoB64 = null
+    try {
+      const resp = await fetch('/logo-xul.png')
+      const blob = await resp.blob()
+      logoB64 = await new Promise(res => {
+        const r = new FileReader(); r.onloadend = () => res(r.result); r.readAsDataURL(blob)
+      })
+    } catch (_) {}
+
     // ═══ HEADER (común) ═══════════════════════════════════════════
     doc.setFillColor(...C.dark)
-    doc.rect(0, 0, W, 58, 'F')
+    doc.rect(0, 0, W, 62, 'F')
     doc.setFillColor(...C.purple)
-    doc.rect(0, 0, 6, 58, 'F')
+    doc.rect(0, 0, 6, 62, 'F')
     doc.setFillColor(40, 38, 60)
     for (let i = 0; i < 6; i++) {
       doc.circle(170 + (i % 3) * 14, 10 + Math.floor(i / 3) * 14, 7, 'F')
     }
 
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(28)
-    doc.setTextColor(...C.white)
-    doc.text('XUL', M + 4, 22)
-
-    doc.setDrawColor(...C.purple)
-    doc.setLineWidth(0.6)
-    doc.line(M + 4, 25, M + 4 + doc.getTextWidth('XUL'), 25)
+    // Logo XUL (imagen) o fallback texto
+    if (logoB64) {
+      // 2753×1921 px → aspect ≈ 1.434 → 38mm × 26.5mm
+      doc.addImage(logoB64, 'PNG', M + 4, 7, 38, 26.5)
+    } else {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(28)
+      doc.setTextColor(...C.white)
+      doc.text('XUL', M + 4, 22)
+      doc.setDrawColor(...C.purple)
+      doc.setLineWidth(0.6)
+      doc.line(M + 4, 25, M + 4 + doc.getTextWidth('XUL'), 25)
+    }
 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
     doc.setTextColor(...C.muted)
-    doc.text('INFORME DE HORAS', M + 4, 32)
+    doc.text('INFORME DE HORAS', M + 4, 40)
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(11)
@@ -425,7 +449,7 @@ export default function Reports() {
 
     doc.setDrawColor(45, 43, 68)
     doc.setLineWidth(0.3)
-    doc.line(M + 4, 37, W - M, 37)
+    doc.line(M + 4, 45, W - M, 45)
 
     const headerInfoParts = []
     if (filterUser)    headerInfoParts.push(`Usuario: ${filterUser}`)
@@ -434,7 +458,7 @@ export default function Reports() {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7.5)
     doc.setTextColor(...C.muted)
-    doc.text(headerInfoParts.length ? headerInfoParts.join('  ·  ') : 'Todos los proyectos y usuarios', M + 4, 44)
+    doc.text(headerInfoParts.length ? headerInfoParts.join('  ·  ') : 'Todos los proyectos y usuarios', M + 4, 52)
 
     // ═══ PESTAÑA EQUIPO — exportar vista de equipo ════════════════
     const teamData = isAdmin ? adminTeamByProject
@@ -454,7 +478,7 @@ export default function Reports() {
         { label: 'Personas',     value: String(teamPeople),         accent: C.blue   },
       ]
       const cW3 = (W - M * 2 - 6) / 3
-      const cardY = 63
+      const cardY = 67
       kpisTeam.forEach((k, i) => {
         const x = M + i * (cW3 + 3)
         doc.setFillColor(...C.offWhite)
@@ -525,7 +549,7 @@ export default function Reports() {
     ]
     const nCards = kpis.length
     const cardW = (W - M * 2 - (nCards - 1) * 3) / nCards
-    const cardY = 63
+    const cardY = 67
     kpis.forEach((k, i) => {
       const x = M + i * (cardW + 3)
       doc.setFillColor(...C.offWhite)
@@ -637,6 +661,17 @@ export default function Reports() {
     const fromStr = format(from, 'dd/MM/yyyy'), toStr = format(to, 'dd/MM/yyyy')
     const fileFrom = format(from, 'dd-MM-yyyy'), fileTo = format(to, 'dd-MM-yyyy')
 
+    // ── Cargar logo ───────────────────────────────────────────────
+    let logoArrayBuffer = null
+    try {
+      const resp = await fetch('/logo-xul.png')
+      logoArrayBuffer = await resp.arrayBuffer()
+    } catch (_) {}
+
+    const logoParagraph = logoArrayBuffer
+      ? new Paragraph({ children: [new ImageRun({ data: logoArrayBuffer, transformation: { width: 130, height: 91 } })], spacing: { after: 80 } })
+      : new Paragraph({ children: [new TextRun({ text: 'XUL', bold: true, size: 52, color: '1E1E28' })], heading: HeadingLevel.TITLE })
+
     const mkHeader = cols => new TableRow({
       tableHeader: true,
       children: cols.map(h => new TableCell({
@@ -655,7 +690,7 @@ export default function Reports() {
 
     if (tab === 'Equipo' && teamData) {
       const children = [
-        new Paragraph({ children: [new TextRun({ text: 'XUL', bold: true, size: 52, color: '1E1E28' })], heading: HeadingLevel.TITLE }),
+        logoParagraph,
         new Paragraph({ children: [new TextRun({ text: 'INFORME DE EQUIPO', size: 20, color: '7C4DFF', bold: true })], spacing: { after: 80 } }),
         new Paragraph({ children: [new TextRun({ text: `Período: ${fromStr} — ${toStr}`, size: 20, color: '666680' })], spacing: { after: 320 } }),
       ]
@@ -719,7 +754,7 @@ export default function Reports() {
       sections: [{
         properties: { page: { margin: { top: 1000, bottom: 1000, left: 1200, right: 1200 } } },
         children: [
-          new Paragraph({ children: [new TextRun({ text: 'XUL', bold: true, size: 52, color: '1E1E28' })], heading: HeadingLevel.TITLE }),
+          logoParagraph,
           new Paragraph({ children: [new TextRun({ text: 'INFORME DE HORAS', size: 20, color: '7C4DFF', bold: true })], spacing: { after: 80 } }),
           new Paragraph({ children: [new TextRun({ text: `Período: ${fromStr} — ${toStr}`, size: 20, color: '666680' })], spacing: { after: 40 } }),
           new Paragraph({ children: [new TextRun({ text: `Total: ${fmtDuration(totalSecs)}   ·   Entradas: ${filtered.length}`, size: 20, bold: true, color: '1E1E28' })], spacing: { after: 320 } }),

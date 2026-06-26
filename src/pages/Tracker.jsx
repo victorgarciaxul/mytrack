@@ -258,8 +258,23 @@ export default function Tracker() {
       }
       if (!running) return  // nothing to restore
 
-      // DB is source of truth — always sync started_at to catch stale localStorage
+      // If the timer was started on a previous day, it means the browser/computer
+      // closed before the stop request completed. Clean it up instead of restoring.
       const startedAt = running.started_at
+      const startedDate = new Date(startedAt).toDateString()
+      const todayDate   = new Date().toDateString()
+      if (startedDate !== todayDate) {
+        dbDeleteRunningTimer(user.email).catch(() => {})
+        timer.reset()
+        setDescription('')
+        setSelectedProject(null)
+        setSelectedTask(null)
+        localStorage.removeItem(ACTIVE_KEY)
+        toast('Se detectó una tarea sin cerrar del día anterior y se ha descartado. Añádela manualmente si es necesario.', { icon: '⚠️', duration: 6000 })
+        return
+      }
+
+      // DB is source of truth — always sync started_at to catch stale localStorage
       const localStartedAt = (() => { try { return JSON.parse(localStorage.getItem('mytrack-timer-state') || '{}').startedAt } catch { return null } })()
       const dbTs = new Date(startedAt).getTime()
       const diffMs = Math.abs(dbTs - (localStartedAt || 0))

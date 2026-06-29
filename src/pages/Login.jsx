@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { dbResetPassword } from '../lib/db'
 import toast from 'react-hot-toast'
 
 /* ── Animated canvas background ───────────────────────────── */
@@ -107,13 +108,15 @@ function AnimatedBackground() {
 
 /* ── Login page ────────────────────────────────────────────── */
 export default function Login() {
-  const [isLogin, setIsLogin] = useState(true)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
-  const [loading, setLoading] = useState(false)
-  const { signIn, signUp } = useAuth()
-  const navigate = useNavigate()
+  const [isLogin, setIsLogin]         = useState(true)
+  const [forgotMode, setForgotMode]   = useState(false)
+  const [email, setEmail]             = useState('')
+  const [password, setPassword]       = useState('')
+  const [name, setName]               = useState('')
+  const [loading, setLoading]         = useState(false)
+  const [resetSent, setResetSent]     = useState(false)
+  const { signIn, signUp }            = useAuth()
+  const navigate                      = useNavigate()
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -130,6 +133,20 @@ export default function Login() {
       }
     } catch (err) {
       toast.error(err.message || 'Error al autenticar')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleForgot(e) {
+    e.preventDefault()
+    if (!email) { toast.error('Introduce tu email'); return }
+    setLoading(true)
+    try {
+      await dbResetPassword(email)
+      setResetSent(true)
+    } catch (err) {
+      toast.error(err.message || 'No se pudo enviar el correo')
     } finally {
       setLoading(false)
     }
@@ -185,39 +202,89 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 28 }}>
-          {!isLogin && (
-            <Field label="Nombre">
-              <WhiteInput type="text" placeholder="Tu nombre" value={name} onChange={e => setName(e.target.value)} required />
-            </Field>
-          )}
-          <Field label="Usuario">
-            <WhiteInput type="email" placeholder="tu@email.com" value={email} onChange={e => setEmail(e.target.value)} required />
-          </Field>
-          <Field label="Contraseña" hint="Contraseña inicial: Mytrack14$">
-            <WhiteInput type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
-          </Field>
+        {/* Modo recuperar contraseña */}
+        {forgotMode ? (
+          <div style={{ marginTop: 28 }}>
+            {resetSent ? (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>📬</div>
+                <p style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 8 }}>Correo enviado</p>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.6, marginBottom: 24 }}>
+                  Si existe una cuenta con ese email, recibirás un enlace para restablecer tu contraseña.
+                </p>
+                <button
+                  onClick={() => { setForgotMode(false); setResetSent(false) }}
+                  style={{ fontSize: 13, color: '#A78BFA', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  ← Volver al inicio de sesión
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgot} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', margin: '0 0 4px', lineHeight: 1.6 }}>
+                  Introduce tu email y te enviaremos un enlace para restablecer tu contraseña.
+                </p>
+                <Field label="Email">
+                  <WhiteInput type="email" placeholder="tu@email.com" value={email} onChange={e => setEmail(e.target.value)} required />
+                </Field>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{ padding: '14px 0', background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+                  onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#6D28D9' }}
+                  onMouseLeave={e => e.currentTarget.style.background = '#7C3AED'}
+                >
+                  {loading ? 'Enviando...' : 'Enviar enlace de recuperación'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForgotMode(false)}
+                  style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'center' }}
+                >
+                  ← Volver al inicio de sesión
+                </button>
+              </form>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Form login/registro */}
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 28 }}>
+              {!isLogin && (
+                <Field label="Nombre">
+                  <WhiteInput type="text" placeholder="Tu nombre" value={name} onChange={e => setName(e.target.value)} required />
+                </Field>
+              )}
+              <Field label="Usuario">
+                <WhiteInput type="email" placeholder="tu@email.com" value={email} onChange={e => setEmail(e.target.value)} required />
+              </Field>
+              <div>
+                <Field label="Contraseña" hint="Contraseña inicial: Mytrack14$">
+                  <WhiteInput type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
+                </Field>
+                {isLogin && (
+                  <button
+                    type="button"
+                    onClick={() => setForgotMode(true)}
+                    style={{ marginTop: 8, fontSize: 12, color: '#A78BFA', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'block', fontWeight: 500 }}
+                  >
+                    ¿No recuerdas tu contraseña?
+                  </button>
+                )}
+              </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              marginTop: 4, padding: '14px 0',
-              background: '#7C3AED',
-              color: '#fff', border: 'none', borderRadius: 10,
-              fontSize: 15, fontWeight: 700,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.7 : 1,
-              letterSpacing: '0.01em',
-              transition: 'background 0.15s, opacity 0.15s',
-            }}
-            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#6D28D9' }}
-            onMouseLeave={e => e.currentTarget.style.background = '#7C3AED'}
-          >
-            {loading ? 'Cargando...' : isLogin ? 'Acceder al Panel' : 'Crear cuenta'}
-          </button>
-        </form>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{ marginTop: 4, padding: '14px 0', background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, letterSpacing: '0.01em', transition: 'background 0.15s, opacity 0.15s' }}
+                onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#6D28D9' }}
+                onMouseLeave={e => e.currentTarget.style.background = '#7C3AED'}
+              >
+                {loading ? 'Cargando...' : isLogin ? 'Acceder al Panel' : 'Crear cuenta'}
+              </button>
+            </form>
+          </>
+        )}
 
         {/* Footer */}
         <p style={{ marginTop: 24, textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.12)', letterSpacing: '0.06em' }}>

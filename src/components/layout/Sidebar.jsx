@@ -428,7 +428,7 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
         borderRadius: '0 0 14px 14px', flexShrink: 0,
       }}>
         <div onClick={onMobileClose}>
-          <NavItem item={{ to: '/settings', icon: Settings, label: 'Configuración' }} location={location} unreadCount={0} collapsed={collapsed} />
+          <NavItem item={{ to: '/settings', icon: Settings, label: 'Mi cuenta' }} location={location} unreadCount={0} collapsed={collapsed} />
         </div>
 
         {collapsed ? (

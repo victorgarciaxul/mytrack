@@ -489,6 +489,13 @@ export async function dbSignIn(email, password) {
   return data?.[0] || null
 }
 
+export async function dbResetPassword(email) {
+  const { error } = await _supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  })
+  if (error) throw new Error(error.message)
+}
+
 // ── Notifications ─────────────────────────────────────────────
 export async function dbGetNotifications(userId) {
   const { data, error } = await _supabase

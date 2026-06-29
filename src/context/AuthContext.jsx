@@ -67,7 +67,7 @@ export function AuthProvider({ children }) {
 
   // SSO: auto-login cuando AppCenter pasa el email en la URL
   useEffect(() => {
-    if (user) return
+    if (user) { setLoading(false); return }
     const params   = new URLSearchParams(window.location.search)
     const ssoEmail = params.get('sso_email')
     if (!ssoEmail) return

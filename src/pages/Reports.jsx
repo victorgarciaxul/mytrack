@@ -251,7 +251,8 @@ export default function Reports() {
   filtered.forEach(e => {
     const name  = e.project_name  || 'Miscelánea XUL'
     const color = e.project_color || '#C0C0E0'
-    if (!byProjectMap[name]) byProjectMap[name] = { name, value: 0, color }
+    if (!byProjectMap[name]) byProjectMap[name] = { name, value: 0, secs: 0, color }
+    byProjectMap[name].secs  += Number(e.duration) || 0
     byProjectMap[name].value += (Number(e.duration) || 0) / 3600
   })
   const pieData = Object.values(byProjectMap)
@@ -284,7 +285,11 @@ export default function Reports() {
       projMap[proj].secs += Number(e.duration) || 0
       if (!projMap[proj].tasks[task]) projMap[proj].tasks[task] = { name: task, secs: 0, entries: [] }
       projMap[proj].tasks[task].secs += Number(e.duration) || 0
-      projMap[proj].tasks[task].entries.push({ desc: e.description || '', secs: Number(e.duration) || 0, date: e.start_time })
+      const desc = (e.description || '').trim() || 'Sin descripción'
+      const t = projMap[proj].tasks[task]
+      const existing = t.entries.find(x => x.desc === desc)
+      if (existing) existing.secs += Number(e.duration) || 0
+      else t.entries.push({ desc, secs: Number(e.duration) || 0 })
     })
     return Object.values(projMap)
       .sort((a, b) => b.secs - a.secs)
@@ -1070,7 +1075,7 @@ export default function Reports() {
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
                       <span style={{ flex: 1, fontSize: 11, color: 'var(--c-text-2)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-1)' }}>{p.value}h</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-1)' }}>{fmtDuration(p.secs)}</span>
                     </div>
                   ))}
                 </div>

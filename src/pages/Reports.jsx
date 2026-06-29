@@ -935,17 +935,24 @@ export default function Reports() {
   }, [entries, isAitor])
 
   // ── Equipo view (Javier only) ─────────────────────────────────
-  const teamByProject = useMemo(() => {
+  const javierTeamByProject = useMemo(() => {
     if (!isJavier) return []
     return JAVIER_TEAM_PROJECTS.map(projName => {
       const projEntries = entries.filter(e => e.project_name === projName)
       const byPerson = {}
       projEntries.forEach(e => {
-        if (!byPerson[e.user_email]) byPerson[e.user_email] = { name: e.user_name || e.user_email, secs: 0 }
+        if (!byPerson[e.user_email]) byPerson[e.user_email] = { name: e.user_name || e.user_email, secs: 0, tasks: {} }
         byPerson[e.user_email].secs += Number(e.duration) || 0
+        const taskKey = e.task_name || 'Sin tarea'
+        if (!byPerson[e.user_email].tasks[taskKey]) byPerson[e.user_email].tasks[taskKey] = { secs: 0, entries: [] }
+        byPerson[e.user_email].tasks[taskKey].secs += Number(e.duration) || 0
+        if (e.description && e.description !== '(sin descripción)') byPerson[e.user_email].tasks[taskKey].entries.push({ desc: e.description, secs: Number(e.duration) || 0 })
       })
       const people = Object.entries(byPerson)
-        .map(([email, d]) => ({ email, name: d.name, secs: d.secs }))
+        .map(([email, d]) => ({
+          email, name: d.name, secs: d.secs,
+          tasks: Object.entries(d.tasks).map(([name, t]) => ({ name, secs: t.secs, entries: t.entries })).sort((a, b) => b.secs - a.secs),
+        }))
         .sort((a, b) => b.secs - a.secs)
       const totalSecs = people.reduce((s, p) => s + p.secs, 0)
       const color = projEntries[0]?.project_color || '#7C4DFF'

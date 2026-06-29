@@ -59,7 +59,11 @@ export function AuthProvider({ children }) {
     }
     return null
   })
-  const [loading, setLoading] = useState(!DEMO_MODE)
+  const [loading, setLoading] = useState(() => {
+    if (!DEMO_MODE) return true
+    // Si hay sso_email en la URL, empezamos en loading para evitar flash del login
+    return !!new URLSearchParams(window.location.search).get('sso_email')
+  })
 
   // SSO: auto-login cuando AppCenter pasa el email en la URL
   useEffect(() => {
@@ -76,7 +80,7 @@ export function AuthProvider({ children }) {
         .limit(1)
     ).then(({ data }) => {
       const member = data?.[0]
-      if (!member) return
+      if (!member) { setLoading(false); return }
       const wsId = member.user_email.endsWith('@fundacionxul.org') ? 'fundacion-ws-1' : 'xul-ws-1'
       const u = {
         id:               member.id,
@@ -90,7 +94,8 @@ export function AuthProvider({ children }) {
       setUser(u)
       localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))
       window.history.replaceState({}, '', window.location.pathname)
-    }).catch(() => {})
+      setLoading(false)
+    }).catch(() => { setLoading(false) })
   }, [])
 
   // In DEMO_MODE: refresh clockify_user_id from DB on every app load.

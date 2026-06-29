@@ -61,6 +61,38 @@ export function AuthProvider({ children }) {
   })
   const [loading, setLoading] = useState(!DEMO_MODE)
 
+  // SSO: auto-login cuando AppCenter pasa el email en la URL
+  useEffect(() => {
+    if (user) return
+    const params   = new URLSearchParams(window.location.search)
+    const ssoEmail = params.get('sso_email')
+    if (!ssoEmail) return
+
+    import('../lib/db').then(({ supabaseClient }) =>
+      supabaseClient
+        .from('workspace_members')
+        .select('*')
+        .eq('user_email', ssoEmail.toLowerCase())
+        .limit(1)
+    ).then(({ data }) => {
+      const member = data?.[0]
+      if (!member) return
+      const wsId = member.user_email.endsWith('@fundacionxul.org') ? 'fundacion-ws-1' : 'xul-ws-1'
+      const u = {
+        id:               member.id,
+        email:            member.user_email,
+        user_metadata:    { full_name: member.user_name },
+        role:             member.role,
+        workspace_id:     wsId,
+        clockify_user_id: member.clockify_user_id ?? null,
+        weekly_hours:     member.weekly_hours ?? null,
+      }
+      setUser(u)
+      localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))
+      window.history.replaceState({}, '', window.location.pathname)
+    }).catch(() => {})
+  }, [])
+
   // In DEMO_MODE: refresh clockify_user_id from DB on every app load.
   // Users who logged in before this field was added have it missing in localStorage,
   // which breaks Clockify sync (syncEnabled = !!clockify_user_id).

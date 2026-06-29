@@ -489,8 +489,6 @@ export default function Sidebar({ onStartTour, mobileOpen, onMobileClose }) {
                   }
                 </div>
               } label="Cambiar avatar" onClick={openAvatarPicker} />
-              <div style={{ height: 1, background: 'var(--c-border-light)', margin: '2px 0' }} />
-              <MenuItem icon={<LogOut size={14} />} label="Cerrar sesión" onClick={signOut} danger />
             </div>
           )}
 

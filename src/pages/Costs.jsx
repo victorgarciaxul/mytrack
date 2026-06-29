@@ -95,14 +95,15 @@ export default function Costs() {
       try {
         await initDB()
         const db = sql()
+        const wsIds = isAdmin ? ['xul-ws-1', 'fundacion-ws-1'] : [getWsId()]
         const [mems, ents] = await Promise.all([
           db`SELECT id, user_name, user_email, hourly_rate, group_name, COALESCE(monthly_cost, 0) AS monthly_cost
              FROM workspace_members
-             WHERE workspace_id = ${getWsId()} AND hourly_rate > 0
+             WHERE workspace_id = ANY(${wsIds}) AND hourly_rate > 0
              ORDER BY user_name`,
           db`SELECT user_email, project_id, project_name, project_color, client_name, duration, start_time
              FROM time_entries
-             WHERE workspace_id = ${getWsId()}
+             WHERE workspace_id = ANY(${wsIds})
                AND duration > 0
                AND start_time >= ${from.toISOString()}
                AND start_time <= ${to.toISOString()}`,

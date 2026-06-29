@@ -54,6 +54,9 @@ export default async function handler(req, res) {
   // ── Params ────────────────────────────────────────────────────
   const year      = parseInt(req.query.year)  || new Date().getFullYear()
   const workspace = req.query.workspace       || 'xul-ws-1'
+  // Date range for the year — avoids EXTRACT(YEAR) which blocks index usage
+  const yearStart = `${year}-01-01T00:00:00+00`
+  const yearEnd   = `${year + 1}-01-01T00:00:00+00`
   // Optional: filter by project name (partial, case-insensitive)
   // e.g. ?project=XULTECH-2026 or ?project=Fundación
   const project   = req.query.project?.trim() || null
@@ -76,7 +79,7 @@ export default async function handler(req, res) {
           AND duration > 0
           AND project_name IS NOT NULL
           AND project_name <> ''
-          AND EXTRACT(YEAR FROM start_time AT TIME ZONE 'Europe/Madrid') = ${year}
+          AND start_time >= ${yearStart}::timestamptz AND start_time < ${yearEnd}::timestamptz
         ORDER BY project_name
       `
       res.status(200).json({ ok: true, year, workspace, projects: rows.map(r => r.project_name) })
@@ -113,7 +116,7 @@ export default async function handler(req, res) {
           FROM time_entries
           WHERE workspace_id = ${workspace}
             AND duration > 0
-            AND EXTRACT(YEAR FROM start_time AT TIME ZONE 'Europe/Madrid') = ${year}
+            AND start_time >= ${yearStart}::timestamptz AND start_time < ${yearEnd}::timestamptz
           GROUP BY
             user_email,
             TO_CHAR(start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM'),
@@ -137,7 +140,7 @@ export default async function handler(req, res) {
          AND TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM') = pmt.month
         WHERE te.workspace_id = ${workspace}
           AND te.duration > 0
-          AND EXTRACT(YEAR FROM te.start_time AT TIME ZONE 'Europe/Madrid') = ${year}
+          AND te.start_time >= ${yearStart}::timestamptz AND te.start_time < ${yearEnd}::timestamptz
           AND LOWER(COALESCE(te.project_name, '')) LIKE ${like}
           AND COALESCE(wm.monthly_cost, 0) > 0
         GROUP BY TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM')
@@ -161,7 +164,7 @@ export default async function handler(req, res) {
           FROM time_entries
           WHERE workspace_id = ${workspace}
             AND duration > 0
-            AND EXTRACT(YEAR FROM start_time AT TIME ZONE 'Europe/Madrid') = ${year}
+            AND start_time >= ${yearStart}::timestamptz AND start_time < ${yearEnd}::timestamptz
           GROUP BY
             user_email,
             TO_CHAR(start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM'),
@@ -185,7 +188,7 @@ export default async function handler(req, res) {
          AND TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM') = pmt.month
         WHERE te.workspace_id = ${workspace}
           AND te.duration > 0
-          AND EXTRACT(YEAR FROM te.start_time AT TIME ZONE 'Europe/Madrid') = ${year}
+          AND te.start_time >= ${yearStart}::timestamptz AND te.start_time < ${yearEnd}::timestamptz
           AND COALESCE(wm.monthly_cost, 0) > 0
         GROUP BY TO_CHAR(te.start_time AT TIME ZONE 'Europe/Madrid', 'YYYY-MM')
         ORDER BY month

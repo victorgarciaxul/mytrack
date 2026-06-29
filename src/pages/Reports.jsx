@@ -1281,7 +1281,7 @@ export default function Reports() {
               {adminTeamByProject.length === 0 && (
                 <div style={{ textAlign: 'center', color: 'var(--c-text-4)', padding: 40 }}>Sin entradas en el periodo seleccionado</div>
               )}
-              {adminTeamByProject.map(proj => (
+              {adminTeamByProject.filter(p => filterProject === 'ALL' || p.name === filterProject).map(proj => (
                 <div key={proj.name} style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 12, overflow: 'hidden' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--c-border-light)' }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: proj.color, flexShrink: 0 }} />
@@ -1317,7 +1317,7 @@ export default function Reports() {
           {/* ── Pestaña Equipo (Auxi) ── */}
           {tab === 'Equipo' && isAuxi && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {auxiTeamByProject.map(proj => (
+              {auxiTeamByProject.filter(p => filterProject === 'ALL' || p.name === filterProject).map(proj => (
                 <div key={proj.name} style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 12, overflow: 'hidden' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--c-border-light)' }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: proj.color, flexShrink: 0 }} />
@@ -1367,7 +1367,7 @@ export default function Reports() {
           {/* ── Pestaña Equipo (Elena) ── */}
           {tab === 'Equipo' && isElena && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {elenaTeamByProject.map(proj => (
+              {elenaTeamByProject.filter(p => filterProject === 'ALL' || p.name === filterProject).map(proj => (
                 <div key={proj.name} style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 12, overflow: 'hidden' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--c-border-light)' }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: proj.color, flexShrink: 0 }} />
@@ -1417,7 +1417,7 @@ export default function Reports() {
           {/* ── Pestaña Equipo (Jorge) ── */}
           {tab === 'Equipo' && isJorge && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {jorgeTeamByProject.map(proj => (
+              {jorgeTeamByProject.filter(p => filterProject === 'ALL' || p.name === filterProject).map(proj => (
                 <div key={proj.name} style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 12, overflow: 'hidden' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--c-border-light)' }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: proj.color, flexShrink: 0 }} />
@@ -1481,7 +1481,7 @@ export default function Reports() {
           {/* ── Pestaña Equipo (Javier) ── */}
           {tab === 'Equipo' && isJavier && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {javierTeamByProject.map(proj => (
+              {javierTeamByProject.filter(p => filterProject === 'ALL' || p.name === filterProject).map(proj => (
                 <div key={proj.name} style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 12, overflow: 'hidden' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--c-border-light)' }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: proj.color, flexShrink: 0 }} />

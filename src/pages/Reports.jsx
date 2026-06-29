@@ -153,13 +153,13 @@ export default function Reports() {
   useEffect(() => {
     if (!from || !to) return
     loadData()
-  }, [from, to])
+  }, [from, to, isAdmin])
 
   async function loadData() {
     setLoading(true)
     try {
       // Fetch directly — DB is already initialised from login/Tracker
-      const rows = await dbGetEntriesForPeriod(from, to)
+      const rows = await dbGetEntriesForPeriod(from, to, { allWorkspaces: isAdmin })
       if (rows.length > 0) {
         setEntries(rows.map(r => ({
           ...r,

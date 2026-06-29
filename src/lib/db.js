@@ -586,25 +586,28 @@ export async function dbGetEntries(userEmail, year) {
 }
 
 /** All workspace entries in a date range (for Reports page) */
-export async function dbGetEntriesForPeriod(from, to) {
+export async function dbGetEntriesForPeriod(from, to, { allWorkspaces = false } = {}) {
+  const wsIds = allWorkspaces ? ['xul-ws-1', 'fundacion-ws-1'] : [getWsId()]
   const PAGE = 1000
   let all = []
-  let page = 0
-  while (true) {
-    const { data, error } = await _supabase
-      .from('time_entries')
-      .select('*')
-      .eq('workspace_id', getWsId())
-      .not('end_time', 'is', null)
-      .gte('start_time', from.toISOString())
-      .lte('start_time', to.toISOString())
-      .order('start_time', { ascending: false })
-      .range(page * PAGE, (page + 1) * PAGE - 1)
-    if (error) throw new Error(error.message)
-    if (!data || data.length === 0) break
-    all = all.concat(data)
-    if (data.length < PAGE) break
-    page++
+  for (const wsId of wsIds) {
+    let page = 0
+    while (true) {
+      const { data, error } = await _supabase
+        .from('time_entries')
+        .select('*')
+        .eq('workspace_id', wsId)
+        .not('end_time', 'is', null)
+        .gte('start_time', from.toISOString())
+        .lte('start_time', to.toISOString())
+        .order('start_time', { ascending: false })
+        .range(page * PAGE, (page + 1) * PAGE - 1)
+      if (error) throw new Error(error.message)
+      if (!data || data.length === 0) break
+      all = all.concat(data)
+      if (data.length < PAGE) break
+      page++
+    }
   }
   return all.map(normEntry)
 }

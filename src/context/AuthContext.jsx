@@ -53,7 +53,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     if (DEMO_MODE) {
       try {
-        const saved = localStorage.getItem(DEMO_SESSION_KEY)
+        const saved = sessionStorage.getItem(DEMO_SESSION_KEY)
         return saved ? JSON.parse(saved) : null
       } catch { return null }
     }
@@ -92,7 +92,7 @@ export function AuthProvider({ children }) {
         weekly_hours:     member.weekly_hours ?? null,
       }
       setUser(u)
-      localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))
+      sessionStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))
       window.history.replaceState({}, '', window.location.pathname)
       setLoading(false)
     }).catch(() => { setLoading(false) })
@@ -118,7 +118,7 @@ export function AuthProvider({ children }) {
       if (!needsUpdate) return
       const updated = { ...user, clockify_user_id: data.clockify_user_id ?? null, weekly_hours: data.weekly_hours ?? null }
       setUser(updated)
-      try { localStorage.setItem('mytrack-demo-user', JSON.stringify(updated)) } catch {}
+      try { sessionStorage.setItem('mytrack-demo-user', JSON.stringify(updated)) } catch {}
     }).catch(() => {})
   }, [user?.email])
 
@@ -161,7 +161,7 @@ export function AuthProvider({ children }) {
             clockify_user_id: member.clockify_user_id,
           }
           setUser(u)
-          localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))
+          sessionStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))
           return { error: null }
         }
         // Supabase responded but no match → wrong credentials, do NOT fallback
@@ -187,7 +187,7 @@ export function AuthProvider({ children }) {
           workspace_id: wsId,
         }
         setUser(u)
-        localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))
+        sessionStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))
         return { error: null }
       }
 
@@ -205,7 +205,7 @@ export function AuthProvider({ children }) {
     clearActiveWorkspace()
     if (DEMO_MODE) {
       setUser(null)
-      localStorage.removeItem(DEMO_SESSION_KEY)
+      sessionStorage.removeItem(DEMO_SESSION_KEY)
       return
     }
     supabase.auth.signOut()

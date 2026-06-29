@@ -520,16 +520,23 @@ export default function Tracker() {
     setDescription(e.description || '')
 
     // Match project by id first, then by name, skip archived
+    const projName = e.project_name || e.projects?.name
     const proj = e.project_id
       ? projects.find(p => p.id === e.project_id && !p.archived)
-        || projects.find(p => p.name === e.projects?.name && !p.archived)
+        || projects.find(p => p.name === projName && !p.archived)
         || null
-      : null
+      : projName
+        ? projects.find(p => p.name === projName && !p.archived) || null
+        : null
 
-    const restoredTask = e.task_id && e.tasks?.name
-      ? { id: e.task_id, name: e.tasks.name }
-      : e.task_id && e.task_name
-        ? { id: e.task_id, name: e.task_name }
+    const restoredTask = e.task_id
+      ? (e.tasks?.name
+          ? { id: e.task_id, name: e.tasks.name }
+          : e.task_name
+            ? { id: e.task_id, name: e.task_name }
+            : null)
+      : e.task_name
+        ? { id: null, name: e.task_name }
         : null
 
     setSelectedProject(proj)

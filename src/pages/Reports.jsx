@@ -1481,7 +1481,7 @@ export default function Reports() {
           {/* ── Pestaña Equipo (solo Javier) ── */}
           {tab === 'Equipo' && isJavier && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {teamByProject.map(proj => (
+              {javierTeamByProject.map(proj => (
                 <div key={proj.name} style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 12, overflow: 'hidden' }}>
                   {/* Header */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--c-border-light)' }}>

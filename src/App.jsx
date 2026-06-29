@@ -56,7 +56,7 @@ function ProtectedRoute({ children }) {
       <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#7C4DFF', borderTopColor: 'transparent' }} />
     </div>
   )
-  if (!user) { window.location.replace('https://appcenter.xul.es'); return null; }
+  if (!user) { window.location.replace('https://appcenter.xul.es?return_to=' + encodeURIComponent(window.location.origin)); return null; }
   return (
     <WorkspaceProvider>
       <RoleProvider>

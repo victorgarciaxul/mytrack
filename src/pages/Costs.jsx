@@ -95,19 +95,36 @@ export default function Costs() {
       try {
         await initDB()
         const db = sql()
-        const wsIds = isAdmin ? ['xul-ws-1', 'fundacion-ws-1'] : [getWsId()]
-        const [mems, ents] = await Promise.all([
+        const wsId = getWsId()
+        const fromISO = from.toISOString(), toISO = to.toISOString()
+        let [mems, ents] = await Promise.all([
           db`SELECT id, user_name, user_email, hourly_rate, group_name, COALESCE(monthly_cost, 0) AS monthly_cost
              FROM workspace_members
-             WHERE workspace_id = ANY(${wsIds}) AND hourly_rate > 0
+             WHERE workspace_id = ${wsId} AND hourly_rate > 0
              ORDER BY user_name`,
           db`SELECT user_email, project_id, project_name, project_color, client_name, duration, start_time
              FROM time_entries
-             WHERE workspace_id = ANY(${wsIds})
+             WHERE workspace_id = ${wsId}
                AND duration > 0
-               AND start_time >= ${from.toISOString()}
-               AND start_time <= ${to.toISOString()}`,
+               AND start_time >= ${fromISO}
+               AND start_time <= ${toISO}`,
         ])
+        if (isAdmin) {
+          const [mems2, ents2] = await Promise.all([
+            db`SELECT id, user_name, user_email, hourly_rate, group_name, COALESCE(monthly_cost, 0) AS monthly_cost
+               FROM workspace_members
+               WHERE workspace_id = ${'fundacion-ws-1'} AND hourly_rate > 0
+               ORDER BY user_name`,
+            db`SELECT user_email, project_id, project_name, project_color, client_name, duration, start_time
+               FROM time_entries
+               WHERE workspace_id = ${'fundacion-ws-1'}
+                 AND duration > 0
+                 AND start_time >= ${fromISO}
+                 AND start_time <= ${toISO}`,
+          ])
+          mems = [...mems, ...mems2.filter(m => !mems.some(x => x.user_email === m.user_email))]
+          ents = [...ents, ...ents2]
+        }
         setMembers(mems)
         setEntries(ents)
       } catch (e) {
@@ -118,7 +135,7 @@ export default function Costs() {
     }
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [from, to])
+  }, [from, to, isAdmin])
 
   // If user has restricted cost access, only show their allowed projects
   const dateFiltered = useMemo(() => {

@@ -32,7 +32,7 @@ function fmtH(secs) {
   return (s / 3600).toFixed(2) + 'h'
 }
 
-const TABS = ['Resumido', 'Detallado']
+const TABS = ['Resumido', 'Por tarea', 'Detallado']
 
 const JAVIER_EMAIL = 'javier@xul.es'
 const JAVIER_TEAM_PROJECTS = [
@@ -197,7 +197,7 @@ export default function Reports() {
     if (isFundacion && !e.user_email?.endsWith('@fundacionxul.org')) return false
     // Non-admins only see their own entries regardless of filter
     if (!isAdmin && e.user_email !== user?.email) return false
-    if (filterProject  !== 'ALL' && (e.project_name || 'Sin proyecto').toLowerCase() !== filterProject.toLowerCase()) return false
+    if (filterProject  !== 'ALL' && (e.project_name || 'Miscelánea XUL').toLowerCase() !== filterProject.toLowerCase()) return false
     if (filterClient   !== 'ALL' && (e.client_name  || 'Sin cliente').toLowerCase()  !== filterClient.toLowerCase())  return false
     if (filterUser     !== 'ALL' && e.user_email !== filterUser) return false
     if (filterBillable === 'YES' && !e.billable) return false
@@ -214,11 +214,11 @@ export default function Reports() {
   const projects = [...new Set(
     baseEntries
       .filter(e => filterClient  === 'ALL' || (e.client_name  || 'Sin cliente')  === filterClient)
-      .map(e => e.project_name || 'Sin proyecto')
+      .map(e => e.project_name || 'Miscelánea XUL')
   )].sort()
   const clients  = [...new Set(
     baseEntries
-      .filter(e => filterProject === 'ALL' || (e.project_name || 'Sin proyecto') === filterProject)
+      .filter(e => filterProject === 'ALL' || (e.project_name || 'Miscelánea XUL') === filterProject)
       .map(e => e.client_name  || 'Sin cliente')
   )].sort()
   // In Fundación always show both users, even if one has no entries in this period
@@ -249,7 +249,7 @@ export default function Reports() {
   // Pie chart by project
   const byProjectMap = {}
   filtered.forEach(e => {
-    const name  = e.project_name  || 'Sin proyecto'
+    const name  = e.project_name  || 'Miscelánea XUL'
     const color = e.project_color || '#C0C0E0'
     if (!byProjectMap[name]) byProjectMap[name] = { name, value: 0, color }
     byProjectMap[name].value += (Number(e.duration) || 0) / 3600
@@ -262,7 +262,7 @@ export default function Reports() {
   const grouped = useMemo(() => {
     const map = {}
     filtered.forEach(e => {
-      const proj   = e.project_name  || 'Sin proyecto'
+      const proj   = e.project_name  || 'Miscelánea XUL'
       const client = e.client_name   || ''
       const color  = e.project_color || '#C0C0E0'
       if (!map[proj]) map[proj] = { name: proj, client, color, secs: 0, billable: 0, count: 0 }
@@ -271,6 +271,24 @@ export default function Reports() {
       map[proj].count    += 1
     })
     return Object.values(map).sort((a, b) => b.secs - a.secs)
+  }, [filtered])
+
+  // Por tarea: group by project → task → entries
+  const byTaskGrouped = useMemo(() => {
+    const projMap = {}
+    filtered.forEach(e => {
+      const proj  = e.project_name || 'Miscelánea XUL'
+      const color = e.project_color || '#C0C0E0'
+      const task  = e.task_name || 'Sin tarea'
+      if (!projMap[proj]) projMap[proj] = { name: proj, color, secs: 0, tasks: {} }
+      projMap[proj].secs += Number(e.duration) || 0
+      if (!projMap[proj].tasks[task]) projMap[proj].tasks[task] = { name: task, secs: 0, entries: [] }
+      projMap[proj].tasks[task].secs += Number(e.duration) || 0
+      projMap[proj].tasks[task].entries.push({ desc: e.description || '', secs: Number(e.duration) || 0, date: e.start_time })
+    })
+    return Object.values(projMap)
+      .sort((a, b) => b.secs - a.secs)
+      .map(p => ({ ...p, tasks: Object.values(p.tasks).sort((a, b) => b.secs - a.secs) }))
   }, [filtered])
 
   function exportToExcel() {
@@ -325,7 +343,7 @@ export default function Reports() {
         const dt = e.start_time ? parseISO(e.start_time) : null
         return [
           e.description || '',
-          e.project_name || 'Sin proyecto',
+          e.project_name || 'Miscelánea XUL',
           e.client_name  || 'Sin cliente',
           e.user_email   || '',
           dt ? format(dt, 'dd/MM/yyyy') : '',
@@ -794,7 +812,7 @@ export default function Reports() {
     if (!isAdmin) return []
     const byProj = {}
     filtered.forEach(e => {
-      const proj = e.project_name || 'Sin proyecto'
+      const proj = e.project_name || 'Miscelánea XUL'
       if (!byProj[proj]) byProj[proj] = { name: proj, color: e.project_color || '#7C4DFF', people: {}, totalSecs: 0 }
       byProj[proj].totalSecs += Number(e.duration) || 0
       if (!byProj[proj].people[e.user_email]) byProj[proj].people[e.user_email] = { name: e.user_name || e.user_email, secs: 0, tasks: {} }
@@ -866,7 +884,7 @@ export default function Reports() {
     const teamEntries = entries.filter(e => AITOR_TEAM_MEMBERS.includes(e.user_email))
     const byProj = {}
     teamEntries.forEach(e => {
-      const proj = e.project_name || 'Sin proyecto'
+      const proj = e.project_name || 'Miscelánea XUL'
       if (!byProj[proj]) byProj[proj] = { name: proj, color: e.project_color || '#7C4DFF', people: {}, totalSecs: 0 }
       if (!byProj[proj].people[e.user_email]) byProj[proj].people[e.user_email] = { name: e.user_name || e.user_email, secs: 0 }
       byProj[proj].people[e.user_email].secs += Number(e.duration) || 0
@@ -946,7 +964,7 @@ export default function Reports() {
           // If the currently selected client is no longer valid with this project, reset it
           if (filterClient !== 'ALL') {
             const validClients = new Set(baseEntries
-              .filter(en => e.target.value === 'ALL' || (en.project_name || 'Sin proyecto') === e.target.value)
+              .filter(en => e.target.value === 'ALL' || (en.project_name || 'Miscelánea XUL') === e.target.value)
               .map(en => en.client_name || 'Sin cliente'))
             if (!validClients.has(filterClient)) setFilterClient('ALL')
           }
@@ -960,7 +978,7 @@ export default function Reports() {
           if (filterProject !== 'ALL') {
             const validProjects = new Set(baseEntries
               .filter(en => e.target.value === 'ALL' || (en.client_name || 'Sin cliente') === e.target.value)
-              .map(en => en.project_name || 'Sin proyecto'))
+              .map(en => en.project_name || 'Miscelánea XUL'))
             if (!validProjects.has(filterProject)) setFilterProject('ALL')
           }
         }} style={selectStyle}>
@@ -1114,6 +1132,42 @@ export default function Reports() {
               </div>
             )}
 
+            {/* ── POR TAREA: project → task (summed) → entries ── */}
+            {tab === 'Por tarea' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {byTaskGrouped.length === 0 && (
+                  <p style={{ textAlign: 'center', color: 'var(--c-text-3)', fontSize: 13, padding: '32px 0' }}>Sin entradas en este período</p>
+                )}
+                {byTaskGrouped.map(proj => (
+                  <div key={proj.name} style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
+                    {/* Project header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 18px', background: 'var(--c-bg-muted)', borderBottom: '1px solid var(--c-border-light)' }}>
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: proj.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--c-text-1)', flex: 1 }}>{proj.name}</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#7C4DFF', fontVariantNumeric: 'tabular-nums' }}>{fmtDuration(proj.secs)}</span>
+                    </div>
+                    {/* Tasks */}
+                    {proj.tasks.map(task => (
+                      <div key={task.name} style={{ borderBottom: '1px solid var(--c-border-light)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px 10px 30px' }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)', flex: 1 }}>{task.name}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', fontVariantNumeric: 'tabular-nums' }}>{fmtDuration(task.secs)}</span>
+                        </div>
+                        {task.entries.map((entry, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 18px 4px 46px', borderTop: '1px solid var(--c-border-light)' }}>
+                            <span style={{ fontSize: 12, color: 'var(--c-text-3)', flex: 1, fontStyle: entry.desc ? 'normal' : 'italic' }}>
+                              {entry.desc || 'Sin descripción'}
+                            </span>
+                            <span style={{ fontSize: 12, color: 'var(--c-text-4)', fontVariantNumeric: 'tabular-nums' }}>{fmtDuration(entry.secs)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* ── DETALLADO: individual entries ── */}
             {tab === 'Detallado' && (
               <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 14, overflow: 'hidden' }}>
@@ -1146,7 +1200,7 @@ export default function Reports() {
                     {/* Project */}
                     <div style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                       <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 6, background: (e.project_color || '#E0E0F0') + '18', color: e.project_color || 'var(--c-text-3)', fontWeight: 500 }}>
-                        {e.project_name || 'Sin proyecto'}
+                        {e.project_name || 'Miscelánea XUL'}
                       </span>
                     </div>
 

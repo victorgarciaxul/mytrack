@@ -1478,32 +1478,45 @@ export default function Reports() {
             </div>
           )}
 
-          {/* ── Pestaña Equipo (solo Javier) ── */}
+          {/* ── Pestaña Equipo (Javier) ── */}
           {tab === 'Equipo' && isJavier && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {javierTeamByProject.map(proj => (
                 <div key={proj.name} style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 12, overflow: 'hidden' }}>
-                  {/* Header */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--c-border-light)' }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: proj.color, flexShrink: 0 }} />
                     <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text-1)' }}>{proj.name}</span>
                     <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--c-text-3)' }}>{proj.people.length} {proj.people.length === 1 ? 'persona' : 'personas'}</span>
                   </div>
-                  {/* Rows */}
                   {proj.people.length === 0 ? (
                     <div style={{ padding: '12px 16px', fontSize: 13, color: 'var(--c-text-4)' }}>Sin entradas en este período</div>
                   ) : (
                     <>
                       {proj.people.map(p => (
-                        <div key={p.email} style={{ display: 'flex', alignItems: 'center', padding: '9px 16px', borderBottom: '1px solid var(--c-border-light)', gap: 12 }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--c-text-1)' }}>{p.name}</div>
-                            <div style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{p.email}</div>
+                        <div key={p.email} style={{ borderBottom: '1px solid var(--c-border-light)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', padding: '9px 16px', gap: 12 }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)' }}>{p.name}</div>
+                              <div style={{ fontSize: 11, color: 'var(--c-text-4)' }}>{p.email}</div>
+                            </div>
+                            <span style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--c-text-1)' }}>{fmtDuration(p.secs)}</span>
                           </div>
-                          <span style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--c-text-1)' }}>{fmtDuration(p.secs)}</span>
+                          {p.tasks?.map(t => (
+                            <div key={t.name} style={{ background: 'var(--c-bg-muted)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', padding: '5px 16px 5px 32px', gap: 12 }}>
+                                <span style={{ fontSize: 12, color: 'var(--c-text-3)', flex: 1, fontWeight: 500 }}>· {t.name}</span>
+                                <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: 'var(--c-text-3)' }}>{fmtDuration(t.secs)}</span>
+                              </div>
+                              {t.entries?.map((en, ei) => (
+                                <div key={ei} style={{ display: 'flex', alignItems: 'center', padding: '3px 16px 3px 48px', gap: 12 }}>
+                                  <span style={{ fontSize: 11, color: 'var(--c-text-4)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>– {en.desc}</span>
+                                  <span style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums', color: 'var(--c-text-4)', flexShrink: 0 }}>{fmtDuration(en.secs)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
                         </div>
                       ))}
-                      {/* Total */}
                       <div style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', background: 'var(--c-bg-muted)', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: 12, color: 'var(--c-text-3)', fontWeight: 600 }}>TOTAL PROYECTO</span>
                         <span style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: '#7C4DFF' }}>{fmtDuration(proj.totalSecs)}</span>

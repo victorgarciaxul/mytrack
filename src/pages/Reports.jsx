@@ -318,20 +318,21 @@ export default function Reports() {
 
     if (tab === 'Equipo' && teamData) {
       teamData.forEach(proj => {
-        const rows = [['Persona', 'Tarea', 'Descripción', 'Horas']]
+        const rows = [['Persona', 'Tarea', 'Descripción', 'Fecha', 'Horas']]
         proj.people.forEach(person => {
           person.tasks.forEach(task => {
             if (task.entries && task.entries.length > 0) {
               task.entries.forEach(entry => {
-                rows.push([person.name || person.email, task.name, entry.desc || '—', parseFloat((entry.secs / 3600).toFixed(2))])
+                const fecha = entry.date ? format(parseISO(entry.date), 'dd/MM/yyyy') : '—'
+                rows.push([person.name || person.email, task.name, entry.desc || '—', fecha, parseFloat((entry.secs / 3600).toFixed(2))])
               })
             } else {
-              rows.push([person.name || person.email, task.name, '—', parseFloat((task.secs / 3600).toFixed(2))])
+              rows.push([person.name || person.email, task.name, '—', '—', parseFloat((task.secs / 3600).toFixed(2))])
             }
           })
         })
         const ws = XLSX.utils.aoa_to_sheet(rows)
-        ws['!cols'] = [{ wch: 28 }, { wch: 28 }, { wch: 40 }, { wch: 10 }]
+        ws['!cols'] = [{ wch: 28 }, { wch: 28 }, { wch: 40 }, { wch: 14 }, { wch: 10 }]
         const sheetName = proj.name.substring(0, 31).replace(/[:\\/?*\[\]]/g, '')
         XLSX.utils.book_append_sheet(wb, ws, sheetName)
       })
@@ -536,31 +537,28 @@ export default function Reports() {
         proj.people.forEach(person => {
           person.tasks.forEach(task => {
             task.entries.forEach(entry => {
-              rows.push([
-                person.name || person.email,
-                task.name,
-                entry.desc || '—',
-                fmtDuration(entry.secs),
-              ])
+              const fecha = entry.date ? format(parseISO(entry.date), 'dd/MM/yyyy') : '—'
+              rows.push([person.name || person.email, task.name, entry.desc || '—', fecha, fmtDuration(entry.secs)])
             })
             if (!task.entries || task.entries.length === 0) {
-              rows.push([person.name || person.email, task.name, '—', fmtDuration(task.secs)])
+              rows.push([person.name || person.email, task.name, '—', '—', fmtDuration(task.secs)])
             }
           })
         })
         autoTable(doc, {
           startY: curY,
           margin: { left: M, right: M },
-          head: [['Persona', 'Tarea', 'Descripción', 'Horas']],
+          head: [['Persona', 'Tarea', 'Descripción', 'Fecha', 'Horas']],
           body: rows,
           styles: { fontSize: 7.5, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 }, font: 'helvetica', textColor: C.text, lineColor: C.border, lineWidth: 0.15 },
           headStyles: { fillColor: C.darkMid, textColor: C.white, fontStyle: 'bold', fontSize: 7, cellPadding: { top: 3.5, bottom: 3.5, left: 3, right: 3 } },
           alternateRowStyles: { fillColor: [249, 248, 255] },
           columnStyles: {
-            0: { cellWidth: 36, fontStyle: 'bold' },
-            1: { cellWidth: 36 },
+            0: { cellWidth: 32, fontStyle: 'bold' },
+            1: { cellWidth: 30 },
             2: { cellWidth: 'auto' },
-            3: { cellWidth: 18, halign: 'right', fontStyle: 'bold', textColor: C.purple },
+            3: { cellWidth: 20, halign: 'center' },
+            4: { cellWidth: 18, halign: 'right', fontStyle: 'bold', textColor: C.purple },
           },
         })
         curY = (doc.lastAutoTable.finalY || curY) + 10
@@ -729,15 +727,17 @@ export default function Reports() {
       ]
       teamData.forEach(proj => {
         children.push(new Paragraph({ children: [new TextRun({ text: proj.name, bold: true, size: 24, color: '504878' })], spacing: { before: 320, after: 160 } }))
-        const rows = [mkHeader(['Persona', 'Tarea', 'Descripción', 'Horas'])]
+        const rows = [mkHeader(['Persona', 'Tarea', 'Descripción', 'Fecha', 'Horas'])]
         proj.people.forEach(person => {
           person.tasks.forEach(task => {
             if (task.entries && task.entries.length > 0) {
               task.entries.forEach(entry => {
+                const fecha = entry.date ? format(parseISO(entry.date), 'dd/MM/yyyy') : '—'
                 rows.push(new TableRow({ children: [
                   new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: person.name || person.email, bold: true, size: 16 })] })] }),
                   new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: task.name, size: 16 })] })] }),
                   new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: entry.desc || '—', size: 16 })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: fecha, size: 16 })] })] }),
                   new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: fmtDuration(entry.secs), bold: true, size: 16 })], alignment: AlignmentType.RIGHT })] }),
                 ]}))
               })
@@ -745,6 +745,7 @@ export default function Reports() {
               rows.push(new TableRow({ children: [
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: person.name || person.email, bold: true, size: 16 })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: task.name, size: 16 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '—', size: 16 })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '—', size: 16 })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: fmtDuration(task.secs), bold: true, size: 16 })], alignment: AlignmentType.RIGHT })] }),
               ]}))
@@ -835,7 +836,7 @@ export default function Reports() {
       const taskKey = e.task_name || 'Sin tarea'
       if (!byProj[proj].people[e.user_email].tasks[taskKey]) byProj[proj].people[e.user_email].tasks[taskKey] = { secs: 0, entries: [] }
       byProj[proj].people[e.user_email].tasks[taskKey].secs += Number(e.duration) || 0
-      if (e.description && e.description !== '(sin descripción)') byProj[proj].people[e.user_email].tasks[taskKey].entries.push({ desc: e.description, secs: Number(e.duration) || 0 })
+      if (e.description && e.description !== '(sin descripción)') byProj[proj].people[e.user_email].tasks[taskKey].entries.push({ desc: e.description, secs: Number(e.duration) || 0, date: e.start_time || null })
     })
     return Object.values(byProj)
       .sort((a, b) => b.totalSecs - a.totalSecs)
@@ -862,7 +863,7 @@ export default function Reports() {
         const taskKey = e.task_name || 'Sin tarea'
         if (!byPerson[e.user_email].tasks[taskKey]) byPerson[e.user_email].tasks[taskKey] = { secs: 0, entries: [] }
         byPerson[e.user_email].tasks[taskKey].secs += Number(e.duration) || 0
-        if (e.description && e.description !== '(sin descripción)') byPerson[e.user_email].tasks[taskKey].entries.push({ desc: e.description, secs: Number(e.duration) || 0 })
+        if (e.description && e.description !== '(sin descripción)') byPerson[e.user_email].tasks[taskKey].entries.push({ desc: e.description, secs: Number(e.duration) || 0, date: e.start_time || null })
       })
       const people = Object.entries(byPerson)
         .map(([email, d]) => ({
@@ -886,7 +887,7 @@ export default function Reports() {
         const taskKey = e.task_name || 'Sin tarea'
         if (!byPerson[e.user_email].tasks[taskKey]) byPerson[e.user_email].tasks[taskKey] = { secs: 0, entries: [] }
         byPerson[e.user_email].tasks[taskKey].secs += Number(e.duration) || 0
-        if (e.description && e.description !== '(sin descripción)') byPerson[e.user_email].tasks[taskKey].entries.push({ desc: e.description, secs: Number(e.duration) || 0 })
+        if (e.description && e.description !== '(sin descripción)') byPerson[e.user_email].tasks[taskKey].entries.push({ desc: e.description, secs: Number(e.duration) || 0, date: e.start_time || null })
       })
       const people = Object.entries(byPerson)
         .map(([email, d]) => ({
@@ -946,7 +947,7 @@ export default function Reports() {
         const taskKey = e.task_name || 'Sin tarea'
         if (!byPerson[e.user_email].tasks[taskKey]) byPerson[e.user_email].tasks[taskKey] = { secs: 0, entries: [] }
         byPerson[e.user_email].tasks[taskKey].secs += Number(e.duration) || 0
-        if (e.description && e.description !== '(sin descripción)') byPerson[e.user_email].tasks[taskKey].entries.push({ desc: e.description, secs: Number(e.duration) || 0 })
+        if (e.description && e.description !== '(sin descripción)') byPerson[e.user_email].tasks[taskKey].entries.push({ desc: e.description, secs: Number(e.duration) || 0, date: e.start_time || null })
       })
       const people = Object.entries(byPerson)
         .map(([email, d]) => ({

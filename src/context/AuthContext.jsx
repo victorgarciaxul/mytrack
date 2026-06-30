@@ -72,20 +72,17 @@ export function AuthProvider({ children }) {
     const ssoEmail = params.get('sso_email')
     if (!ssoEmail) return
 
-    import('../lib/db').then(({ supabaseClient }) =>
-      supabaseClient
-        .from('workspace_members')
-        .select('*')
-        .eq('user_email', ssoEmail.toLowerCase())
-        .limit(1)
-    ).then(({ data }) => {
-      const member = data?.[0]
-      if (!member) { setLoading(false); return }
+    const email = ssoEmail.toLowerCase()
+    if (!email.endsWith('@xul.es') && !email.endsWith('@fundacionxul.org')) {
+      setLoading(false); return
+    }
+
+    const applyUser = (member) => {
       const wsId = member.user_email.endsWith('@fundacionxul.org') ? 'fundacion-ws-1' : 'xul-ws-1'
       const u = {
-        id:               member.id,
+        id:               member.id ?? `local-${member.user_email}`,
         email:            member.user_email,
-        user_metadata:    { full_name: member.user_name },
+        user_metadata:    { full_name: member.user_name ?? member.name ?? member.user_email },
         role:             member.role,
         workspace_id:     wsId,
         clockify_user_id: member.clockify_user_id ?? null,
@@ -95,7 +92,27 @@ export function AuthProvider({ children }) {
       sessionStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u))
       window.history.replaceState({}, '', window.location.pathname)
       setLoading(false)
-    }).catch(() => { setLoading(false) })
+    }
+
+    import('../lib/db').then(({ supabaseClient }) =>
+      supabaseClient
+        .from('workspace_members')
+        .select('*')
+        .eq('user_email', email)
+        .limit(1)
+    ).then(({ data }) => {
+      const member = data?.[0]
+      if (member) { applyUser(member); return }
+      // No está en workspace_members → buscar en FALLBACK_USERS
+      const fallback = FALLBACK_USERS.find(u => u.email === email)
+      if (fallback) { applyUser({ user_email: fallback.email, user_name: fallback.name, role: fallback.role }); return }
+      setLoading(false)
+    }).catch(() => {
+      // Red caída: intentar con FALLBACK_USERS
+      const fallback = FALLBACK_USERS.find(u => u.email === email)
+      if (fallback) { applyUser({ user_email: fallback.email, user_name: fallback.name, role: fallback.role }); return }
+      setLoading(false)
+    })
   }, [])
 
   // In DEMO_MODE: refresh clockify_user_id from DB on every app load.

@@ -1045,11 +1045,15 @@ export async function dbSaveRunningTimer({ userEmail, workspaceId, startedAt, de
 }
 
 export async function dbGetRunningTimer(userEmail) {
-  const { data } = await _supabase
+  const { data, error } = await _supabase
     .from('running_timers')
     .select('*')
     .eq('user_email', userEmail)
     .single()
+  // PGRST116 = no rows found — that's valid (timer not running)
+  // Any other error = network/DB issue — throw so the caller's try/catch
+  // leaves the current description untouched instead of clearing it
+  if (error && error.code !== 'PGRST116') throw error
   if (!data) return null
   return { ...data, started_at: toISO(data.started_at), updated_at: toISO(data.updated_at) }
 }

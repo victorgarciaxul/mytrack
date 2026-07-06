@@ -417,8 +417,8 @@ export default function Tracker() {
         setEntries(prev => [{
           id: saved.id, description: saved.description,
           start_time: saved.start_time, end_time: saved.end_time, duration: saved.duration,
-          projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color } : null,
-          tasks:    selectedTask    ? { name: selectedTask.name }    : null,
+          projects: fullProj ? { name: fullProj.name, color: fullProj.color } : null,
+          tasks:    selectedTask ? { name: selectedTask.name } : null,
         }, ...prev])
         window.dispatchEvent(new CustomEvent('mytrack:entry-saved', {
           detail: { year: new Date().getFullYear() }

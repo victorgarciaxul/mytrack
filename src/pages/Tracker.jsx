@@ -288,8 +288,9 @@ export default function Tracker() {
       const desc = running.description || ''
       setDescription(desc)
 
+      const wsProj = running.project_id ? projects.find(p => p.id === running.project_id) : null
       const proj = running.project_id
-        ? { id: running.project_id, name: running.project_name || '', color: running.project_color || '#7C4DFF' }
+        ? { id: running.project_id, name: wsProj?.name || running.project_name || '', color: wsProj?.color || running.project_color || '#7C4DFF' }
         : null
       const task = running.task_id
         ? { id: running.task_id, name: running.task_name || '' }
@@ -346,14 +347,17 @@ export default function Tracker() {
       if (secs >= 5) {
         const endTime = new Date()
         const startTime = new Date(endTime.getTime() - secs * 1000)
+        const fullProjM = selectedProject?.id
+          ? (projects.find(p => p.id === selectedProject.id) || selectedProject)
+          : selectedProject
         await initDB()
         const saved = await dbInsertEntry({
           userEmail:    user.email,
           workspaceId:  user.workspace_id || 'xul-ws-1',
-          projectId:    selectedProject?.id    || null,
-          projectName:  selectedProject?.name  || null,
-          projectColor: selectedProject?.color || null,
-          clientName:   selectedProject?.client_name || null,
+          projectId:    fullProjM?.id    || null,
+          projectName:  fullProjM?.name  || null,
+          projectColor: fullProjM?.color || null,
+          clientName:   fullProjM?.client_name || null,
           taskId:       selectedTask?.id   || null,
           taskName:     selectedTask?.name || null,
           description:  description || '(sin descripción)',
@@ -362,7 +366,7 @@ export default function Tracker() {
           duration:     secs,
         }).catch(() => null)
         if (saved) {
-          setEntries(prev => [{ id: saved.id, description: saved.description, start_time: saved.start_time, end_time: saved.end_time, duration: saved.duration, projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color } : null, tasks: selectedTask ? { name: selectedTask.name } : null }, ...prev])
+          setEntries(prev => [{ id: saved.id, description: saved.description, start_time: saved.start_time, end_time: saved.end_time, duration: saved.duration, projects: fullProjM ? { name: fullProjM.name, color: fullProjM.color } : null, tasks: selectedTask ? { name: selectedTask.name } : null }, ...prev])
         }
       }
       timer.reset()
@@ -391,13 +395,17 @@ export default function Tracker() {
     setSyncing(true)
     try {
       await initDB()
+      // Always look up project from workspace list to get the latest name/color
+      const fullProj = selectedProject?.id
+        ? (projects.find(p => p.id === selectedProject.id) || selectedProject)
+        : selectedProject
       const saved = await dbInsertEntry({
         userEmail:    user.email,
         workspaceId:  user.workspace_id || 'xul-ws-1',
-        projectId:    selectedProject?.id    || null,
-        projectName:  selectedProject?.name  || null,
-        projectColor: selectedProject?.color || null,
-        clientName:   selectedProject?.client_name || null,
+        projectId:    fullProj?.id    || null,
+        projectName:  fullProj?.name  || null,
+        projectColor: fullProj?.color || null,
+        clientName:   fullProj?.client_name || null,
         taskId:       selectedTask?.id   || null,
         taskName:     selectedTask?.name || null,
         description:  description || '(sin descripción)',
@@ -494,14 +502,17 @@ export default function Tracker() {
       if (secs >= 5) {
         const endTime = new Date()
         const startTime = new Date(endTime.getTime() - secs * 1000)
+        const fullProjR = selectedProject?.id
+          ? (projects.find(p => p.id === selectedProject.id) || selectedProject)
+          : selectedProject
         await initDB()
         const saved = await dbInsertEntry({
           userEmail:    user.email,
           workspaceId:  user.workspace_id || 'xul-ws-1',
-          projectId:    selectedProject?.id    || null,
-          projectName:  selectedProject?.name  || null,
-          projectColor: selectedProject?.color || null,
-          clientName:   selectedProject?.client_name || null,
+          projectId:    fullProjR?.id    || null,
+          projectName:  fullProjR?.name  || null,
+          projectColor: fullProjR?.color || null,
+          clientName:   fullProjR?.client_name || null,
           taskId:       selectedTask?.id   || null,
           taskName:     selectedTask?.name || null,
           description:  description || '(sin descripción)',
@@ -510,7 +521,7 @@ export default function Tracker() {
           duration:     secs,
         }).catch(() => null)
         if (saved) {
-          setEntries(prev => [{ id: saved.id, description: saved.description, start_time: saved.start_time, end_time: saved.end_time, duration: saved.duration, projects: selectedProject ? { name: selectedProject.name, color: selectedProject.color } : null, tasks: selectedTask ? { name: selectedTask.name } : null }, ...prev])
+          setEntries(prev => [{ id: saved.id, description: saved.description, start_time: saved.start_time, end_time: saved.end_time, duration: saved.duration, projects: fullProjR ? { name: fullProjR.name, color: fullProjR.color } : null, tasks: selectedTask ? { name: selectedTask.name } : null }, ...prev])
         }
       }
       timer.reset()

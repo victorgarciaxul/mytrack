@@ -225,8 +225,10 @@ export default function Clients() {
   }, [])
 
   const q = search.toLowerCase()
-  const activeClients   = clients.filter(c => c.archived !== true)
-  const archivedClients = clients.filter(c => c.archived === true)
+  // Un cliente se considera archivado si tiene archived=true O si no tiene ningún proyecto activo
+  const hasActiveProjects = (c) => projects.some(p => p.client_id === c.id && p.archived !== true)
+  const activeClients   = clients.filter(c => c.archived !== true && hasActiveProjects(c))
+  const archivedClients = clients.filter(c => c.archived === true  || !hasActiveProjects(c))
   const filtered         = activeClients.filter(c => c.name.toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q))
   const filteredArchived = archivedClients.filter(c => c.name.toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q))
 

@@ -135,7 +135,11 @@ export default function TopBar({ onMenuClick }) {
     if (cacheYears || !user?.email) return
     initDB()
       .then(() => dbGetAvailableYears(user.email))
-      .then(years => setNeonYears(years?.length ? years : [new Date().getFullYear()]))
+      .then(years => {
+        const currentYear = new Date().getFullYear()
+        const all = years?.length ? years : []
+        setNeonYears(all.includes(currentYear) ? all : [currentYear, ...all])
+      })
       .catch(() => setNeonYears([new Date().getFullYear()]))
   }, [user?.email, cacheYears])
 

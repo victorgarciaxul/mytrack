@@ -59,7 +59,7 @@ function EditClientModal({ client, onSave, onClose }) {
 
 // ── Client detail modal ────────────────────────────────────────
 function ClientDetailModal({ client, projects, onClose }) {
-  const clientProjects = projects.filter(p => p.client_id === client.id && p.archived !== true)
+  const clientProjects = projects.filter(p => p.client_id === client.id)
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 16 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
@@ -105,8 +105,8 @@ function ClientDetailModal({ client, projects, onClose }) {
 }
 
 // ── Client card ────────────────────────────────────────────────
-function ClientCard({ client, projects, canEdit, onEdit, onArchive, onDelete, onOpen }) {
-  const clientProjects = projects.filter(p => p.client_id === client.id && p.archived !== true)
+function ClientCard({ client, projects, canEdit, onEdit, onArchive, onDelete, onOpen, showArchived }) {
+  const clientProjects = projects.filter(p => p.client_id === client.id && (showArchived || p.archived !== true))
   const isArch = !!client.archived
 
   return (
@@ -363,7 +363,7 @@ export default function Clients() {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
                 {filteredArchived.map(client => (
-                  <ClientCard key={client.id} client={client} projects={projects} canEdit={canEdit}
+                  <ClientCard key={client.id} client={client} projects={projects} canEdit={canEdit} showArchived
                     onEdit={setEditingClient} onArchive={handleArchive} onDelete={handleDelete} onOpen={setDetailClient} />
                 ))}
               </div>

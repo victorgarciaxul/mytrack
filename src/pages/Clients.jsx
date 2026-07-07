@@ -59,7 +59,7 @@ function EditClientModal({ client, onSave, onClose }) {
 
 // ── Client detail modal ────────────────────────────────────────
 function ClientDetailModal({ client, projects, onClose }) {
-  const clientProjects = projects.filter(p => p.client_id === client.id)
+  const clientProjects = projects.filter(p => p.client_id === client.id && p.archived !== true)
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 16 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
@@ -106,7 +106,7 @@ function ClientDetailModal({ client, projects, onClose }) {
 
 // ── Client card ────────────────────────────────────────────────
 function ClientCard({ client, projects, canEdit, onEdit, onArchive, onDelete, onOpen }) {
-  const clientProjects = projects.filter(p => p.client_id === client.id)
+  const clientProjects = projects.filter(p => p.client_id === client.id && p.archived !== true)
   const isArch = !!client.archived
 
   return (

@@ -179,7 +179,7 @@ export default function Costs() {
   const filtered = useMemo(() => {
     let rows = dateFiltered
     if (filterUser   !== 'all') rows = rows.filter(e => e.user_email === filterUser)
-    if (filterProj   !== 'all') rows = rows.filter(e => (e.project_name || 'Sin proyecto').toLowerCase() === filterProj)
+    if (filterProj   !== 'all') rows = rows.filter(e => normId(e.project_id, e.project_name) === filterProj)
     if (filterClient !== 'all') rows = rows.filter(e => (e.client_name || '__none__') === filterClient)
     return rows
   }, [dateFiltered, filterUser, filterProj, filterClient])

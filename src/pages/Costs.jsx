@@ -96,7 +96,7 @@ export default function Costs() {
         await initDB()
         const db = sql()
         const fromISO = from.toISOString(), toISO = to.toISOString()
-        const wsIds = isAdmin ? ['xul-ws-1', 'fundacion-ws-1'] : [getWsId()]
+        const wsIds = [getWsId()]
         const allMems = [], allEnts = []
         for (const wsId of wsIds) {
           const [m, e] = await Promise.all([

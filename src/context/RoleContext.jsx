@@ -118,7 +118,7 @@ export function RoleProvider({ children }) {
   }
 
   const unreadCount = notifications.filter(n => !n.read).length
-  const isAdmin = ADMIN_EMAILS.includes(user?.email)
+  const isAdmin = ADMIN_EMAILS.includes(user?.email) || user?.role === 'admin' || role === 'admin'
   const isManager = isAdmin || role === 'manager'
 
   return (

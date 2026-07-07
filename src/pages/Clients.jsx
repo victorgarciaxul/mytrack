@@ -225,8 +225,8 @@ export default function Clients() {
   }, [])
 
   const q = search.toLowerCase()
-  const activeClients   = clients.filter(c => !c.archived)
-  const archivedClients = clients.filter(c => c.archived)
+  const activeClients   = clients.filter(c => c.archived !== true)
+  const archivedClients = clients.filter(c => c.archived === true)
   const filtered         = activeClients.filter(c => c.name.toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q))
   const filteredArchived = archivedClients.filter(c => c.name.toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q))
 

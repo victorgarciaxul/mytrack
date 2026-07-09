@@ -6,9 +6,36 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { parseIcal, matchMember } from '../src/lib/icalVacations.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
+
+const ICAL_URL =
+  'https://calendar.google.com/calendar/ical/xul.es_9sihmss6cllthmfdd397ug869o%40group.calendar.google.com/private-2d0c526ca7baa801aef1049821e86bc2/basic.ics'
+
+/** Devuelve el Set de emails (de USERS) que tienen vacación hoy según el calendario en vivo */
+async function getEmailsOnVacationToday(todayStr) {
+  try {
+    const res = await fetch(ICAL_URL)
+    if (!res.ok) return new Set()
+    const text = await res.text()
+    const events = parseIcal(text)
+    const membersForMatch = USERS.map(u => ({ user_name: u.name, user_email: u.email }))
+    const onVacation = new Set()
+    for (const ev of events) {
+      if (!ev.dateFrom) continue
+      const dateTo = ev.dateTo || ev.dateFrom
+      if (todayStr < ev.dateFrom || todayStr >= dateTo) continue
+      const member = matchMember(ev.summary, membersForMatch)
+      if (member) onVacation.add(member.user_email)
+    }
+    return onVacation
+  } catch (err) {
+    console.warn('No se pudo comprobar el calendario de vacaciones:', err.message)
+    return new Set()
+  }
+}
 
 const PROJECT_ID   = '667a69f4ed670144288c0ad4'
 const PROJECT_NAME = 'Agencia Digital de Andalucía | Oficina Comunicación'
@@ -135,7 +162,16 @@ export default async function handler(req, res) {
 
   const results = []
 
+  // Comprobar el calendario de Google en vivo — no depende de que alguien
+  // pulse "Sync Google Cal" a mano
+  const onVacationToday = await getEmailsOnVacationToday(todayStr)
+
   for (const user of USERS) {
+    if (onVacationToday.has(user.email)) {
+      results.push({ email: user.email, status: 'skipped_vacation_calendar' })
+      continue
+    }
+
     // Comprobar si el usuario ya tiene algún registro hoy
     const dayStart = todayStr + 'T00:00:00+00:00'
     const dayEnd   = todayStr + 'T23:59:59+00:00'
@@ -150,6 +186,19 @@ export default async function handler(req, res) {
 
     if (existing && existing.length > 0) {
       results.push({ email: user.email, status: 'skipped_has_entries' })
+      continue
+    }
+
+    // Comprobar si tiene vacaciones/permiso registrado ese día
+    const { data: vacation } = await supabase
+      .from('vacations')
+      .select('id')
+      .eq('user_email', user.email)
+      .eq('date', todayStr)
+      .limit(1)
+
+    if (vacation && vacation.length > 0) {
+      results.push({ email: user.email, status: 'skipped_vacation' })
       continue
     }
 

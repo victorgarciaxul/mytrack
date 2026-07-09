@@ -15,7 +15,7 @@ function norm(s = '') {
 }
 
 /** Parse iCal text → array of { summary, dateFrom, dateTo (exclusive) } */
-function parseIcal(text) {
+export function parseIcal(text) {
   const events = []
   const blocks = text.split('BEGIN:VEVENT')
   for (const block of blocks.slice(1)) {
@@ -112,7 +112,7 @@ function tryMatch(words, members) {
  * Match an event summary to a workspace member.
  * Tries original words first, then nickname-expanded words as fallback.
  */
-function matchMember(summary, members) {
+export function matchMember(summary, members) {
   let namePart = norm(summary)
     .replace(/^vacaciones\s*[:\-–]?\s*/, '')
     .replace(/\(.*?\)/g, '')   // remove "(Japón)", "(Medio día)", etc.

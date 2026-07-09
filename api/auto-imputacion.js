@@ -114,14 +114,45 @@ function toUTC(dateStr, timeLocal, offsetH) {
   return baseDate.toISOString()
 }
 
-function buildEntry(email, dateStr) {
-  const user    = USERS.find(u => u.email === email)
-  const offset  = spainOffsetHours(dateStr)
-  const { startLocal, endLocal } = schedule(dateStr)
-  const startUtc = toUTC(dateStr, startLocal, offset)
-  const endUtc   = toUTC(dateStr, endLocal,   offset)
-  const duration = Math.floor((new Date(endUtc) - new Date(startUtc)) / 1000)
-  const id = `ada-auto-${email.split('@')[0]}-${dateStr.replace(/-/g, '')}`
+// Hueco mínimo a rellenar (en ms). Por debajo se ignora para no crear
+// entradas ridículas de pocos minutos.
+const MIN_GAP_MS = 15 * 60 * 1000
+
+/**
+ * Dado el tramo de jornada [winStart, winEnd] y las entradas que el usuario ya
+ * tiene ese día, devuelve los huecos NO cubiertos dentro del tramo.
+ * Las entradas se recortan al tramo (lo que caiga fuera no cuenta).
+ */
+function computeGaps(winStartMs, winEndMs, entries) {
+  const clipped = entries
+    .map(e => ({ s: Math.max(e.startMs, winStartMs), e: Math.min(e.endMs, winEndMs) }))
+    .filter(iv => iv.e > iv.s)
+    .sort((a, b) => a.s - b.s)
+
+  // Fusionar solapes
+  const merged = []
+  for (const iv of clipped) {
+    const last = merged[merged.length - 1]
+    if (last && iv.s <= last.e) last.e = Math.max(last.e, iv.e)
+    else merged.push({ ...iv })
+  }
+
+  // Huecos entre los tramos cubiertos
+  const gaps = []
+  let cursor = winStartMs
+  for (const iv of merged) {
+    if (iv.s > cursor) gaps.push({ s: cursor, e: iv.s })
+    cursor = Math.max(cursor, iv.e)
+  }
+  if (cursor < winEndMs) gaps.push({ s: cursor, e: winEndMs })
+
+  return gaps.filter(g => g.e - g.s >= MIN_GAP_MS)
+}
+
+function buildEntry(email, dateStr, startUtcMs, endUtcMs, suffix = '') {
+  const user     = USERS.find(u => u.email === email)
+  const duration = Math.floor((endUtcMs - startUtcMs) / 1000)
+  const id = `ada-auto-${email.split('@')[0]}-${dateStr.replace(/-/g, '')}${suffix}`
   return {
     id,
     workspace_id:  WS_ID,
@@ -131,8 +162,8 @@ function buildEntry(email, dateStr) {
     task_id:       user.taskId,
     task_name:     user.taskName,
     description:   DESCRIPTION,
-    start_time:    startUtc,
-    end_time:      endUtc,
+    start_time:    new Date(startUtcMs).toISOString(),
+    end_time:      new Date(endUtcMs).toISOString(),
     duration,
     billable:      true,
   }
@@ -166,30 +197,21 @@ export default async function handler(req, res) {
   // pulse "Sync Google Cal" a mano
   const onVacationToday = await getEmailsOnVacationToday(todayStr)
 
+  // Tramo de jornada de hoy en UTC (ms)
+  const offset = spainOffsetHours(todayStr)
+  const { startLocal, endLocal } = schedule(todayStr)
+  const winStartMs = new Date(toUTC(todayStr, startLocal, offset)).getTime()
+  const winEndMs   = new Date(toUTC(todayStr, endLocal,   offset)).getTime()
+  const dayStart = todayStr + 'T00:00:00+00:00'
+  const dayEnd   = todayStr + 'T23:59:59+00:00'
+
   for (const user of USERS) {
     if (onVacationToday.has(user.email)) {
       results.push({ email: user.email, status: 'skipped_vacation_calendar' })
       continue
     }
 
-    // Comprobar si el usuario ya tiene algún registro hoy
-    const dayStart = todayStr + 'T00:00:00+00:00'
-    const dayEnd   = todayStr + 'T23:59:59+00:00'
-    const { data: existing } = await supabase
-      .from('time_entries')
-      .select('id')
-      .eq('user_email', user.email)
-      .eq('workspace_id', WS_ID)
-      .gte('start_time', dayStart)
-      .lte('start_time', dayEnd)
-      .limit(1)
-
-    if (existing && existing.length > 0) {
-      results.push({ email: user.email, status: 'skipped_has_entries' })
-      continue
-    }
-
-    // Comprobar si tiene vacaciones/permiso registrado ese día
+    // Vacaciones/permiso ya registrado en la tabla
     const { data: vacation } = await supabase
       .from('vacations')
       .select('id')
@@ -202,18 +224,59 @@ export default async function handler(req, res) {
       continue
     }
 
-    const entry = buildEntry(user.email, todayStr)
-    const { error } = await supabase.from('time_entries').upsert(entry, { onConflict: 'id' })
+    const slug = user.email.split('@')[0]
+    const autoPrefix = `ada-auto-${slug}-`
+
+    // Todas las entradas del usuario ese día
+    const { data: dayEntries } = await supabase
+      .from('time_entries')
+      .select('id, description, start_time, end_time')
+      .eq('user_email', user.email)
+      .eq('workspace_id', WS_ID)
+      .gte('start_time', dayStart)
+      .lte('start_time', dayEnd)
+
+    const all = (dayEntries || []).filter(e => e.start_time && e.end_time)
+
+    // Automáticas SIN editar (siguen diciendo "Tareas varias") = las gestiona el
+    // sistema, se recalculan. Si el usuario editó una automática, ya NO es pristine
+    // y se respeta como trabajo real.
+    const pristineAutoIds = all
+      .filter(e => e.id.startsWith(autoPrefix) && e.description === DESCRIPTION)
+      .map(e => e.id)
+
+    // Ocupación = todo lo que NO sea una automática pristine (manuales + autos editadas)
+    const occupied = all
+      .filter(e => !(e.id.startsWith(autoPrefix) && e.description === DESCRIPTION))
+      .map(e => ({ startMs: new Date(e.start_time).getTime(), endMs: new Date(e.end_time).getTime() }))
+
+    // Borrar solo las automáticas pristine para recalcular limpio (idempotente)
+    if (pristineAutoIds.length) {
+      await supabase.from('time_entries').delete().in('id', pristineAutoIds)
+    }
+
+    // Calcular huecos dentro del tramo y rellenarlos
+    const gaps = computeGaps(winStartMs, winEndMs, occupied)
+    if (gaps.length === 0) {
+      results.push({ email: user.email, status: 'full_day_covered' })
+      continue
+    }
+
+    // IDs con sufijo -fill{n} para no colisionar con una automática editada
+    // que conserve el id base
+    const rows = gaps.map((g, i) =>
+      buildEntry(user.email, todayStr, g.s, g.e, `-fill${i + 1}`))
+    const { error } = await supabase.from('time_entries').upsert(rows, { onConflict: 'id' })
     if (error) {
       results.push({ email: user.email, status: 'error', error: error.message })
     } else {
-      results.push({ email: user.email, status: 'inserted' })
+      results.push({ email: user.email, status: 'filled', gaps: gaps.length })
     }
   }
 
-  const inserted = results.filter(r => r.status === 'inserted').length
-  const skipped  = results.filter(r => r.status === 'skipped_has_entries').length
-  console.log(`auto-imputacion ${todayStr}: ${inserted} insertadas, ${skipped} ya tenían registros`)
+  const filled  = results.filter(r => r.status === 'filled').length
+  const covered = results.filter(r => r.status === 'full_day_covered').length
+  console.log(`auto-imputacion ${todayStr}: ${filled} rellenados, ${covered} ya completos`)
 
-  return res.status(200).json({ ok: true, date: todayStr, inserted, skipped, results })
+  return res.status(200).json({ ok: true, date: todayStr, filled, covered, results })
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { DollarSign, ChevronDown, ChevronUp, TrendingUp, Users, Briefcase, Filter, Building2, Percent } from 'lucide-react'
+import { DollarSign, ChevronDown, ChevronUp, TrendingUp, Users, Briefcase, Filter, Building2, Percent, Landmark } from 'lucide-react'
 import DateRangePicker from '../components/ui/DateRangePicker'
 import { useRole } from '../context/RoleContext'
 import { useNavigate } from 'react-router-dom'
@@ -28,6 +28,20 @@ function fmtPct(n) {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'
 }
 const CAPACITY_HOURS = 160  // standard monthly hours
+
+// Proyectos que componen el COSTE ESTRUCTURAL de XUL (match por nombre, sin
+// distinguir mayúsculas/acentos). Solo los 7 solicitados.
+const STRUCTURAL_PROJECTS = [
+  'XUL - Desarrollo de negocio',
+  'XUL - Miscelánea',
+  'XUL - Estructura',
+  'XUL - Bcorp',
+  'XUL - Contabilidad',
+  'XUL - Administración',
+  'XUL - Producción y eventos',
+]
+const normName = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+const STRUCTURAL_SET = new Set(STRUCTURAL_PROJECTS.map(normName))
 
 // ── Stat card ────────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value, color, isMobile }) {
@@ -338,6 +352,25 @@ export default function Costs() {
   }, [byProject])
   const totalPeople = useMemo(() => new Set(filtered.filter(e => rateMap[e.user_email] > 0).map(e => e.user_email)).size, [filtered, rateMap])
 
+  // ── COSTE ESTRUCTURAL — suma de los proyectos "XUL - ..." estructurales ──────
+  // Independiente de los filtros de la UI (usa dateFiltered), pero respeta el rango
+  // de fechas. Muestra coste real (horas × tarifa) e imputado, para ser más completo.
+  const structural = useMemo(() => {
+    let realCost = 0, imputCost = 0, secs = 0
+    dateFiltered.forEach(e => {
+      if (!STRUCTURAL_SET.has(normName(e.project_name))) return
+      const rate = rateMap[e.user_email] || 0
+      if (!rate) return
+      const mc          = monthlyCostMap[e.user_email] || 0
+      const personTotal = personTotalSecs[e.user_email] || e.duration
+      const cappedTotal = Math.max(personTotal, periodCapacitySecs)
+      realCost  += (e.duration / 3600) * rate
+      imputCost += (e.duration / cappedTotal) * mc * periodMonths
+      secs      += e.duration
+    })
+    return { realCost, imputCost, secs }
+  }, [dateFiltered, rateMap, monthlyCostMap, personTotalSecs, periodCapacitySecs, periodMonths])
+
   function toggleSort(col) {
     if (sortCol === col) setSortDir(d => d === 'desc' ? 'asc' : 'desc')
     else { setSortCol(col); setSortDir('desc') }
@@ -376,6 +409,38 @@ export default function Costs() {
         <StatCard icon={Users}      label="Perfiles activos"  value={totalPeople}             color="#10B981" isMobile={isMobile} />
         <StatCard icon={Briefcase}  label="Proyectos"         value={byProject.length}        color="#F59E0B" isMobile={isMobile} />
       </div>
+
+      {/* Coste estructural — suma de los proyectos XUL de estructura (solo admins) */}
+      {isAdmin && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(124,77,255,0.10), rgba(139,92,246,0.04))',
+          border: '1px solid rgba(124,77,255,0.25)', borderRadius: 14,
+          padding: isMobile ? '14px 16px' : '16px 22px', marginBottom: 16,
+          display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 18, flexWrap: 'wrap',
+        }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(124,77,255,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Landmark size={20} color="#7C4DFF" />
+          </div>
+          <div style={{ flex: 1, minWidth: 140 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Coste estructural
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--c-text-4)', marginTop: 2 }}>
+              Suma de los 7 proyectos XUL de estructura · {fmtH(structural.secs)}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: isMobile ? 20 : 34, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Coste real</div>
+              <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: 'var(--c-text-1)' }}>{fmtEUR(structural.realCost)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Coste imputado</div>
+              <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: '#7C4DFF' }}>{fmtEUR(structural.imputCost)}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters row */}
       <div style={{ background: 'var(--c-bg-surface)', border: '1px solid var(--c-border-light)', borderRadius: 12, padding: '12px 14px', marginBottom: 14 }}>

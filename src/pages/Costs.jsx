@@ -85,6 +85,7 @@ export default function Costs() {
   const [sortCol,      setSortCol]      = useState('cost')
   const [sortDir,      setSortDir]      = useState('desc')
   const [expandedRow,  setExpandedRow]  = useState(null)
+  const [structOpen,   setStructOpen]   = useState(false)
 
   useEffect(() => {
     if (role !== null && costProjectsLoaded && !hasCostAccess) navigate('/tracker', { replace: true })
@@ -357,6 +358,7 @@ export default function Costs() {
   // de fechas. Muestra coste real (horas × tarifa) e imputado, para ser más completo.
   const structural = useMemo(() => {
     let realCost = 0, imputCost = 0, secs = 0
+    const byProj = {}
     dateFiltered.forEach(e => {
       if (!STRUCTURAL_SET.has(normName(e.project_name))) return
       const rate = rateMap[e.user_email] || 0
@@ -364,11 +366,19 @@ export default function Costs() {
       const mc          = monthlyCostMap[e.user_email] || 0
       const personTotal = personTotalSecs[e.user_email] || e.duration
       const cappedTotal = Math.max(personTotal, periodCapacitySecs)
-      realCost  += (e.duration / 3600) * rate
-      imputCost += (e.duration / cappedTotal) * mc * periodMonths
+      const real  = (e.duration / 3600) * rate
+      const imput = (e.duration / cappedTotal) * mc * periodMonths
+      realCost  += real
+      imputCost += imput
       secs      += e.duration
+      const key = e.project_name
+      if (!byProj[key]) byProj[key] = { name: key, color: e.project_color || '#7C4DFF', realCost: 0, imputCost: 0, secs: 0 }
+      byProj[key].realCost  += real
+      byProj[key].imputCost += imput
+      byProj[key].secs      += e.duration
     })
-    return { realCost, imputCost, secs }
+    const projects = Object.values(byProj).sort((a, b) => b.realCost - a.realCost)
+    return { realCost, imputCost, secs, projects }
   }, [dateFiltered, rateMap, monthlyCostMap, personTotalSecs, periodCapacitySecs, periodMonths])
 
   function toggleSort(col) {
@@ -415,30 +425,69 @@ export default function Costs() {
         <div style={{
           background: 'linear-gradient(135deg, rgba(124,77,255,0.10), rgba(139,92,246,0.04))',
           border: '1px solid rgba(124,77,255,0.25)', borderRadius: 14,
-          padding: isMobile ? '14px 16px' : '16px 22px', marginBottom: 16,
-          display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 18, flexWrap: 'wrap',
+          marginBottom: 16, overflow: 'hidden',
         }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(124,77,255,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Landmark size={20} color="#7C4DFF" />
+          {/* Cabecera clicable */}
+          <div
+            onClick={() => setStructOpen(o => !o)}
+            style={{
+              padding: isMobile ? '14px 16px' : '16px 22px',
+              display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 18, flexWrap: 'wrap',
+              cursor: 'pointer', userSelect: 'none',
+            }}
+          >
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(124,77,255,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Landmark size={20} color="#7C4DFF" />
+            </div>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
+                Coste estructural
+                {structOpen ? <ChevronUp size={14} color="var(--c-text-4)" /> : <ChevronDown size={14} color="var(--c-text-4)" />}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--c-text-4)', marginTop: 2 }}>
+                {structural.projects.length} proyectos XUL de estructura · {fmtH(structural.secs)} · toca para {structOpen ? 'ocultar' : 'ver'} desglose
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: isMobile ? 20 : 34, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Coste real</div>
+                <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: 'var(--c-text-1)' }}>{fmtEUR(structural.realCost)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Coste imputado</div>
+                <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: '#7C4DFF' }}>{fmtEUR(structural.imputCost)}</div>
+              </div>
+            </div>
           </div>
-          <div style={{ flex: 1, minWidth: 140 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Coste estructural
+
+          {/* Desglose por proyecto */}
+          {structOpen && (
+            <div style={{ borderTop: '1px solid rgba(124,77,255,0.20)', padding: isMobile ? '4px 10px 8px' : '4px 22px 10px' }}>
+              {structural.projects.length === 0 && (
+                <div style={{ fontSize: 12, color: 'var(--c-text-4)', padding: '12px 0' }}>Sin registros en el periodo seleccionado.</div>
+              )}
+              {structural.projects.map(p => (
+                <div key={p.name} style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '9px 0', borderBottom: '1px solid var(--c-border-light)',
+                }}>
+                  <span style={{ width: 9, height: 9, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                  <span style={{ fontSize: 12, color: 'var(--c-text-4)', width: 70, textAlign: 'right', flexShrink: 0 }}>{fmtH(p.secs)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', width: isMobile ? 90 : 110, textAlign: 'right', flexShrink: 0 }}>{fmtEUR(p.realCost)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#7C4DFF', width: isMobile ? 90 : 110, textAlign: 'right', flexShrink: 0 }}>{fmtEUR(p.imputCost)}</span>
+                </div>
+              ))}
+              {structural.projects.length > 0 && (
+                <div style={{ display: 'flex', gap: 10, padding: '8px 0 2px', fontSize: 10, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <span style={{ flex: 1 }} />
+                  <span style={{ width: 70, textAlign: 'right' }}>Horas</span>
+                  <span style={{ width: isMobile ? 90 : 110, textAlign: 'right' }}>Real</span>
+                  <span style={{ width: isMobile ? 90 : 110, textAlign: 'right' }}>Imputado</span>
+                </div>
+              )}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--c-text-4)', marginTop: 2 }}>
-              Suma de los 7 proyectos XUL de estructura · {fmtH(structural.secs)}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: isMobile ? 20 : 34, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Coste real</div>
-              <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: 'var(--c-text-1)' }}>{fmtEUR(structural.realCost)}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Coste imputado</div>
-              <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: '#7C4DFF' }}>{fmtEUR(structural.imputCost)}</div>
-            </div>
-          </div>
+          )}
         </div>
       )}
 

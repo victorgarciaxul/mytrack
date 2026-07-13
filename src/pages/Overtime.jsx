@@ -516,7 +516,7 @@ export default function Overtime() {
             Compensación de horas
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--c-text-4)' }}>
-            Jornada estándar: {STANDARD_HOURS}h · Jornadas individuales aplicadas según perfil
+            Jornada estándar: {STANDARD_HOURS}h · 35h en julio y agosto · Jornadas individuales según perfil
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>

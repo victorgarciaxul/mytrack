@@ -66,6 +66,8 @@ export default function EditEntryModal({ entry, onClose, onSaved, user }) {
     const start = new Date(`${date}T${startTime}`)
     const end   = new Date(`${date}T${endTime}`)
     if (end <= start) { toast.error('La hora de fin debe ser posterior al inicio'); return }
+    if (!projectId) { toast.error('Selecciona un proyecto'); return }
+    if (!taskId)    { toast.error('Selecciona una tarea');   return }
     const duration = Math.floor((end - start) / 1000)
     // Try to find project in workspace list; fall back to the original entry data
     const project  = projects.find(p => p.id === projectId) ||

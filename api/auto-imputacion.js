@@ -11,8 +11,7 @@ import { parseIcal, matchMember } from '../src/lib/icalVacations.js'
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
 
-const ICAL_URL =
-  'https://calendar.google.com/calendar/ical/xul.es_9sihmss6cllthmfdd397ug869o%40group.calendar.google.com/private-2d0c526ca7baa801aef1049821e86bc2/basic.ics'
+const ICAL_URL = process.env.ICAL_VACATIONS_URL
 
 /** Devuelve el Set de emails (de USERS) que tienen vacación hoy según el calendario en vivo */
 async function getEmailsOnVacationToday(todayStr) {

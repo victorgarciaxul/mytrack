@@ -1,10 +1,10 @@
 import { neon } from '@neondatabase/serverless'
 import { createClient } from '@supabase/supabase-js'
 
-const sql = neon('postgresql://neondb_owner:npg_yO9tMudVRm0E@ep-long-band-apjs8vf1-pooler.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require')
+const sql = neon(process.env.NEON_DATABASE_URL)
 const supabase = createClient(
-  'https://bjoqigbscnkqufhtgrlu.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqb3FpZ2JzY25rcXVmaHRncmx1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDU2OTc1NCwiZXhwIjoyMDk2MTQ1NzU0fQ.-WY07JuTCYQaPY0IgUcBd4EqQbYYkLAW0zxEv3Ct5YE',
+  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
   { auth: { persistSession: false } }
 )
 

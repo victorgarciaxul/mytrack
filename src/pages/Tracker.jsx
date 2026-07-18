@@ -6,7 +6,6 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { useRole } from '../context/RoleContext'
-import { loadClockifyCache, clockifyGetProjectTasks, isClockifyUser } from '../lib/clockify'
 import { getSelectedYear } from '../components/layout/TopBar'
 import { initDB, dbGetEntries, dbInsertEntry, dbDeleteEntry, dbGetMyNotes, dbSaveNote, dbShareNote, dbGetSharedNotes, dbGetAllMembers, dbUpdateNoteContent, dbUnshareNote, dbToggleReaction, ensureReactionsColumn, dbDeleteNote, getWsId, dbSaveRunningTimer, dbGetRunningTimer, dbDeleteRunningTimer } from '../lib/db'
 import { format, parseISO, isToday, isYesterday, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns'
@@ -102,19 +101,7 @@ export default function Tracker() {
       localStorage.removeItem(ACTIVE_KEY)
     }
   }, [description, selectedProject, selectedTask, timer.isRunning])
-  const [entries, setEntries] = useState(() => {
-    if (!isDemo) return []
-    // Show localStorage cache immediately while Neon loads (any device that has it)
-    if (!isClockifyUser(user?.email)) return []
-    const cache = loadClockifyCache()
-    if (cache?.entries?.length) {
-      const selectedYear = getSelectedYear()
-      return cache.entries
-        .filter(e => e.end_time && new Date(e.start_time).getFullYear() === selectedYear)
-        .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
-    }
-    return []
-  })
+  const [entries, setEntries] = useState([])
   const [showProjectPicker, setShowProjectPicker] = useState(false)
   const [showTaskPicker, setShowTaskPicker] = useState(false)
   const [showManual, setShowManual] = useState(false)
@@ -163,15 +150,8 @@ export default function Tracker() {
     import('../lib/db').then(({ dbGetTasksForProject }) =>
       dbGetTasksForProject(selectedProject.id)
     ).then(supabaseTasks => {
-      const localTasks = supabaseTasks.map(t => ({ id: t.id, name: t.name }))
-      return clockifyGetProjectTasks(selectedProject.id)
-        .then(apiTasks => {
-          const localIds = new Set(localTasks.map(t => t.id))
-          const merged = [...localTasks, ...apiTasks.filter(t => !localIds.has(t.id))]
-          const sorted = (merged.length > 0 ? merged : localTasks).sort((a, b) => a.name.localeCompare(b.name, 'es'))
-          setProjectTasks(sorted)
-        })
-        .catch(() => setProjectTasks([...localTasks].sort((a, b) => a.name.localeCompare(b.name, 'es'))))
+      const localTasks = supabaseTasks.map(t => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name, 'es'))
+      setProjectTasks(localTasks)
     }).catch(() => {
       // Fallback to WorkspaceContext if Supabase fails
       const localTasks = getTasksForProject(selectedProject.id).map(t => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name, 'es'))

@@ -1,8 +1,7 @@
 // Vercel serverless function — proxy for the private Google Calendar iCal feed
 // Avoids CORS issues when fetching from the browser.
 
-const ICAL_URL =
-  'https://calendar.google.com/calendar/ical/xul.es_9sihmss6cllthmfdd397ug869o%40group.calendar.google.com/private-2d0c526ca7baa801aef1049821e86bc2/basic.ics'
+const ICAL_URL = process.env.ICAL_VACATIONS_URL
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')

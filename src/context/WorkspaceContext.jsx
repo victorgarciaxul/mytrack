@@ -2,24 +2,12 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 import { ADMIN_EMAILS } from './RoleContext'
-import { loadClockifyCache, isClockifyUser } from '../lib/clockify'
 import { initDB, dbGetProjects, dbGetClients, dbGetAllTasks } from '../lib/db'
 
 const WorkspaceContext = createContext(null)
 
 function getInitialData(isDemo, email) {
   if (!isDemo) return { ws: null, projects: [], clients: [], members: [], tasks: [] }
-  // Only pre-populate from Clockify cache if this is the Clockify owner
-  if (isClockifyUser(email)) {
-    const cache = loadClockifyCache()
-    if (cache) return {
-      ws: cache.ws,
-      projects: cache.projects || [],
-      clients: cache.clients || [],
-      members: cache.members || [],
-      tasks: [],
-    }
-  }
   const wsId = email?.endsWith('@fundacionxul.org') ? 'fundacion-ws-1' : 'xul-ws-1'
   const wsName = wsId === 'fundacion-ws-1' ? 'Fundación XUL' : 'XUL'
   return { ws: { id: wsId, name: wsName, working_hours_per_day: 8, alert_threshold_days: 1 }, projects: [], clients: [], members: [], tasks: [] }

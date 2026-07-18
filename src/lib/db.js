@@ -1,9 +1,15 @@
 // ── Supabase client ──────────────────────────────────────────
 import { createClient } from '@supabase/supabase-js'
 
+// Disable auth session handling: MyTrack uses DEMO_MODE (no Supabase Auth), so
+// every request must authenticate with the anon/publishable API key. Without this,
+// the client picks up any stale Supabase Auth token in localStorage and sends it
+// as the Authorization Bearer, which Supabase rejects (401 PGRST301) on RPC calls
+// like exec_sql — breaking the Costs/Projects/Reports pages.
 const _supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
 )
 
 export { _supabase as supabaseClient }
@@ -1020,9 +1026,11 @@ export async function dbUpsertMember({ userEmail, userName, role, clockifyUserId
   // Never downgrade an existing admin
   const { data: existing } = await _supabase.from('workspace_members').select('role').eq('workspace_id', wsId).eq('user_email', userEmail).single()
   const finalRole = existing?.role === 'admin' ? 'admin' : (role || 'employee')
+  // Do NOT set password here: on conflict this would overwrite the member's
+  // real password. New rows fall back to the column default in the database.
   await _supabase.from('workspace_members').upsert({
     workspace_id: wsId, user_email: userEmail, user_name: userName,
-    role: finalRole, password: 'Mytrack14$',
+    role: finalRole,
     clockify_user_id: clockifyUserId || null, group_name: groupName || null,
   }, { onConflict: 'workspace_id,user_email' })
 }

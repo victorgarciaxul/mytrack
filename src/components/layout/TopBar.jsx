@@ -1,11 +1,10 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bell, Moon, Sun, Calendar, Menu, Download, Smartphone, X } from 'lucide-react'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { useAuth } from '../../context/AuthContext'
 import { useRole } from '../../context/RoleContext'
 import { useTheme } from '../../context/ThemeContext'
-import { loadClockifyCache, isClockifyUser } from '../../lib/clockify'
 import { initDB, dbGetAvailableYears } from '../../lib/db'
 
 const YEAR_KEY = 'mytrack-selected-year'
@@ -118,21 +117,11 @@ export default function TopBar({ onMenuClick }) {
   const isMobile = useMediaQuery('(max-width: 768px)')
   const [showInstall, setShowInstall] = useState(false)
 
-  // Years from Clockify cache (owner only) or Neon (everyone else)
-  const cacheYears = useMemo(() => {
-    if (!isClockifyUser(user?.email)) return null
-    const cache = loadClockifyCache()
-    if (cache?.entries?.length) {
-      const years = new Set(cache.entries.filter(e => e.start_time).map(e => new Date(e.start_time).getFullYear()))
-      return [...years].sort((a, b) => b - a)
-    }
-    return null
-  }, [user?.email])
-
+  // Available years come from the database (time_entries)
   const [neonYears, setNeonYears] = useState(null)
 
   useEffect(() => {
-    if (cacheYears || !user?.email) return
+    if (!user?.email) return
     initDB()
       .then(() => dbGetAvailableYears(user.email))
       .then(years => {
@@ -141,9 +130,9 @@ export default function TopBar({ onMenuClick }) {
         setNeonYears(all.includes(currentYear) ? all : [currentYear, ...all])
       })
       .catch(() => setNeonYears([new Date().getFullYear()]))
-  }, [user?.email, cacheYears])
+  }, [user?.email])
 
-  const availableYears = cacheYears || neonYears || [new Date().getFullYear()]
+  const availableYears = neonYears || [new Date().getFullYear()]
   const currentYear = getSelectedYear()
 
   function handleYearChange(e) {

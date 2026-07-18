@@ -10,12 +10,11 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts'
 import { dbGetEntriesForPeriod, dbDeleteEntry, getWsId } from '../lib/db'
-import { loadClockifyCache } from '../lib/clockify'
 import { useAuth } from '../context/AuthContext'
 import { useRole } from '../context/RoleContext'
 import {
   format, startOfDay, startOfWeek, endOfWeek,
-  eachDayOfInterval, parseISO, isWithinInterval,
+  eachDayOfInterval, parseISO,
 } from 'date-fns'
 import { es } from 'date-fns/locale'
 import DateRangePicker from '../components/ui/DateRangePicker'
@@ -160,22 +159,10 @@ export default function Reports() {
     try {
       // Fetch directly — DB is already initialised from login/Tracker
       const rows = await dbGetEntriesForPeriod(from, to, { allWorkspaces: isAdmin })
-      if (rows.length > 0) {
-        setEntries(rows.map(r => ({
-          ...r,
-          projects: r.project_id ? { name: r.project_name, color: r.project_color } : null,
-        })))
-        setLoading(false)
-        return
-      }
-      // Fallback: Clockify cache (Victor)
-      const cache = loadClockifyCache()
-      if (cache?.entries?.length) {
-        setEntries(cache.entries.filter(e => {
-          try { return isWithinInterval(parseISO(e.start_time), { start: from, end: to }) }
-          catch { return false }
-        }))
-      }
+      setEntries(rows.map(r => ({
+        ...r,
+        projects: r.project_id ? { name: r.project_name, color: r.project_color } : null,
+      })))
     } catch (err) {
       console.error('Report load error:', err)
     }

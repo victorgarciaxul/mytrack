@@ -12,7 +12,6 @@ import {
 } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../context/AuthContext'
-import { loadClockifyCache, isClockifyUser } from '../lib/clockify'
 import { initDB, dbGetEntries } from '../lib/db'
 import { useTimerContext } from '../context/TimerContext'
 

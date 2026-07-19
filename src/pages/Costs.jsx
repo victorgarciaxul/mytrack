@@ -3,7 +3,7 @@ import { DollarSign, ChevronDown, ChevronUp, TrendingUp, Users, Briefcase, Filte
 import DateRangePicker from '../components/ui/DateRangePicker'
 import { useRole } from '../context/RoleContext'
 import { useNavigate } from 'react-router-dom'
-import { sql, getWsId, initDB } from '../lib/db'
+import { supabaseClient, getWsId, initDB } from '../lib/db'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -109,25 +109,16 @@ export default function Costs() {
       setLoading(true)
       try {
         await initDB()
-        const db = sql()
         const fromISO = from.toISOString(), toISO = to.toISOString()
         const wsIds = [getWsId()]
         const allMems = [], allEnts = []
         for (const wsId of wsIds) {
-          const [m, e] = await Promise.all([
-            db`SELECT id, user_name, user_email, hourly_rate, group_name, COALESCE(monthly_cost, 0) AS monthly_cost
-               FROM workspace_members
-               WHERE workspace_id = ${wsId} AND hourly_rate > 0
-               ORDER BY user_name`,
-            db`SELECT user_email, project_id, project_name, project_color, client_name, duration, start_time
-               FROM time_entries
-               WHERE workspace_id = ${wsId}
-                 AND duration > 0
-                 AND start_time >= ${fromISO}
-                 AND start_time <= ${toISO}`,
+          const [{ data: m }, { data: e }] = await Promise.all([
+            supabaseClient.rpc('report_cost_members', { p_workspace_id: wsId }),
+            supabaseClient.rpc('report_cost_entries', { p_workspace_id: wsId, p_from: fromISO, p_to: toISO }),
           ])
-          m.forEach(mb => { if (!allMems.some(x => x.user_email === mb.user_email)) allMems.push(mb) })
-          allEnts.push(...e)
+          ;(m || []).forEach(mb => { if (!allMems.some(x => x.user_email === mb.user_email)) allMems.push(mb) })
+          allEnts.push(...(e || []))
         }
         const mems = allMems, ents = allEnts
         setMembers(mems)

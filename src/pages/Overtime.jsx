@@ -9,7 +9,7 @@ import SearchableDropdown from '../components/ui/SearchableDropdown'
 import { useRole } from '../context/RoleContext'
 import { useAuth } from '../context/AuthContext'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-import { initDB, sql, dbGetCompensations, dbAddCompensation, dbDeleteCompensation, dbGetWeeklyHours, dbGetVacations, dbAddVacation, dbDeleteVacation, dbBulkUpsertVacations, getWsId, supabaseClient } from '../lib/db'
+import { initDB, dbGetCompensations, dbAddCompensation, dbDeleteCompensation, dbGetWeeklyHours, dbGetVacations, dbAddVacation, dbDeleteVacation, dbBulkUpsertVacations, getWsId, supabaseClient } from '../lib/db'
 import { fetchAndParseVacations } from '../lib/icalVacations'
 import toast from 'react-hot-toast'
 import {
@@ -785,20 +785,9 @@ function WeekTaskBreakdown({ userEmail, wk }) {
   useEffect(() => {
     const from = wk + 'T00:00:00.000Z'
     const to   = format(endOfWeek(parseISO(wk), { weekStartsOn: 1 }), 'yyyy-MM-dd') + 'T23:59:59.999Z'
-    sql()`
-      SELECT
-        COALESCE(project_name, 'Sin proyecto') AS project_name,
-        project_color,
-        ROUND(SUM(duration) / 3600.0, 2) AS hours
-      FROM time_entries
-      WHERE user_email    = ${userEmail}
-        AND workspace_id  = ${getWsId()}
-        AND duration > 0
-        AND start_time   >= ${from}
-        AND start_time   <= ${to}
-      GROUP BY project_name, project_color
-      ORDER BY hours DESC
-    `.then(rows => setTasks(rows)).catch(() => setTasks([]))
+    supabaseClient.rpc('report_overtime_by_project', {
+      p_user_email: userEmail, p_workspace_id: getWsId(), p_from: from, p_to: to,
+    }).then(({ data }) => setTasks(data || [])).catch(() => setTasks([]))
   }, [userEmail, wk])
 
   if (!tasks) return (

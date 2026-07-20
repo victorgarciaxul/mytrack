@@ -719,16 +719,9 @@ export async function dbChangePassword(userEmail, newPassword) {
 }
 
 export async function dbGetAvailableYears(userEmail) {
-  // Use exec_sql for EXTRACT + DISTINCT — no native Supabase equivalent
-  const db = sql()
-  const rows = await db`
-    SELECT DISTINCT EXTRACT(YEAR FROM start_time)::int AS year
-    FROM time_entries
-    WHERE user_email = ${userEmail}
-      AND end_time IS NOT NULL
-    ORDER BY year DESC
-  `
-  return rows.map(r => r.year)
+  const { data, error } = await _supabase.rpc('report_available_years', { p_user_email: userEmail })
+  if (error) throw new Error(error.message)
+  return (data || []).map(r => r.year)
 }
 
 // ── Projects & Clients ────────────────────────────────────────
@@ -767,33 +760,21 @@ export async function dbSetProjectMembers(projectId, userEmails, workspaceId) {
 }
 
 export async function dbGetProjectsWithHours() {
-  const db = sql()
   const wsId = getWsId()
-  return db`
-    SELECT p.*,
-           COALESCE(SUM(te.duration), 0)::bigint AS total_seconds,
-           COUNT(DISTINCT te.user_email)::int     AS member_count
-    FROM projects p
-    LEFT JOIN time_entries te ON te.project_id = p.id
-    WHERE p.workspace_id = ${wsId} AND p.archived = false
-    GROUP BY p.id
-    ORDER BY p.name
-  `
+  const { data, error } = await _supabase.rpc('report_projects_with_hours', {
+    p_workspace_id: wsId, p_only_active: true,
+  })
+  if (error) throw new Error(error.message)
+  return data || []
 }
 
 export async function dbGetAllProjectsWithHours() {
-  const db = sql()
   const wsId = getWsId()
-  return db`
-    SELECT p.*,
-           COALESCE(SUM(te.duration), 0)::bigint AS total_seconds,
-           COUNT(DISTINCT te.user_email)::int     AS member_count
-    FROM projects p
-    LEFT JOIN time_entries te ON te.project_id = p.id
-    WHERE p.workspace_id = ${wsId}
-    GROUP BY p.id
-    ORDER BY p.archived ASC, p.name ASC
-  `
+  const { data, error } = await _supabase.rpc('report_projects_with_hours', {
+    p_workspace_id: wsId, p_only_active: false,
+  })
+  if (error) throw new Error(error.message)
+  return data || []
 }
 
 export async function dbGetClients() {
